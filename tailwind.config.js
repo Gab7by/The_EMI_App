@@ -9,7 +9,18 @@ module.exports = {
   ],
   presets: [require('nativewind/preset')],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        menorah: {
+          bg: "#0B1F0E",
+          primary: "#C6FF00",
+          inputBorder: "#CCCCCC4D",
+          muted: "#CCCCCC",
+          whiteSoft: "#EAEAEA",
+          blackSoft: "#00000029"
+        }
+      }
+    },
   },
   plugins: [],
 };
