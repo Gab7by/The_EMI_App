@@ -20,7 +20,9 @@ const LoginScreen = () => {
     return (
         <SafeAreaView className="flex-1 bg-menorah-bg p-8 gap-8">
             <View className="flex-row gap-2 items-center">
-                <MaterialIcons size={24} name="arrow-back" style={{color: Colors.menorah.primary}} />
+                <Pressable onPress={goToPreviousScreen}>
+                    <MaterialIcons size={24} name="arrow-back" style={{color: Colors.menorah.primary}} />
+                </Pressable>
                 <Text className="color-menorah-primary text-2xl font-bold">Login</Text>
             </View>
             <View className="gap-4">
