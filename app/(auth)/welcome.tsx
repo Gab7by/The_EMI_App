@@ -12,6 +12,10 @@ const WelcomeScreen = () => {
     router.push("/(auth)/login")
   }
 
+  const routeToSignUp = () => {
+    router.push("/(auth)/signup")
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-[#0B1F0E] px-6">
       <View className="flex-1">
@@ -27,7 +31,7 @@ const WelcomeScreen = () => {
             <Text className="text-lg font-semibold text-black">Login</Text>
           </Pressable>
 
-          <Pressable className="items-center rounded-3xl bg-[#C6FF00] px-6 py-6">
+          <Pressable onPress={routeToSignUp} className="items-center rounded-3xl bg-[#C6FF00] px-6 py-6">
             <Text className="text-lg font-semibold text-black">Sign Up</Text>
           </Pressable>
         </View>
