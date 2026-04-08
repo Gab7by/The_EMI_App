@@ -7,8 +7,16 @@ import { Text as ShadText } from "@/components/ui/text"
 import Divider from "@/components/login/divider"
 import GoogleLoginSvg from "@/assets/svgs/google-login.svg"
 import AppleLoginSvg from "@/assets/svgs/apple-login.svg"
+import { useRouter } from "expo-router"
 
 const LoginScreen = () => {
+
+    const router = useRouter()
+    
+    const goToPreviousScreen = () => {
+        router.back()
+    }
+
     return (
         <SafeAreaView className="flex-1 bg-menorah-bg p-8 gap-8">
             <View className="flex-row gap-2 items-center">
@@ -21,7 +29,7 @@ const LoginScreen = () => {
                     <TextInput
                         inputMode="email"       
                         placeholder="Enter your email"
-                        placeholderTextColor={`${Colors.menorah.muted}/80`}
+                        placeholderTextColor={Colors.menorah.muted}
                         className="p-4 border border-menorah-inputBorder rounded-2xl"
                     />
                 </View>
