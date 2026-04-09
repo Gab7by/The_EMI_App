@@ -34,7 +34,8 @@ module.exports = {
           inputBorder: "#CCCCCC4D",
           muted: "#CCCCCC",
           whiteSoft: "#EAEAEA",
-          blackSoft: "#00000029"
+          blackSoft: "#00000029",
+          error: "#C4473A"
         },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',

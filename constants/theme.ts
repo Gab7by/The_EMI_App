@@ -15,7 +15,8 @@ export const Colors = {
     inputBorder: "#CCCCCC4D",
     muted: "#CCCCCC",
     whiteSoft: "#EAEAEA",
-    blackSoft: "#00000029"
+    blackSoft: "#00000029",
+    error: "#C4473A"
   },
   light: {
     text: '#11181C',
