@@ -1,7 +1,8 @@
 import "../global.css"
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { PortalHost } from "@rn-primitives/portal";
 
 export default function RootLayout() {
 
@@ -12,10 +13,18 @@ export default function RootLayout() {
           headerShown: false
         }}
       >
-        <Stack.Screen
-          name="(tabs)"
-        />
+        <Stack.Protected guard={false}>
+          <Stack.Screen
+            name="(tabs)"
+          />
+        </Stack.Protected>
+        <Stack.Protected guard={true}>
+          <Stack.Screen
+            name="(auth)"
+          />
+        </Stack.Protected>
      </Stack>
+     <PortalHost />
     </SafeAreaProvider>
   );
 }

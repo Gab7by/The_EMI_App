@@ -9,6 +9,15 @@ const tintColorLight = '#0a7ea4';
 const tintColorDark = '#fff';
 
 export const Colors = {
+  menorah: {
+    bg: "#0B1F0E",
+    primary: "#C6FF00",
+    inputBorder: "#CCCCCC4D",
+    muted: "#CCCCCC",
+    whiteSoft: "#EAEAEA",
+    blackSoft: "#00000029",
+    error: "#C4473A"
+  },
   light: {
     text: '#11181C',
     background: '#fff',
