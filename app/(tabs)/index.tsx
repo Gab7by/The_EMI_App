@@ -1,13 +1,18 @@
-import { Pressable, Text, View } from "react-native"
+import { Image, Pressable, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-
-
 
 const Home = () => {
   return (
     <SafeAreaView className="flex-1 bg-[#0B1F0E] px-6">
       <View className="flex-1">
         <View className="flex-1 items-center justify-center">
+
+          <Image
+            source={require("../../assets/images/menorah-vector.png")}
+            className="mb-8 h-63 w-63"
+            resizeMode="contain"
+          />
+
           <Text className="text-6xl font-bold text-[#C6FF00]">
             The Menorah
           </Text>
