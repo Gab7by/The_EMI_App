@@ -4,3 +4,10 @@ import * as Zod from "zod"
 export type LoginFormType = Zod.infer<typeof LoginSchema>
 
 export type SignUpFormType = Zod.infer<typeof SignUpSchema>
+
+export type AuthType  = {
+    token: string | null
+    // initialize: () => void
+    login: () => void
+    logout: () => void 
+}
