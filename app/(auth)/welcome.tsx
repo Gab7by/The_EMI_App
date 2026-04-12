@@ -21,9 +21,9 @@ const WelcomeScreen = () => {
       <View className="flex-1">
         <View className="flex-1 items-center justify-center gap-8">
           <MenorahLogo />
-          <Text className="text-5xl font-bold text-[#C6FF00]">
+          {/* <Text className="text-5xl font-bold text-[#C6FF00]">
             The Menorah
-          </Text>
+          </Text> */}
         </View>
 
         <View className="w-full max-w-sm self-center gap-4 pb-10">
