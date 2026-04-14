@@ -21,11 +21,11 @@ const WelcomeScreen = () => {
     <SafeAreaView className="flex-1 bg-[#0B1F0E] px-6">
       <View className="flex-1">
         <View className="flex-1 items-center justify-center gap-8">
-          {/* <MenorahLogo /> */}
-          <MenorahLogoIcon />
+          <MenorahLogo />
+          {/* <MenorahLogoIcon />
           <Text className="text-5xl font-bold text-menorah-gold">
             The Menorah
-          </Text>
+          </Text> */}
         </View>
 
         <View className="w-full max-w-sm self-center gap-4 pb-10">
