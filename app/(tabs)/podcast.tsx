@@ -4,8 +4,17 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import {Plus} from "lucide-react-native"
 import { Button } from "@/components/ui/button"
 import { View } from "react-native"
+import { useLiveStreamStartModalStore } from "@/store/podcast-store"
+import LiveStreamStartModal from "@/components/podcast/liveStreamStartModal"
 
 const PodcastScreen = () => {
+
+    const setOpenLiveStreamStartModal = useLiveStreamStartModalStore(state => state.setIsOpen)
+
+    const openLiveStreamStartModal = () => {
+        setOpenLiveStreamStartModal(true)
+    }
+
     return (
         <SafeAreaView className="flex-1 bg-menorah-bg py-8 px-4 gap-3 relative">
             <PodcastProfileBar />
@@ -15,10 +24,11 @@ const PodcastScreen = () => {
                 title="I will Pray"
                 />
             <View className="items-center absolute bottom-32 left-4 right-4">
-                <Button size="icon" className="bg-menorah-primary p-7 rounded-full">
+                <Button onPress={openLiveStreamStartModal} size="icon" className="bg-menorah-primary p-7 rounded-full">
                     <Plus size={35} color="white" />
                 </Button>
             </View>
+            <LiveStreamStartModal />
         </SafeAreaView>
     )
 }
