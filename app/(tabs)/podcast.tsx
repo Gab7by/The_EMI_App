@@ -15,7 +15,7 @@ const PodcastScreen = () => {
                 title="I will Pray"
                 />
             <View className="items-center absolute bottom-32 left-4 right-4">
-                <Button className="bg-menorah-primary rounded-full">
+                <Button size="icon" className="bg-menorah-primary p-7 rounded-full">
                     <Plus size={35} color="white" />
                 </Button>
             </View>
