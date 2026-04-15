@@ -12,10 +12,13 @@ import { useForm, Controller } from "react-hook-form"
 import { LoginFormType } from "@/types/auth-types"
 import {zodResolver} from "@hookform/resolvers/zod"
 import { LoginSchema } from "@/schemas/auth-schemas"
+import { useAuthStore } from "@/store/authStore"
 
 const LoginScreen = () => {
 
     const router = useRouter()
+
+    const login = useAuthStore(state => state.login)
     
     const goToPreviousScreen = () => {
         router.back()
@@ -31,7 +34,7 @@ const LoginScreen = () => {
     })
     
     const loginUser = () => {
-        console.log("login successful")
+        login()
         reset()
     }
 

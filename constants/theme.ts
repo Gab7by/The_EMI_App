@@ -16,7 +16,8 @@ export const Colors = {
     muted: "#CCCCCC",
     whiteSoft: "#EAEAEA",
     blackSoft: "#00000029",
-    error: "#C4473A"
+    error: "#C4473A",
+    darkGreen: "#013220"
   },
   light: {
     text: '#11181C',
