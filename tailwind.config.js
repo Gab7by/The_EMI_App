@@ -36,7 +36,10 @@ module.exports = {
           whiteSoft: "#EAEAEA",
           blackSoft: "#00000029",
           error: "#C4473A",
-          gold: "#D4AF37"
+          gold: "#D4AF37",
+          goldDark: "#EFBF04",
+          darkGreen: "#013220",
+          gray: "#898989",
         },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
