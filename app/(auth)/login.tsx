@@ -16,6 +16,8 @@ import { SafeAreaView } from "react-native-safe-area-context"
 const LoginScreen = () => {
 
     const router = useRouter()
+
+    const login = useAuthStore(state => state.login)
     
     const goToPreviousScreen = () => {
         router.back()
@@ -31,7 +33,7 @@ const LoginScreen = () => {
     })
     
     const loginUser = () => {
-        console.log("login successful")
+        login()
         reset()
     }
 
