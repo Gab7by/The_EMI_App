@@ -20,7 +20,7 @@ const LiveStreamStartModal = () => {
         >
             <BlurView
                 intensity={20}
-                tint="regular"
+                tint="dark"
                 style={{ flex: 5 }}
                 onTouchEnd={() => setModalOpen(false)}
             />
