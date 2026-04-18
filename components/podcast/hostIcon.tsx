@@ -1,15 +1,15 @@
 import { Pressable, Text, View } from "react-native"
 import {Image} from "expo-image"
+import { Colors } from "@/constants/theme"
 
 const HostIcon = ({hostName, hostPictureUrl}: {hostPictureUrl?: string, hostName: string}) => {
     
     return (
-        <Pressable
+        <View
             style={{
-                borderWidth: 4,
-                width: 30,
-                height: 30,
-                borderRadius: 15,
+                width: 40,
+                height: 40,
+                borderRadius: 20,
                 justifyContent: "center",
                 alignItems: "center"
             }}
@@ -18,17 +18,17 @@ const HostIcon = ({hostName, hostPictureUrl}: {hostPictureUrl?: string, hostName
                 hostPictureUrl ? (
                     <Image
                         source={{uri: hostPictureUrl}}
-                        style={{width: 26, height: 26, borderRadius: 13}}
+                        style={{width: 40, height: 40, borderRadius: 20}}
                     />
                 ) : (
-                    <View style={{width: 26, height: 26, borderRadius: 13}} className="bg-menorah-bg items-center justify-center">
-                        <Text className="text-menorah-primary font-bold">
+                    <View style={{width: 40, height: 40, borderRadius: 20}} className="bg-menorah-primary items-center justify-center">
+                        <Text className="text-menorah-bg font-bold text-lg">
                             {hostName.charAt(0).toUpperCase()}
                         </Text>
                     </View>
                 )
             }
-        </Pressable>
+        </View>
     )
 }
 
