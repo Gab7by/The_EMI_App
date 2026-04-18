@@ -1,4 +1,4 @@
-import { Modal, Text, View } from "react-native"
+import { Modal, Pressable, Text, View } from "react-native"
 import {BlurView} from "expo-blur"
 import { useLiveStreamStartModalStore } from "@/store/podcast-store"
 import { Colors } from "@/constants/theme"
@@ -33,12 +33,10 @@ const LiveStreamStartModal = () => {
                 >
                 <View className="h-[3px] self-center bg-menorah-primary mt-4 w-[80px]" />
                 <View className="justify-center flex-1">
-                    <Button size="lg" className="bg-menorah-primary rounded-full">
-                        <View className="flex-row justify-between w-full">
+                    <Pressable className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-between">
                             <Text className="text-menorah-bg font-bold text-base">Start New Livestream</Text>
                             <SendHorizonal color={Colors.menorah.bg} />
-                        </View>
-                    </Button>
+                    </Pressable>
                 </View>
             </View>
         </Modal>
