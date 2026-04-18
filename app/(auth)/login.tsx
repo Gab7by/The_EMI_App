@@ -1,18 +1,18 @@
-import { Colors } from "@/constants/theme"
-import MaterialIcons from "@expo/vector-icons/MaterialIcons"
-import { Pressable, Text, TextInput, View } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import AppleLoginSvg from "@/assets/svgs/apple-login.svg"
+import GoogleLoginSvg from "@/assets/svgs/google-login.svg"
+import Divider from "@/components/login/divider"
 import { Button } from "@/components/ui/button"
 import { Text as ShadText } from "@/components/ui/text"
-import Divider from "@/components/login/divider"
-import GoogleLoginSvg from "@/assets/svgs/google-login.svg"
-import AppleLoginSvg from "@/assets/svgs/apple-login.svg"
-import { useRouter } from "expo-router"
-import { useForm, Controller } from "react-hook-form"
-import { LoginFormType } from "@/types/auth-types"
-import {zodResolver} from "@hookform/resolvers/zod"
+import { Colors } from "@/constants/theme"
 import { LoginSchema } from "@/schemas/auth-schemas"
 import { useAuthStore } from "@/store/authStore"
+import { LoginFormType } from "@/types/auth-types"
+import MaterialIcons from "@expo/vector-icons/MaterialIcons"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useRouter } from "expo-router"
+import { Controller, useForm } from "react-hook-form"
+import { Pressable, Text, TextInput, View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 const LoginScreen = () => {
 
@@ -111,7 +111,7 @@ const LoginScreen = () => {
                 </Button>
                 <Divider />
             </View>
-            <View className="flex-row gap-5">
+            <View className="flex-row gap-14">
                 <Pressable>
                     <GoogleLoginSvg />
                 </Pressable>
