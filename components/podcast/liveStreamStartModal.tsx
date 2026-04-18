@@ -26,7 +26,7 @@ const LiveStreamStartModal = () => {
             />
 
             <View 
-                className="bg-menorah-darkGreen px-5 pb-5"
+                className="bg-menorah-darkGreen px-5"
                 style={{
                     flex: 1
                 }}
