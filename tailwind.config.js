@@ -40,6 +40,7 @@ module.exports = {
           goldDark: "#EFBF04",
           darkGreen: "#013220",
           gray: "#898989",
+          textGray: "#EAEAEA"
         },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
