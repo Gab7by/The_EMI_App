@@ -9,6 +9,7 @@ import LiveStreamStartModal from "@/components/podcast/liveStreamStartModal"
 import { SliderItem } from "@/types/ui-commons-props"
 import ImageSlider from "@/components/commons/image-slider"
 import LiveStreamStartDialogModal from "@/components/podcast/liveStreamStartDialogModal"
+import { imageItems } from "@/constants/podcast"
 
 const PodcastScreen = () => {
 
@@ -17,15 +18,6 @@ const PodcastScreen = () => {
     const openLiveStreamStartModal = () => {
         setOpenLiveStreamStartModal(true)
     }
-
-    const imageItems: SliderItem[] = [
-        {id: "1", source: require("@/assets/pictures/slider-image-1.png")},
-        {id: "2", source: require("@/assets/pictures/slider-image-2.png")},
-        {id: "3", source: require("@/assets/pictures/slider-image-3.png")},
-        {id: "4", source: require("@/assets/pictures/slider-image-4.png")},
-        {id: "5", source: require("@/assets/pictures/slider-image-5.png")},
-        {id: "6", source: require("@/assets/pictures/slider-image-6.png")}
-    ]
 
     return (
         <SafeAreaView className="flex-1 bg-menorah-bg py-8 px-4 gap-4 relative">
