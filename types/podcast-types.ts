@@ -24,3 +24,10 @@ export type LiveStreamVisibilityOptionsType = {
     isUnlisted: boolean
     setIsUnlisted: React.Dispatch<React.SetStateAction<boolean>>
 }
+
+export type LiveStreamInfoType = {
+    title: string
+    setTitle: React.Dispatch<React.SetStateAction<string>>
+    about: string
+    setAbout: React.Dispatch<React.SetStateAction<string>>
+}

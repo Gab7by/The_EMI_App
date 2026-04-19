@@ -3,8 +3,11 @@ import {BlurView} from "expo-blur"
 import { useLiveStreamInfoModalStore, useLiveStreamStartDialogModalStore, useLiveStreamVisibilityModalStore } from "@/store/podcast-store"
 import { Colors } from "@/constants/theme"
 import { Wifi, ChevronRight, SunIcon } from "lucide-react-native"
+import { useRouter } from "expo-router"
 
-const LiveStreamStartDialogModal = () => {
+const LiveStreamStartDialogModal = ({title, isPublic}:{title: string, isPublic: boolean}) => {
+
+    const router = useRouter()
 
     const isModalOpen = useLiveStreamStartDialogModalStore(state => state.isOpen)
     const setModalOpen = useLiveStreamStartDialogModalStore(state => state.setIsOpen)
@@ -23,6 +26,13 @@ const LiveStreamStartDialogModal = () => {
         setModalOpen(false)
         setTimeout(() => {
             setLiveStreamVisibiltyModal(true)
+        }, 100)
+    }
+
+    const startLiveStream = () => {
+        setModalOpen(false)
+        setTimeout(() => {
+            router.push("/podcast/livePodcastAdmin")
         }, 100)
     }
 
@@ -53,7 +63,7 @@ const LiveStreamStartDialogModal = () => {
                             <Wifi size={35} color={Colors.menorah.primary} />
                             <View className="flex-1 ml-5">
                                 <Text className="text-white font-bold text-base">Live Stream Information</Text>
-                                <Text className="text-menorah-textGray text-sm">Lunch Prayer Fire</Text>
+                                <Text className="text-menorah-textGray text-sm">{title}</Text>
                             </View>
                             <ChevronRight size={35} color={Colors.menorah.primary} />
                     </Pressable>
@@ -61,11 +71,11 @@ const LiveStreamStartDialogModal = () => {
                             <SunIcon size={35} color={Colors.menorah.primary} />
                             <View className="flex-1 ml-5">
                                 <Text className="text-white font-bold text-base">Visibility</Text>
-                                <Text className="text-menorah-textGray text-sm">Public</Text>
+                                <Text className="text-menorah-textGray text-sm">{isPublic ? "Public": "Private"}</Text>
                             </View>                            
                             <ChevronRight size={35} color={Colors.menorah.primary} />
                     </Pressable>
-                    <Pressable onPress={openLiveStreamInfoModal} className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
+                    <Pressable onPress={startLiveStream} className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
                             <Text className="text-menorah-bg font-bold text-base">Start Now</Text>
                     </Pressable>
                 </View>

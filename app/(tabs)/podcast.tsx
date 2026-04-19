@@ -18,6 +18,9 @@ const PodcastScreen = () => {
     const [isPublic, setIsPublic] = useState<boolean>(true)
     const [isunlisted, setIsUnlisted] = useState<boolean>(true)
 
+    const [title, setTitle] = useState<string>("Lunch Prayer Fire")
+    const [about, setAbout] = useState<string>("")
+
     const setOpenLiveStreamStartModal = useLiveStreamStartModalStore(state => state.setIsOpen)
 
     const openLiveStreamStartModal = () => {
@@ -39,8 +42,8 @@ const PodcastScreen = () => {
                 </Button>
             </View>
             <LiveStreamStartModal />
-            <LiveStreamStartDialogModal />
-            <LiveStreamInfoModal />
+            <LiveStreamStartDialogModal isPublic={isPublic} title={title} />
+            <LiveStreamInfoModal about={about} title={title} setAbout={setAbout} setTitle={setTitle} />
             <LiveStreamVisibilityModal isPublic={isPublic} isUnlisted={isunlisted} setIsPublic={setIsPublic} setIsUnlisted={setIsUnlisted} />
         </SafeAreaView>
     )
