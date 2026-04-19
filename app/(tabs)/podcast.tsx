@@ -10,6 +10,7 @@ import { SliderItem } from "@/types/ui-commons-props"
 import ImageSlider from "@/components/commons/image-slider"
 import LiveStreamStartDialogModal from "@/components/podcast/liveStreamStartDialogModal"
 import { imageItems } from "@/constants/podcast"
+import LiveStreamInfoModal from "@/components/podcast/livestreamInfoModal"
 
 const PodcastScreen = () => {
 
@@ -35,6 +36,7 @@ const PodcastScreen = () => {
             </View>
             <LiveStreamStartModal />
             <LiveStreamStartDialogModal />
+            <LiveStreamInfoModal />
         </SafeAreaView>
     )
 }

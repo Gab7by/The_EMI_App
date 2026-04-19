@@ -7,3 +7,8 @@ export type liveStreamStartDialogModalType = {
     isOpen: boolean,
     setIsOpen: (isOpen: boolean) => void
 }
+
+export type liveStreamInfoModalType = {
+    isOpen: boolean,
+    setIsOpen: (isOpen: boolean) => void
+}

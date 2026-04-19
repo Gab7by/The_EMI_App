@@ -1,4 +1,4 @@
-import { liveStreamStartDialogModalType, liveStreamStartModalType } from "@/types/podcast-types";
+import { liveStreamInfoModalType, liveStreamStartDialogModalType, liveStreamStartModalType } from "@/types/podcast-types";
 import { create } from "zustand";
 
 export const useLiveStreamStartModalStore = create<liveStreamStartModalType>(
@@ -9,6 +9,13 @@ export const useLiveStreamStartModalStore = create<liveStreamStartModalType>(
 )
 
 export const useLiveStreamStartDialogModalStore = create<liveStreamStartDialogModalType>(
+    (set, get) => ({
+        isOpen: false,
+        setIsOpen: (isOpen: boolean) => set({isOpen: isOpen})
+    })
+)
+
+export const useLiveStreamInfoModalStore = create<liveStreamInfoModalType>(
     (set, get) => ({
         isOpen: false,
         setIsOpen: (isOpen: boolean) => set({isOpen: isOpen})
