@@ -6,13 +6,17 @@ import { Button } from "@/components/ui/button"
 import { View } from "react-native"
 import { useLiveStreamStartModalStore } from "@/store/podcast-store"
 import LiveStreamStartModal from "@/components/podcast/liveStreamStartModal"
-import { SliderItem } from "@/types/ui-commons-props"
 import ImageSlider from "@/components/commons/image-slider"
 import LiveStreamStartDialogModal from "@/components/podcast/liveStreamStartDialogModal"
 import { imageItems } from "@/constants/podcast"
 import LiveStreamInfoModal from "@/components/podcast/livestreamInfoModal"
+import LiveStreamVisibilityModal from "@/components/podcast/livestreamVisiblityModal"
+import { useState } from "react"
 
 const PodcastScreen = () => {
+
+    const [isPublic, setIsPublic] = useState<boolean>(true)
+    const [isunlisted, setIsUnlisted] = useState<boolean>(true)
 
     const setOpenLiveStreamStartModal = useLiveStreamStartModalStore(state => state.setIsOpen)
 
@@ -37,6 +41,7 @@ const PodcastScreen = () => {
             <LiveStreamStartModal />
             <LiveStreamStartDialogModal />
             <LiveStreamInfoModal />
+            <LiveStreamVisibilityModal isPublic={isPublic} isUnlisted={isunlisted} setIsPublic={setIsPublic} setIsUnlisted={setIsUnlisted} />
         </SafeAreaView>
     )
 }

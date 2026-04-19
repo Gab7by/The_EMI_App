@@ -21,3 +21,10 @@ export const useLiveStreamInfoModalStore = create<liveStreamInfoModalType>(
         setIsOpen: (isOpen: boolean) => set({isOpen: isOpen})
     })
 )
+
+export const useLiveStreamVisibilityModalStore = create<liveStreamInfoModalType>(
+    (set, get) => ({
+        isOpen: false,
+        setIsOpen: (isOpen: boolean) => set({isOpen: isOpen})
+    })
+)

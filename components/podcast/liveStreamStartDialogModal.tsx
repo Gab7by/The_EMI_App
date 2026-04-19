@@ -1,6 +1,6 @@
 import { Modal, Pressable, Text, View } from "react-native"
 import {BlurView} from "expo-blur"
-import { useLiveStreamInfoModalStore, useLiveStreamStartDialogModalStore } from "@/store/podcast-store"
+import { useLiveStreamInfoModalStore, useLiveStreamStartDialogModalStore, useLiveStreamVisibilityModalStore } from "@/store/podcast-store"
 import { Colors } from "@/constants/theme"
 import { Wifi, ChevronRight, SunIcon } from "lucide-react-native"
 
@@ -10,11 +10,19 @@ const LiveStreamStartDialogModal = () => {
     const setModalOpen = useLiveStreamStartDialogModalStore(state => state.setIsOpen)
 
     const setLiveStreamInfoModal = useLiveStreamInfoModalStore(state => state.setIsOpen)
+    const setLiveStreamVisibiltyModal = useLiveStreamVisibilityModalStore(state => state.setIsOpen)
 
     const openLiveStreamInfoModal = () => {
         setModalOpen(false)
         setTimeout(() => {
             setLiveStreamInfoModal(true)
+        }, 100)
+    }
+    
+    const openLiveStreamVisibilityModal = () => {
+        setModalOpen(false)
+        setTimeout(() => {
+            setLiveStreamVisibiltyModal(true)
         }, 100)
     }
 
@@ -49,7 +57,7 @@ const LiveStreamStartDialogModal = () => {
                             </View>
                             <ChevronRight size={35} color={Colors.menorah.primary} />
                     </Pressable>
-                    <Pressable className="flex-row px-2 py-6 justify-between items-center">
+                    <Pressable onPress={openLiveStreamVisibilityModal} className="flex-row px-2 py-6 justify-between items-center">
                             <SunIcon size={35} color={Colors.menorah.primary} />
                             <View className="flex-1 ml-5">
                                 <Text className="text-white font-bold text-base">Visibility</Text>

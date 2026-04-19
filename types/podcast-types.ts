@@ -12,3 +12,15 @@ export type liveStreamInfoModalType = {
     isOpen: boolean,
     setIsOpen: (isOpen: boolean) => void
 }
+
+export type liveStreamVisibilityModalType = {
+    isOpen: boolean,
+    setIsOpen: (isOpen: boolean) => void
+}
+
+export type LiveStreamVisibilityOptionsType = {
+    isPublic: boolean
+    setIsPublic: React.Dispatch<React.SetStateAction<boolean>>
+    isUnlisted: boolean
+    setIsUnlisted: React.Dispatch<React.SetStateAction<boolean>>
+}
