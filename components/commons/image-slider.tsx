@@ -2,7 +2,6 @@ import { SliderProps } from "@/types/ui-commons-props"
 import { Image } from "expo-image"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { NativeScrollEvent, NativeSyntheticEvent, ScrollView, View } from "react-native"
-import { SlideInLeft } from "react-native-reanimated"
 
 const ImageSlider = ({items, height = 200}:SliderProps) => {
 
@@ -16,14 +15,14 @@ const ImageSlider = ({items, height = 200}:SliderProps) => {
         setSliderWidth(nativeEvent.layout.width)
     }, [])
 
-    const scrollToINdex = useCallback((index: number) => {
-        scrollRef.current?.scrollTo({
-            x: index * sliderWidth,
-            animated: true
-        })
+    // const scrollToIndex = useCallback((index: number) => {
+    //     scrollRef.current?.scrollTo({
+    //         x: index * sliderWidth,
+    //         animated: true
+    //     })
         
-        setActiveIndex(index)
-    }, [sliderWidth])
+    //     setActiveIndex(index)
+    // }, [sliderWidth])
 
     const startAutoPlay = useCallback(() => {
         if (intervalRef.current) clearInterval(intervalRef.current)
@@ -37,7 +36,7 @@ const ImageSlider = ({items, height = 200}:SliderProps) => {
             })
             return nextIndex
         })
-        }, 3000)
+        }, 4000)
     }, [sliderWidth, items.length])
 
     const stopAutoPlay = useCallback(() => {
