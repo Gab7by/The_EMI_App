@@ -15,3 +15,12 @@ export type GradientButtonProps = {
     end?: GradientDirection
 }
 
+export type SliderItem = {
+    id: string
+    source: number
+}
+
+export type SliderProps = {
+    items: SliderItem[]
+    height?: number
+}
