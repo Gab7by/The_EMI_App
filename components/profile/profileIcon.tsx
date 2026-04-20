@@ -1,11 +1,12 @@
 import { useProfileStore } from "@/store/profileStore"
 import { Pressable, Text, View } from "react-native"
 import {Image} from "expo-image"
+import { useAuthStore } from "@/store/authStore"
 
 const ProfileIcon = ({borderColor}: {borderColor: string}) => {
     
     const profileImageUrl = useProfileStore(state => state.profileImageUrl)
-    const name = "Benedict"
+    const name: string = useAuthStore(state => state.session?.user.user_metadata.full_name)
 
     return (
         <Pressable

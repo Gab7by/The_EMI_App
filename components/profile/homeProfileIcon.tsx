@@ -2,12 +2,12 @@ import { useProfileStore } from "@/store/profileStore"
 import { Pressable, Text, View } from "react-native"
 import {Image} from "expo-image"
 import { ChevronDown } from "lucide-react-native"
-import { Colors } from "@/constants/theme"
+import { useAuthStore } from "@/store/authStore"
 
 const HomeProfileIcon = ({borderColor}: {borderColor: string}) => {
     
     const profileImageUrl = useProfileStore(state => state.profileImageUrl)
-    const name = "Benedict"
+    const name: string = useAuthStore(state => state.session?.user.user_metadata.full_name)
 
     return (
         <Pressable className="flex-row gap-2 items-center">
@@ -38,7 +38,7 @@ const HomeProfileIcon = ({borderColor}: {borderColor: string}) => {
                 }
             </View>
             <View>
-                <Text className="text-white font-bold">Hi {name}</Text>
+                <Text className="text-white font-bold">Hi {name.split(" ")[0]}</Text>
                 <Text className="text-white">Welcome Home</Text>
             </View>
             <ChevronDown color="white" size={28} />
