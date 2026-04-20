@@ -66,6 +66,12 @@ const LoginScreen = () => {
                 </Pressable>
                 <Text className="color-menorah-primary text-2xl font-bold">Login</Text>
             </View>
+            {errorLogginIn && (
+                                <View className="flex-row gap-2 items-center">
+                                    <MaterialIcons name="warning" color={Colors.menorah.error} />
+                                    <Text className="text-menorah-error">{errorLogginIn}</Text>
+                                </View>
+                            )}
             <View className="gap-4">
                 <Controller
                     name="email"
