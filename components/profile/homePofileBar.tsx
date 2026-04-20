@@ -4,6 +4,7 @@ import { Colors } from "@/constants/theme"
 import HomeProfileIcon from "./homeProfileIcon"
 
 const HomeProfileBar = () => {
+
     return (
         <View className="flex-row justify-between items-center">
             <HomeProfileIcon borderColor={Colors.menorah.primary}/>
