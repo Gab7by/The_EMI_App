@@ -2,14 +2,17 @@ import AppleLoginSvg from "@/assets/svgs/apple-login.svg"
 import GoogleLoginSvg from "@/assets/svgs/google-login.svg"
 import Divider from "@/components/login/divider"
 import { Button } from "@/components/ui/button"
+import { Icon } from "@/components/ui/icon"
 import { Text as ShadText } from "@/components/ui/text"
 import { Colors } from "@/constants/theme"
+import { supabase } from "@/lib/supabase"
 import { LoginSchema } from "@/schemas/auth-schemas"
-import { useAuthStore } from "@/store/authStore"
 import { LoginFormType } from "@/types/auth-types"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "expo-router"
+import { Loader2, LoaderPinwheel } from "lucide-react-native"
+import { useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { Pressable, Text, TextInput, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -18,8 +21,9 @@ const LoginScreen = () => {
 
     const router = useRouter()
 
-    const login = useAuthStore(state => state.login)
-    
+    const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false)
+    const [errorLogginIn, setErrorLogginIn] = useState<string | null>(null) 
+
     const goToPreviousScreen = () => {
         router.back()
     }
@@ -33,9 +37,25 @@ const LoginScreen = () => {
         resolver: zodResolver(LoginSchema)
     })
     
-    const loginUser = () => {
-        login()
-        reset()
+    const loginUser = async (email: string, password: string) => {
+        try{
+            setIsLoggingIn(true)
+
+            const {error} = await supabase.auth.signInWithPassword(
+                {email, password}
+            )
+            if(error) {
+                setErrorLogginIn(error?.message ?? "Login Failed")
+                setTimeout(() => {
+                    setErrorLogginIn(null)
+                }, 3000)
+            }
+        } catch(e) {
+            setErrorLogginIn("Something went wrong, Try Again")
+        } finally {
+            setIsLoggingIn(false)
+            reset()
+        }
     }
 
     return (
@@ -106,8 +126,15 @@ const LoginScreen = () => {
                 <Text className="text-menorah-primary">Forgot Password?</Text>
             </Pressable>
             <View className="mt-auto gap-6">
-                <Button onPress={handleSubmit(() => loginUser())} className="bg-menorah-whiteSoft rounded-2xl h-16" size="lg">
-                    <ShadText className="text-black font-bold">Login</ShadText>
+                <Button onPress={handleSubmit(({email, password}) => loginUser(email, password))} className="bg-menorah-whiteSoft rounded-2xl h-16" size="lg">
+                    {isLoggingIn ?
+                        <View className="flex-row gap-2 items-center justify-center">
+                            <View className="pointer-events-none animate-spin">
+                                <Icon as={Loader2} className="text-black" />
+                            </View>
+                            <Text className="text-black">Please wait</Text>
+                        </View>
+                        :<ShadText className="text-black font-bold">Login</ShadText>}
                 </Button>
                 <Divider />
             </View>
