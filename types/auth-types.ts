@@ -11,3 +11,8 @@ export type AuthType  = {
     loadAuth: () => Promise<() => void>
     session: Session | null 
 }
+
+export type ForgotPasswordModalStoreType = {
+    isOpen: boolean,
+    setIsOpen: (isOpen: boolean) => void
+}

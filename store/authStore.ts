@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase"
-import { AuthType } from "@/types/auth-types"
+import { AuthType, ForgotPasswordModalStoreType } from "@/types/auth-types"
 import {create} from "zustand"
 
 export const useAuthStore = create<AuthType>(
@@ -25,4 +25,11 @@ export const useAuthStore = create<AuthType>(
             return () => {subscription.unsubscribe()}
         }
     }) 
+)
+
+export const useForgotPasswordModalStore = create<ForgotPasswordModalStoreType>(
+    (set, get) => ({
+        isOpen: false,
+        setIsOpen: (isOpen: boolean) => set({isOpen: isOpen})
+    })
 )

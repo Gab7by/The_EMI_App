@@ -7,6 +7,7 @@ import { Text as ShadText } from "@/components/ui/text"
 import { Colors } from "@/constants/theme"
 import { supabase } from "@/lib/supabase"
 import { LoginSchema } from "@/schemas/auth-schemas"
+import { useForgotPasswordModalStore } from "@/store/authStore"
 import { LoginFormType } from "@/types/auth-types"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -20,6 +21,12 @@ import { SafeAreaView } from "react-native-safe-area-context"
 const LoginScreen = () => {
 
     const router = useRouter()
+
+    const setForgotPasswordModalOpen = useForgotPasswordModalStore(state => state.setIsOpen)
+
+    const openForgotPasswordModal = () => {
+        setForgotPasswordModalOpen(true)
+    }
 
     const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false)
     const [errorLogginIn, setErrorLogginIn] = useState<string | null>(null) 
@@ -128,7 +135,7 @@ const LoginScreen = () => {
                     }
                 />      
             </View>
-            <Pressable>
+            <Pressable onPress={openForgotPasswordModal}>
                 <Text className="text-menorah-primary">Forgot Password?</Text>
             </Pressable>
             <View className="mt-auto gap-6">
