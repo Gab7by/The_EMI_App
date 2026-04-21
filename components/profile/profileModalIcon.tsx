@@ -4,7 +4,7 @@ import {Image} from "expo-image"
 import { useAuthStore } from "@/store/authStore"
 import { Colors } from "@/constants/theme"
 
-const ProfileModalIcon = () => {
+const ProfileModalIcon = ({borderColor}:{borderColor: string}) => {
     
     const profileImageUrl = useProfileStore(state => state.profileImageUrl)
     const name: string = useAuthStore(state => state.session?.user.user_metadata.full_name)
@@ -24,7 +24,7 @@ const ProfileModalIcon = () => {
             <View
                 style={{
                     borderWidth: 4,
-                    borderColor: Colors.menorah.lightGray,
+                    borderColor: borderColor,
                     width: 58,
                     height: 58,
                     borderRadius: 29,
@@ -41,7 +41,7 @@ const ProfileModalIcon = () => {
                     ) : (
                         <View style={{width: 54, height: 54, borderRadius: 27}} className="bg-menorah-bg items-center justify-center">
                             <Text className="text-menorah-primary font-bold text-2xl">
-                                {name.charAt(0).toUpperCase()}
+                                {name?.charAt(0).toUpperCase()}
                             </Text>
                         </View>
                     )

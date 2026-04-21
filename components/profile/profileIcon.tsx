@@ -2,14 +2,19 @@ import { useProfileStore } from "@/store/profileStore"
 import { Pressable, Text, View } from "react-native"
 import {Image} from "expo-image"
 import { useAuthStore } from "@/store/authStore"
+import { useRouter } from "expo-router"
 
 const ProfileIcon = ({borderColor}: {borderColor: string}) => {
     
     const profileImageUrl = useProfileStore(state => state.profileImageUrl)
     const name: string = useAuthStore(state => state.session?.user.user_metadata.full_name)
 
+    const router = useRouter()
+
+
     return (
         <Pressable
+            onPress={() => router.push("/(profile)/entry")}
             style={{
                 borderWidth: 4,
                 borderColor,
