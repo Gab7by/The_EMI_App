@@ -1,7 +1,7 @@
-import { Text, View } from "react-native"
-import { Image } from "expo-image"
-import HostIcon from "./hostIcon"
 import Sun from "@/assets/svgs/sun-icon.svg"
+import { Image } from "expo-image"
+import { Text, View } from "react-native"
+import HostIcon from "./hostIcon"
 
 const LiveStreamCard = ({hostName, hostPictureUrl, playlist, title}:{playlist: string, title: string, hostPictureUrl?: string, hostName: string}) => {
     return (

@@ -37,7 +37,7 @@ const PodcastScreen = () => {
                 title="I will Pray"
                 />
             <View className="items-center absolute bottom-32 left-4 right-4">
-                <Button onPress={openLiveStreamStartModal} size="icon" className="bg-menorah-primary p-7 rounded-full">
+                <Button onPress={openLiveStreamStartModal} size="icon" className="bg-[#C6FF00]/70 p-7 rounded-full">
                     <Plus size={35} color="white" />
                 </Button>
             </View>

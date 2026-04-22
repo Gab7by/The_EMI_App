@@ -321,14 +321,14 @@ const AdminLivePodcast = () => {
           </ScrollView>
         </View>
 
-        <View className="absolute bottom-0 left-0 right-0 bg-[#143703] px-7 pb-7 pt-3">
+        <View className="absolute bottom-0 left-0 right-0 bg-[#143703] px-7 pb-10 pt-3">
           <View className="flex-row items-center justify-between">
             <TreeButton width={25} height={25} />
             <MusicButton width={25} height={25} />
             <MessagingButton width={25} height={25} />
             <MicrophoneButton width={25} height={25} />
           </View>
-          <View className="mt-3 self-center rounded-full bg-white/90" style={{ width: 132, height: 5 }} />
+          
         </View>
       </SafeAreaView>
     </LinearGradient>
