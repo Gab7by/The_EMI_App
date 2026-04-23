@@ -6,6 +6,7 @@ import { PortalHost } from "@rn-primitives/portal";
 import { useAuthStore } from "@/store/authStore";
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import ForgotPasswordModal from "@/components/auth/forgot-password-modal";
 
 export default function RootLayout() {
 
@@ -29,7 +30,6 @@ export default function RootLayout() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setSession(session);
         useAuthStore.getState().setSession(session);
 
         if (session) {
@@ -70,6 +70,7 @@ export default function RootLayout() {
         </Stack.Protected>
      </Stack>
      <PortalHost />
+     <ForgotPasswordModal />
     </SafeAreaProvider>
   );
 }
