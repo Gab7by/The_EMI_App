@@ -5,18 +5,45 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { PortalHost } from "@rn-primitives/portal";
 import { useAuthStore } from "@/store/authStore";
 import { useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function RootLayout() {
 
   const session = useAuthStore(state => state.session)
-  const loadAuth = useAuthStore(state => state.loadAuth)
   const isAuthLoading = useAuthStore(state => state.isAuthLoading)
-
-  const isLoggedIn = session !== null
+  const setIsAuthLoading = useAuthStore(state => state.setIsAuthLoading)
+  const setSession = useAuthStore(state => state.setSession)
 
   useEffect(() => {
-    loadAuth()
-  }, [])
+    setIsAuthLoading(true)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      if (session) {
+        useAuthStore.getState().fetchProfile(session.user.id);
+      }
+    }).finally(
+      () => {
+        setIsAuthLoading(false)
+      }
+    )
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+        useAuthStore.getState().setSession(session);
+
+        if (session) {
+          useAuthStore.getState().fetchProfile(session.user.id);
+        } else {
+          useAuthStore.getState().clearAuth();
+        }
+      }
+  );
+
+  return () => subscription.unsubscribe();
+}, []);
+
+  const isLoggedIn = session !== null
 
   if (isAuthLoading) return (
     <SafeAreaView className="bg-menorah-bg">

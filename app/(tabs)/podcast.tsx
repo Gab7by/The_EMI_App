@@ -12,6 +12,7 @@ import { imageItems } from "@/constants/podcast"
 import LiveStreamInfoModal from "@/components/podcast/livestreamInfoModal"
 import LiveStreamVisibilityModal from "@/components/podcast/livestreamVisiblityModal"
 import { useState } from "react"
+import { useAuthStore } from "@/store/authStore"
 
 const PodcastScreen = () => {
 
@@ -22,6 +23,9 @@ const PodcastScreen = () => {
     const [about, setAbout] = useState<string>("")
 
     const setOpenLiveStreamStartModal = useLiveStreamStartModalStore(state => state.setIsOpen)
+
+    const profile = useAuthStore(state => state.profile)
+    const isAdmin = profile?.role === "admin"
 
     const openLiveStreamStartModal = () => {
         setOpenLiveStreamStartModal(true)
@@ -36,11 +40,15 @@ const PodcastScreen = () => {
                 playlist="Lunch Prayer Fire"
                 title="I will Pray"
                 />
-            <View className="items-center absolute bottom-32 left-4 right-4">
-                <Button onPress={openLiveStreamStartModal} size="icon" className="bg-menorah-primary p-7 rounded-full">
-                    <Plus size={35} color="white" />
-                </Button>
-            </View>
+            {
+                isAdmin && (
+                    <View className="items-center absolute bottom-32 left-4 right-4">
+                        <Button onPress={openLiveStreamStartModal} size="icon" className="bg-menorah-primary p-7 rounded-full">
+                            <Plus size={35} color="white" />
+                        </Button>   
+                    </View>
+                )
+            }
             <LiveStreamStartModal />
             <LiveStreamStartDialogModal isPublic={isPublic} title={title} />
             <LiveStreamInfoModal about={about} title={title} setAbout={setAbout} setTitle={setTitle} />

@@ -5,25 +5,21 @@ import {create} from "zustand"
 export const useAuthStore = create<AuthType>(
     (set, get) => ({
         isAuthLoading: false,
+        setIsAuthLoading: (isAuthLoading) => set({isAuthLoading}), 
         session: null,
-        loadAuth: async () => {
-            set({isAuthLoading : true})
-            const {data} = await supabase.auth.getSession()
+        profile: null,
+        setSession: (session) => set({ session }),
+        fetchProfile: async (userId) => {
+            const { data } = await supabase
+                .from('profiles')
+                .select('id, full_name, avatar_url, role')
+                .eq('id', userId)
+                .single();
 
-            set({session: data?.session ?? null})
-            set({isAuthLoading : false})
+            if (data) set({ profile: data });
+        },
 
-            const {data: {subscription}} = supabase.auth.onAuthStateChange(
-                async (_event, _session) => {
-                    console.log(_event)
-                    set({session: _session ?? null})
-                    console.log("received session: ", _session)
-                    console.log("set session: ", get().session)
-                }
-            )
-
-            return () => {subscription.unsubscribe()}
-        }
+        clearAuth: () => set({ session: null, profile: null })
     }) 
 )
 

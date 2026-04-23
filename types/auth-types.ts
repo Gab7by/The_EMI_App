@@ -6,10 +6,23 @@ export type LoginFormType = Zod.infer<typeof LoginSchema>
 
 export type SignUpFormType = Zod.infer<typeof SignUpSchema>
 
+export type Role = 'member' | 'admin'
+
+export type Profile = {
+    id: string;
+    full_name: string | null
+    avatar_url: string | null
+    role: Role
+}
+
 export type AuthType  = {
     isAuthLoading: boolean
-    loadAuth: () => Promise<() => void>
-    session: Session | null 
+    setIsAuthLoading: (isAuthLoading: boolean) => void
+    session: Session | null;
+    profile: Profile | null;
+    setSession: (session: Session | null) => void;
+    fetchProfile: (userId: string) => Promise<void>;
+    clearAuth: () => void;
 }
 
 export type ForgotPasswordModalStoreType = {
