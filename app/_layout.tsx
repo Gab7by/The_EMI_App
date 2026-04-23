@@ -1,15 +1,55 @@
 import "../global.css"
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import 'react-native-reanimated';
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { PortalHost } from "@rn-primitives/portal";
 import { useAuthStore } from "@/store/authStore";
+import { useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function RootLayout() {
 
-  const token = useAuthStore(state => state.token)
+  const session = useAuthStore(state => state.session)
+  const isAuthLoading = useAuthStore(state => state.isAuthLoading)
+  const setIsAuthLoading = useAuthStore(state => state.setIsAuthLoading)
+  const setSession = useAuthStore(state => state.setSession)
 
-  const isLoggedIn = token !== null
+  useEffect(() => {
+    setIsAuthLoading(true)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      if (session) {
+        useAuthStore.getState().fetchProfile(session.user.id);
+      }
+    }).finally(
+      () => {
+        setIsAuthLoading(false)
+      }
+    )
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+        useAuthStore.getState().setSession(session);
+
+        if (session) {
+          useAuthStore.getState().fetchProfile(session.user.id);
+        } else {
+          useAuthStore.getState().clearAuth();
+        }
+      }
+  );
+
+  return () => subscription.unsubscribe();
+}, []);
+
+  const isLoggedIn = session !== null
+
+  if (isAuthLoading) return (
+    <SafeAreaView className="bg-menorah-bg">
+
+    </SafeAreaView>
+  )
 
   return (
     <SafeAreaProvider>

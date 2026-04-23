@@ -2,6 +2,7 @@ import ArrowRight from "@/assets/svgs/arrow-right.svg"
 import Sparkling from "@/assets/svgs/sparkling.svg"
 import ImageSlider from "@/components/commons/image-slider"
 import HomeProfileBar from "@/components/profile/homePofileBar"
+import HomeProfileModal from "@/components/profile/homeProfileModal"
 import { imageItems } from "@/constants/podcast"
 import { Pressable, ScrollView, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -33,6 +34,7 @@ const Home = () => {
           </View>
         </View>
       </ScrollView>
+      <HomeProfileModal />
     </SafeAreaView>
   )
 }

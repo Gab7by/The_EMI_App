@@ -17,7 +17,9 @@ export const Colors = {
     whiteSoft: "#EAEAEA",
     blackSoft: "#00000029",
     error: "#C4473A",
-    darkGreen: "#013220"
+    darkGreen: "#013220",
+    darkGray: "#444444",
+    lightGray: "#CCCCCC"
   },
   light: {
     text: '#11181C',

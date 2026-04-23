@@ -9,10 +9,17 @@ import { Controller, useForm } from "react-hook-form"
 import { SignUpFormType } from "@/types/auth-types"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { SignUpSchema } from "@/schemas/auth-schemas"
+import { useState } from "react"
+import { supabase } from "@/lib/supabase"
+import { Icon } from "@/components/ui/icon"
+import { Loader2 } from "lucide-react-native"
 
 const SignUpScreen = () => {
 
     const router = useRouter()
+
+    const [isSigningUp, setIsSigningUp] = useState<boolean>(false)
+    const [errorSigningUp, setErrorSigningUp] = useState<string | null>(null)
 
     const routeToLogin = () => {
         router.replace("/(auth)/login")
@@ -33,9 +40,33 @@ const SignUpScreen = () => {
         resolver: zodResolver(SignUpSchema)
     })
 
-    const signUpUser = () => {
-        console.log("Sign up successful")
-        reset()
+    const signUpUser = async (signUpData: SignUpFormType) => {
+        try{
+            setIsSigningUp(true)
+            const {data: {session}, error} = await supabase.auth.signUp(
+                {
+                    email: signUpData.email,
+                    password: signUpData.password,
+                    options: {
+                        data: {
+                            "full_name": signUpData.fullName
+                        }
+                    }
+                }
+            )
+
+            if (!session) {
+                setErrorSigningUp(error?.message ?? "SignUp Failed")
+                setTimeout(() => {
+                    setErrorSigningUp(null)
+                }, 3000)
+            }
+        } catch (e) {
+            setErrorSigningUp("Something went wrong, Try again")
+        } finally {
+            setIsSigningUp(false)
+            reset()
+        }
     }
 
     return (
@@ -46,6 +77,12 @@ const SignUpScreen = () => {
                 </Pressable>
                 <Text className="color-menorah-primary text-2xl font-bold">Sign Up</Text>
             </View>
+            {errorSigningUp && (
+                                <View className="flex-row gap-2 items-center">
+                                    <MaterialIcons name="warning" color={Colors.menorah.error} />
+                                    <Text className="text-menorah-error">{errorSigningUp}</Text>
+                                </View>
+                            )}
             <View className="gap-4">
                 <Controller
                     name="fullName"
@@ -147,9 +184,16 @@ const SignUpScreen = () => {
             <Text className="text-menorah-primary/30 text-xs">
                 By creating this account, you agree to our Terms of Service and Privacy Policy
             </Text>
-            <Button onPress={handleSubmit(() => signUpUser())} className="bg-menorah-primary rounded-2xl h-16" size="lg">
-                <ShadText className="text-black font-bold">Create Account</ShadText>
-            </Button>
+            <Button onPress={handleSubmit((data) => signUpUser(data))} className="bg-menorah-whiteSoft rounded-2xl h-16" size="lg">
+                    {isSigningUp ?
+                        <View className="flex-row gap-2 items-center justify-center">
+                            <View className="pointer-events-none animate-spin">
+                                <Icon as={Loader2} className="text-black" />
+                            </View>
+                            <Text className="text-black">Please wait</Text>
+                        </View>
+                        :<ShadText className="text-black font-bold">Create Account</ShadText>}
+                </Button>
             <View className="flex-row mt-auto self-center gap-1">
                 <Text className="text-menorah-primary/30">Already have an account?</Text>
                 <Pressable  onPress={routeToLogin}>

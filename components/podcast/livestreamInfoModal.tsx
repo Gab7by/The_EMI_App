@@ -25,7 +25,7 @@ const LiveStreamInfoModal = ({about, setAbout, setTitle, title}:LiveStreamInfoTy
     const startLiveStream = () => {
         setModalOpen(false)
         setTimeout(() => {
-            router.push("/podcast/livePodcastAdmin")
+            router.push("/(podcast)/live-podcast-admin")
         }, 100)
     }
 

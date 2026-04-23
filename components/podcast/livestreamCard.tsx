@@ -1,11 +1,25 @@
-import { Text, View } from "react-native"
+import { Pressable, Text, View } from "react-native"
 import { Image } from "expo-image"
 import HostIcon from "./hostIcon"
 import Sun from "@/assets/svgs/sun-icon.svg"
+import { useAuthStore } from "@/store/authStore"
+import { useRouter } from "expo-router"
 
 const LiveStreamCard = ({hostName, hostPictureUrl, playlist, title}:{playlist: string, title: string, hostPictureUrl?: string, hostName: string}) => {
+
+    const profile = useAuthStore(state => state.profile)
+    const isAdmin = profile?.role === "admin"
+
+    const router = useRouter()
+
+    // temporary function to route to livestream for testing purposes
+    const goToLiveStream = () => {
+        if(isAdmin) router.push("/(podcast)/live-podcast-admin")
+        else router.push("/(podcast)/live-podcast-member")
+    }
+
     return (
-        <View className="gap-4">
+        <Pressable onPress={goToLiveStream} className="gap-4">
             <Text className="text-menorah-goldDark text-xl font-bold relative">Livestream</Text>
             <View className="rounded-lg bg-menorah-darkGreen pt-6 px-5 pb-4 gap-10">
                 <View className="gap-2 relative">
@@ -23,7 +37,7 @@ const LiveStreamCard = ({hostName, hostPictureUrl, playlist, title}:{playlist: s
                 style={{width: 170, height: 100, position: "absolute", right: 0, bottom: 0}}
                 contentFit="cover"
             />
-        </View>
+        </Pressable>
     )
 }
 

@@ -1,17 +1,18 @@
-import LiveStreamCard from "@/components/podcast/livestreamCard"
-import PodcastProfileBar from "@/components/profile/podcastProfileBar"
-import { SafeAreaView } from "react-native-safe-area-context"
-import {Plus} from "lucide-react-native"
-import { Button } from "@/components/ui/button"
-import { View } from "react-native"
-import { useLiveStreamStartModalStore } from "@/store/podcast-store"
-import LiveStreamStartModal from "@/components/podcast/liveStreamStartModal"
 import ImageSlider from "@/components/commons/image-slider"
-import LiveStreamStartDialogModal from "@/components/podcast/liveStreamStartDialogModal"
-import { imageItems } from "@/constants/podcast"
+import LiveStreamCard from "@/components/podcast/livestreamCard"
 import LiveStreamInfoModal from "@/components/podcast/livestreamInfoModal"
+import LiveStreamStartDialogModal from "@/components/podcast/liveStreamStartDialogModal"
+import LiveStreamStartModal from "@/components/podcast/liveStreamStartModal"
 import LiveStreamVisibilityModal from "@/components/podcast/livestreamVisiblityModal"
+import PodcastProfileBar from "@/components/profile/podcastProfileBar"
+import { Button } from "@/components/ui/button"
+import { imageItems } from "@/constants/podcast"
+import { useLiveStreamStartModalStore } from "@/store/podcast-store"
+import { Plus } from "lucide-react-native"
 import { useState } from "react"
+import { useAuthStore } from "@/store/authStore"
+import { View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 const PodcastScreen = () => {
 
@@ -22,6 +23,9 @@ const PodcastScreen = () => {
     const [about, setAbout] = useState<string>("")
 
     const setOpenLiveStreamStartModal = useLiveStreamStartModalStore(state => state.setIsOpen)
+
+    const profile = useAuthStore(state => state.profile)
+    const isAdmin = profile?.role === "admin"
 
     const openLiveStreamStartModal = () => {
         setOpenLiveStreamStartModal(true)
@@ -36,11 +40,15 @@ const PodcastScreen = () => {
                 playlist="Lunch Prayer Fire"
                 title="I will Pray"
                 />
-            <View className="items-center absolute bottom-32 left-4 right-4">
-                <Button onPress={openLiveStreamStartModal} size="icon" className="bg-menorah-primary p-7 rounded-full">
-                    <Plus size={35} color="white" />
-                </Button>
-            </View>
+            {
+                isAdmin && (
+                    <View className="items-center absolute bottom-32 left-4 right-4">
+                        <Button onPress={openLiveStreamStartModal} size="icon" className="bg-menorah-primary p-7 rounded-full">
+                            <Plus size={35} color="white" />
+                        </Button>   
+                    </View>
+                )
+            }
             <LiveStreamStartModal />
             <LiveStreamStartDialogModal isPublic={isPublic} title={title} />
             <LiveStreamInfoModal about={about} title={title} setAbout={setAbout} setTitle={setTitle} />
