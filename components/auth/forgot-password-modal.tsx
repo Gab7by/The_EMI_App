@@ -48,7 +48,14 @@ const ForgotPasswordModal = () => {
 
             closeModal()
             setTimeout(() => {
-                router.push("/(auth)/forgot-password")
+                router.push(
+                    {
+                        pathname: "/(auth)/forgot-password",
+                        params: {
+                            email
+                        }
+                    }
+                )
             }, 100)
 
         } catch(e) {
@@ -67,14 +74,14 @@ const ForgotPasswordModal = () => {
             visible={isModalOpen}
             transparent
             animationType="slide"
-            onRequestClose={() => closeModal}
+            onRequestClose={() => closeModal()}
             style={{backgroundColor: "transparent", flex: 1}}
         >
             <BlurView
                 intensity={20}
                 tint="dark"
                 style={{ flex:  1}}
-                onTouchEnd={() => closeModal}
+                onTouchEnd={() => closeModal()}
             />
 
             <View 
