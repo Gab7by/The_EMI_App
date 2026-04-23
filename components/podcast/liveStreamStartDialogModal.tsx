@@ -32,7 +32,7 @@ const LiveStreamStartDialogModal = ({title, isPublic}:{title: string, isPublic: 
     const startLiveStream = () => {
         setModalOpen(false)
         setTimeout(() => {
-            router.push("/podcast/livePodcastAdmin")
+            router.push("/(podcast)/live-podcast-admin")
         }, 100)
     }
 
