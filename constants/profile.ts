@@ -3,9 +3,13 @@ import { profileManagementCategory } from "@/types/profile-types";
 import { LogOut, Share, Text, User } from "lucide-react-native";
 import { Alert } from "react-native";
 import { Colors } from "./theme";
+import { router } from "expo-router";
+import { useAuthStore } from "@/store/authStore";
 
-const logoutUser = async() => {
-        await supabase.auth.signOut()
+const logoutUser = () => {
+    useAuthStore.getState().clearAuth()
+    router.replace("/(auth)")
+    supabase.auth.signOut()
     }
 
     const alertUserOfLogout = () => {
