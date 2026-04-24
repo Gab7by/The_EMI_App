@@ -5,14 +5,17 @@ import MoneyIcon from "@/assets/svgs/send_money_icon.svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { Power, Share2 } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import { Power, Share2, X } from "lucide-react-native";
+import { useState } from "react";
 import {
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    View
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -70,6 +73,22 @@ const comments = [
 ];
 
 const MemberLivePodcast = () => {
+  const router = useRouter();
+    const [isExitPromptVisible, setIsExitPromptVisible] = useState(false);
+  
+    const openExitPrompt = () => {
+      setIsExitPromptVisible(true);
+    };
+  
+    const closeExitPrompt = () => {
+      setIsExitPromptVisible(false);
+    };
+  
+    const leaveLiveRoom = () => {
+      closeExitPrompt();
+      router.replace("/(tabs)/podcast");
+    };
+
   return (
     <LinearGradient
       colors={["#143703", "#4a7108", "#143703"]}
@@ -117,9 +136,9 @@ const MemberLivePodcast = () => {
                 <View>
                   <Share2 size={25} color="#F3F6E7" strokeWidth={1.2} />
                 </View>
-                <View className="rounded-full bg-[#F3523C]/20 p-2">
+                <Pressable onPress={openExitPrompt} className="rounded-full bg-[#F3523C]/20 p-2">
                   <Power size={23} color="#FF5A45" strokeWidth={2} />
-                </View>
+                </Pressable>
               </View>
             </View>
 
@@ -218,6 +237,49 @@ const MemberLivePodcast = () => {
               </View>
             </View>
           </View>
+
+{isExitPromptVisible ? (
+          <View className="absolute inset-0 items-center justify-center bg-black/40 px-5">
+            <View className="w-full max-w-[360px] overflow-hidden rounded-[20px] bg-[#014C22]">
+              <Pressable
+                onPress={closeExitPrompt}
+                className="absolute right-5 top-5 z-10"
+                hitSlop={12}
+              >
+                <X size={25} color="#F5F5F5" strokeWidth={2.4} />
+              </Pressable>
+
+              <View className="px-7 pb-5 pt-10">
+                <Text className="text-center text-[18px] font-semibold text-[#D7FF00]">
+                  Exit The Live Room?
+                </Text>
+                <Text className="mt-9 text-center text-[14px] text-[#95A89C]">
+                  Are you sure you want to exit the live {"\n"} room?
+                </Text>
+              </View>
+
+              <View className="flex-row">
+                <Pressable
+                  onPress={leaveLiveRoom}
+                  className="flex-1 items-center justify-center bg-[#D7FF00] px-4 py-4"
+                >
+                  <Text className="text-[18px] font-medium text-black">
+                    Leave
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={closeExitPrompt}
+                  className="flex-1 items-center justify-center bg-[#01411D] px-4 py-4"
+                >
+                  <Text className="text-[18px] font-medium text-[#D7FF00]">
+                    Stay
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
         </SafeAreaView>
       </KeyboardAvoidingView>
     </LinearGradient>
