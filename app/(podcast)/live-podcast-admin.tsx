@@ -8,12 +8,15 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import {
+  ArrowLeft,
+  ChevronRight,
+  Mic,
   Power,
   Share2,
   X
 } from "lucide-react-native";
-import { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { PanResponder, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 
@@ -75,6 +78,33 @@ const comments = [
 const AdminLivePodcast = () => {
   const router = useRouter();
   const [isExitPromptVisible, setIsExitPromptVisible] = useState(false);
+  const [isOtherSettingsVisible, setIsOtherSettingsVisible] = useState(false);
+  const [isBackgroundMusicVisible, setIsBackgroundMusicVisible] = useState(false);
+  const [isVolumeControlVisible, setIsVolumeControlVisible] = useState(false);
+  const [sliderWidth, setSliderWidth] = useState(0);
+  const [volumeLevel, setVolumeLevel] = useState(0.7);
+
+  const clampVolume = (value: number) => Math.min(1, Math.max(0, value));
+
+  const updateVolumeFromGesture = useCallback((locationX: number) => {
+    if (!sliderWidth) return;
+    setVolumeLevel(clampVolume(locationX / sliderWidth));
+  }, [sliderWidth]);
+
+  const sliderPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (event) => {
+          updateVolumeFromGesture(event.nativeEvent.locationX);
+        },
+        onPanResponderMove: (event) => {
+          updateVolumeFromGesture(event.nativeEvent.locationX);
+        },
+      }),
+    [updateVolumeFromGesture]
+  );
 
   const openExitPrompt = () => {
     setIsExitPromptVisible(true);
@@ -82,6 +112,36 @@ const AdminLivePodcast = () => {
 
   const closeExitPrompt = () => {
     setIsExitPromptVisible(false);
+  };
+
+  const openOtherSettings = () => {
+    setIsBackgroundMusicVisible(false);
+    setIsVolumeControlVisible(false);
+    setIsOtherSettingsVisible(true);
+  };
+
+  const closeOtherSettings = () => {
+    setIsOtherSettingsVisible(false);
+  };
+
+  const openBackgroundMusic = () => {
+    setIsOtherSettingsVisible(false);
+    setIsVolumeControlVisible(false);
+    setIsBackgroundMusicVisible(true);
+  };
+
+  const closeBackgroundMusic = () => {
+    setIsBackgroundMusicVisible(false);
+  };
+
+  const openVolumeControl = () => {
+    setIsOtherSettingsVisible(false);
+    setIsBackgroundMusicVisible(false);
+    setIsVolumeControlVisible(true);
+  };
+
+  const closeVolumeControl = () => {
+    setIsVolumeControlVisible(false);
   };
 
   const leaveLiveRoom = () => {
@@ -345,13 +405,153 @@ const AdminLivePodcast = () => {
 
         <View className="absolute bottom-0 left-0 right-0 bg-[#143703] px-7 pb-10 pt-3">
           <View className="flex-row items-center justify-between">
-            <TreeButton width={25} height={25} />
-            <MusicButton width={25} height={25} />
+            <Pressable onPress={openOtherSettings} hitSlop={10}>
+              <TreeButton width={25} height={25} />
+            </Pressable>
+            <Pressable onPress={openBackgroundMusic} hitSlop={10}>
+              <MusicButton width={25} height={25} />
+            </Pressable>
             <MessagingButton width={25} height={25} />
-            <MicrophoneButton width={25} height={25} />
+            <Pressable onPress={openVolumeControl} hitSlop={10}>
+              <MicrophoneButton width={25} height={25} />
+            </Pressable>
           </View>
           
         </View>
+
+        {isOtherSettingsVisible ? (
+          <Pressable
+            onPress={closeOtherSettings}
+            className="absolute inset-0 justify-end bg-black/30"
+          >
+            <Pressable
+              onPress={() => {}}
+              className="mx-0 mb-0 rounded-t-[22px] bg-menorah-bg px-6 pb-10 pt-3"
+            >
+              <View className="items-center">
+                <View className="h-[4px] w-[112px] rounded-full bg-[#D7FF00]" />
+              </View>
+
+              <Pressable
+                onPress={closeOtherSettings}
+                className="mt-8 flex-row items-center justify-between"
+              >
+                <Text className="text-[16px] font-medium text-[#F2F5EE]">
+                  Recording
+                </Text>
+                <ChevronRight size={24} color="#D7FF00" strokeWidth={2.4} />
+              </Pressable>
+
+              <Pressable
+                onPress={closeOtherSettings}
+                className="mt-10 flex-row items-center justify-between"
+              >
+                <Text className="text-[16px] font-medium text-[#F2F5EE]">
+                  Themes
+                </Text>
+                <ChevronRight size={24} color="#D7FF00" strokeWidth={2.4} />
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        ) : null}
+
+        {isBackgroundMusicVisible ? (
+          <Pressable
+            onPress={closeBackgroundMusic}
+            className="absolute inset-0 justify-end bg-black/30"
+          >
+            <Pressable
+              onPress={() => {}}
+              className="mx-0 mb-0 rounded-t-[22px] bg-menorah-bg px-6 pb-10 pt-3"
+            >
+              <View className="items-center">
+                <View className="h-[4px] w-[112px] rounded-full bg-[#D7FF00]" />
+              </View>
+
+              <Pressable
+                onPress={closeBackgroundMusic}
+                className="mt-8 flex-row items-center justify-between"
+              >
+                <Text className="text-[16px] font-medium text-[#F2F5EE]">
+                  Background Music
+                </Text>
+                <ChevronRight size={24} color="#D7FF00" strokeWidth={2.8} />
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        ) : null}
+
+        {isVolumeControlVisible ? (
+          <Pressable
+            onPress={closeVolumeControl}
+            className="absolute inset-0 justify-end bg-black/30"
+          >
+            <Pressable
+              onPress={() => {}}
+              className="mx-0 mb-0 rounded-t-[22px] bg-menorah-bg px-6 pb-10 pt-3"
+            >
+              <View className="items-center">
+                <View className="h-[4px] w-[112px] rounded-full bg-[#D7FF00]" />
+              </View>
+
+              <View className="mt-8  flex-row items-center justify-between">
+                <Pressable onPress={closeVolumeControl} hitSlop={12}>
+                  <ArrowLeft size={24} color="#D7FF00" strokeWidth={2.8} />
+                </Pressable>
+                <Text className="text-[18px] mb-0 font-bold text-[#D7FF00]">
+                  Volume Control
+                </Text>
+                <View className="w-[42px]" />
+              </View>
+
+              <View className="mt-10 flex-row items-center">
+                <Image
+                  source={require("@/assets/pictures/host_profile_image.png")}
+                  style={{ width: 50, height: 50, borderRadius: 10 }}
+                  contentFit="cover"
+                />
+
+                <View className="ml-2 w-[110px]">
+                  <Text
+                    className="text-[14px] text-[#D7FF00]"
+                    numberOfLines={1}
+                  >
+                    Prophet S...
+                  </Text>
+                  <Text className="mt-1 text-[14px] text-[#B7C0BC]">
+                    (Host)
+                  </Text>
+                </View>
+
+                <View className="flex-1 flex-row items-center">
+                  <View
+                    className="flex-1 justify-center"
+                    onLayout={(event) =>
+                      setSliderWidth(event.nativeEvent.layout.width)
+                    }
+                    {...sliderPanResponder.panHandlers}
+                  >
+                    <View className="h-[16px] justify-center">
+                      <View className="h-[10px] rounded-full bg-[#184832]" />
+                      <View
+                        className="absolute left-0 top-[3px] h-[10px] rounded-full bg-[#D7FF00]"
+                        style={{ width: `${volumeLevel * 100}%` }}
+                      />
+                      <View
+                        className="absolute top-1/2 h-[32px] w-[32px] -translate-x-[16px] -translate-y-[16px] rounded-full bg-[#D7FF00]"
+                        style={{ left: `${volumeLevel * 100}%` }}
+                      />
+                    </View>
+                  </View>
+
+                  <View className="ml-5">
+                    <Mic size={25} color="#D7FF00" strokeWidth={2.4} />
+                  </View>
+                </View>
+              </View>
+            </Pressable>
+          </Pressable>
+        ) : null}
 
         {isExitPromptVisible ? (
           <View className="absolute inset-0 items-center justify-center bg-black/40 px-5">
