@@ -7,6 +7,8 @@ import { useAuthStore } from "@/store/authStore";
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import ForgotPasswordModal from "@/components/auth/forgot-password-modal";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/lib/query";
 
 export default function RootLayout() {
 
@@ -52,25 +54,27 @@ export default function RootLayout() {
   )
 
   return (
-    <SafeAreaProvider>
-      <Stack
-        screenOptions={{
-          headerShown: false
-        }}
-      >
-        <Stack.Protected guard={!!isLoggedIn}>
-          <Stack.Screen
-            name="(tabs)"
-          />
-        </Stack.Protected>
-        <Stack.Protected guard={!isLoggedIn}>
-          <Stack.Screen
-            name="(auth)"
-          />
-        </Stack.Protected>
-     </Stack>
-     <PortalHost />
-     <ForgotPasswordModal />
-    </SafeAreaProvider>
+    <QueryClientProvider client={queryClient}>
+      <SafeAreaProvider>
+        <Stack
+          screenOptions={{
+            headerShown: false
+          }}
+        >
+          <Stack.Protected guard={!!isLoggedIn}>
+            <Stack.Screen
+              name="(tabs)"
+            />
+          </Stack.Protected>
+          <Stack.Protected guard={!isLoggedIn}>
+            <Stack.Screen
+              name="(auth)"
+            />
+          </Stack.Protected>
+       </Stack>
+       <PortalHost />
+       <ForgotPasswordModal />
+      </SafeAreaProvider>
+    </QueryClientProvider>
   );
 }
