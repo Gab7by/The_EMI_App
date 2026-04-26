@@ -143,4 +143,4 @@ const PodcastScreen = () => {
   );
 };
 
-export default PodcastScreen;
+export default PodcastScreen
