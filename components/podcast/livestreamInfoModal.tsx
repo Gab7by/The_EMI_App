@@ -1,14 +1,12 @@
 import { Modal, Pressable, Text, TextInput, View } from "react-native"
 import {BlurView} from "expo-blur"
 import { useLiveStreamInfoModalStore, useLiveStreamStartDialogModalStore, useLiveStreamStartModalStore } from "@/store/podcast-store"
-import { ArrowLeft } from "lucide-react-native"
+import { ArrowLeft, Loader2 } from "lucide-react-native"
 import { Colors } from "@/constants/theme"
 import { LiveStreamInfoType } from "@/types/podcast-types"
-import { useRouter } from "expo-router"
+import { Icon } from "../ui/icon"
 
-const LiveStreamInfoModal = ({about, setAbout, setTitle, title}:LiveStreamInfoType) => {
-
-    const router = useRouter()
+const LiveStreamInfoModal = ({about, setAbout, setTitle, title, isCreatingLivePodcast, startLiveStream}:LiveStreamInfoType) => {
 
     const isModalOpen = useLiveStreamInfoModalStore(state => state.isOpen)
     const setModalOpen = useLiveStreamInfoModalStore(state => state.setIsOpen)
@@ -19,13 +17,6 @@ const LiveStreamInfoModal = ({about, setAbout, setTitle, title}:LiveStreamInfoTy
         setModalOpen(false)
         setTimeout(() => {
             setDialogModalOpen(true)
-        }, 100)
-    }
-
-    const startLiveStream = () => {
-        setModalOpen(false)
-        setTimeout(() => {
-            router.push("/(podcast)/live-podcast-admin")
         }, 100)
     }
 
@@ -84,8 +75,14 @@ const LiveStreamInfoModal = ({about, setAbout, setTitle, title}:LiveStreamInfoTy
                             numberOfLines={3}
                         />
                     </View>
-                    <Pressable onPress={startLiveStream} className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
+                    <Pressable onPress={() => startLiveStream(() => setModalOpen(false))} className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
+                            {
+                                isCreatingLivePodcast ?
+                                (<View className="pointer-events-none animate-spin">
+                                    <Icon as={Loader2} color={Colors.menorah.bg} />
+                                </View>):
                             <Text className="text-menorah-bg font-bold text-base">Start Now</Text>
+                                }
                     </Pressable>
                 </View>
             </View>

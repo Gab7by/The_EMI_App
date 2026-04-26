@@ -2,7 +2,7 @@ import { Pressable, Text, View } from "react-native"
 import {Image} from "expo-image"
 import { Colors } from "@/constants/theme"
 
-const HostIcon = ({hostName, hostPictureUrl}: {hostPictureUrl?: string, hostName: string}) => {
+const HostIcon = ({hostName, hostPictureUrl}: {hostPictureUrl: string | null, hostName: string}) => {
     
     return (
         <View

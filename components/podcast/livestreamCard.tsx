@@ -5,7 +5,7 @@ import Sun from "@/assets/svgs/sun-icon.svg"
 import { useAuthStore } from "@/store/authStore"
 import { useRouter } from "expo-router"
 
-const LiveStreamCard = ({hostName, hostPictureUrl, playlist, title}:{playlist: string, title: string, hostPictureUrl?: string, hostName: string}) => {
+const LiveStreamCard = ({hostName, hostPictureUrl, playlist, title}:{playlist: string, title: string, hostPictureUrl: string | null, hostName: string}) => {
 
     const profile = useAuthStore(state => state.profile)
     const isAdmin = profile?.role === "admin"
@@ -19,13 +19,14 @@ const LiveStreamCard = ({hostName, hostPictureUrl, playlist, title}:{playlist: s
     }
 
     return (
-        <Pressable onPress={goToLiveStream} className="gap-4">
-            <Text className="text-menorah-goldDark text-xl font-bold relative">Livestream</Text>
+        <Pressable onPress={goToLiveStream}>
             <View className="rounded-lg bg-menorah-darkGreen pt-6 px-5 pb-4 gap-10">
-                <View className="gap-2 relative">
+                <View className="gap-2">
                     <Text className="text-menorah-primary text-2xl font-bold">{playlist}</Text>
-                    <Text className="text-menorah-gray text-sm">Title: {title}</Text>
-                    <Sun style={{position: "absolute", bottom: -16, left: 16}} />
+                    <View className="gap-2 flex-row">
+                        <Text className="text-menorah-gray text-sm">Title: {title}</Text>
+                        <Sun />
+                    </View>
                 </View>
                 <View className="gap-4">
                     <HostIcon hostName={hostName} hostPictureUrl={hostPictureUrl} />
