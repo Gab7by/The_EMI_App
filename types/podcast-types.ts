@@ -70,3 +70,13 @@ export type CreateLivePodcastInput = {
   start_time: string
   cover_image_url?: string
 }
+
+export type LiveStreamCardType = {
+    playlist: string
+    title: string
+    hostPictureUrl: string | null
+    hostName: string
+    id: string
+    about: string | null
+    hostId: string
+}

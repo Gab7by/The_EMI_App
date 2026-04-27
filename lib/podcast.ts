@@ -50,3 +50,64 @@ export const getLiveSessions = async (): Promise<LivePodcast[]> => {
 
   return data as LivePodcast[]
 }
+
+
+export async function updateLivePodcast(
+  podcastId: string,
+  updates: Partial<Pick<CreateLivePodcastInput, 'title' | 'about' | 'cover_image_url'>>
+): Promise<boolean> {
+
+  const { error } = await supabase
+    .from('live_podcasts')
+    .update(updates)
+    .eq('id', podcastId)
+
+  if (error) {
+    console.error('updateLivePodcast:', error.message)
+    return false
+  }
+
+  return true
+}
+
+
+export const endLiveSession = async (
+  podcastId: string
+): Promise<boolean> => {
+  console.log("podcast id: ", podcastId)
+  const { error } = await supabase
+    .from('live_podcasts')
+    .update({
+      status: 'ended',
+      end_time: new Date().toISOString(),
+    })
+    .eq('id', podcastId)
+
+  if (error) {
+    console.error('endLiveSession:', error.message)
+    return false
+  }
+
+  return true
+}
+
+
+export async function getParticipantCount(
+  podcastId: string,
+  hostId: string
+): Promise<number> {
+
+  const { count, error } = await supabase
+    .from('live_podcast_participants')
+    .select('*', { count: 'exact', head: true })
+    .eq('podcast_id', podcastId)
+    .neq('profile_id', hostId)  
+    .is('left_at', null)
+
+  if (error) {
+    console.error('getParticipantCount:', error.message)
+    return 0
+  }
+
+  return count ?? 0
+}

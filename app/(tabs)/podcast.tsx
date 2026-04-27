@@ -67,7 +67,19 @@ const PodcastScreen = () => {
       queryClient.invalidateQueries({ queryKey: ["live-podcast-sessions"] });
       closeModal();
       setTimeout(() => {
-        router.push("/(podcast)/live-podcast-admin");
+        router.push(
+            {
+                pathname: "/(podcast)/live-podcast-admin",
+                params: {
+                    id: livePodcast.id,
+                    title: livePodcast.title,
+                    about: livePodcast.about,
+                    hostId: livePodcast.host.id,
+                    hostName: livePodcast.host.full_name,
+                    hostPictureUrl: livePodcast.host.avatar_url
+                }
+            }
+        )
       }, 100);
     });
   };
@@ -91,6 +103,9 @@ const PodcastScreen = () => {
             renderItem={({ item }) => (
                 <LiveStreamCard
                     playlist="Lunch Prayer Fire"
+                    about={item.about}
+                    hostId={item.host.id}
+                    id={item.id}
                     hostName={item.host.full_name!}
                     title={item.title}
                     hostPictureUrl={item.host.avatar_url}

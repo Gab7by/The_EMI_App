@@ -4,13 +4,18 @@ import LivePeople from "@/assets/svgs/live_people_icon.svg";
 import MessagingButton from "@/assets/svgs/messaging_button.svg";
 import MicrophoneButton from "@/assets/svgs/microphone_button.svg";
 import MusicButton from "@/assets/svgs/music_button_icon.svg";
+import { Icon } from "@/components/ui/icon";
+import { Colors } from "@/constants/theme";
+import { endLiveSession } from "@/lib/podcast";
+import { queryClient } from "@/lib/query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ArrowLeft,
   ChevronRight,
+  Loader2,
   Mic,
   Power,
   Share2,
@@ -87,6 +92,16 @@ const comments = [
 ];
 
 const AdminLivePodcast = () => {
+
+  const {id, title, about, hostId, hostName, hostPictureUrl} = useLocalSearchParams<{
+            id: string,
+            title: string,
+            about: string,
+            hostId: string,
+            hostName: string,
+            hostPictureUrl: string
+  }>()
+
   const router = useRouter();
   const [isExitPromptVisible, setIsExitPromptVisible] = useState(false);
   const [isOtherSettingsVisible, setIsOtherSettingsVisible] = useState(false);
@@ -97,6 +112,7 @@ const AdminLivePodcast = () => {
   const [sliderWidth, setSliderWidth] = useState(0);
   const [volumeLevel, setVolumeLevel] = useState(0.7);
   const messageInputRef = useRef<TextInput | null>(null);
+  const [isEndingSession, setIsEndingSession] = useState<boolean>(false)
 
   const clampVolume = (value: number) => Math.min(1, Math.max(0, value));
 
@@ -187,9 +203,21 @@ const AdminLivePodcast = () => {
   }, [isMessageComposerVisible]);
 
   const leaveLiveRoom = () => {
-    closeExitPrompt();
-    router.replace("/(tabs)/podcast");
-  };
+    setIsEndingSession(true)
+    endLiveSession(id).then((success) => {
+      if (success) {
+        queryClient.invalidateQueries({queryKey: ["live-podcast-sessions"]})
+        setIsEndingSession(false)
+        closeExitPrompt()
+        router.replace("/(tabs)/podcast")
+      } else {
+        setIsEndingSession(false)
+      }
+    }).catch(e => {
+      console.error(e)
+      setIsEndingSession(false)
+    })
+  }
 
   return (
     <LinearGradient
@@ -665,10 +693,14 @@ const AdminLivePodcast = () => {
                 <Pressable
                   onPress={leaveLiveRoom}
                   className="flex-1 items-center justify-center bg-[#D7FF00] px-4 py-4"
-                >
+                >{
+                    isEndingSession ?
+                    (<View className="pointer-events-none animate-spin">
+                        <Icon as={Loader2} color={Colors.menorah.bg} />
+                    </View>) :
                   <Text className="text-[18px] font-medium text-black">
                     Leave
-                  </Text>
+                  </Text> }
                 </Pressable>
                 <Pressable
                   onPress={closeExitPrompt}

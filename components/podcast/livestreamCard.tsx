@@ -4,17 +4,37 @@ import HostIcon from "./hostIcon"
 import Sun from "@/assets/svgs/sun-icon.svg"
 import { useAuthStore } from "@/store/authStore"
 import { useRouter } from "expo-router"
+import { LiveStreamCardType } from "@/types/podcast-types"
 
-const LiveStreamCard = ({hostName, hostPictureUrl, playlist, title}:{playlist: string, title: string, hostPictureUrl: string | null, hostName: string}) => {
+const LiveStreamCard = ({
+    hostName,
+    hostPictureUrl,
+    playlist, 
+    title,
+    about,
+    hostId,
+    id
+}:LiveStreamCardType) => {
 
     const profile = useAuthStore(state => state.profile)
     const isAdmin = profile?.role === "admin"
 
     const router = useRouter()
 
-    // temporary function to route to livestream for testing purposes
     const goToLiveStream = () => {
-        if(isAdmin) router.push("/(podcast)/live-podcast-admin")
+        if(isAdmin) router.push(
+            {
+                pathname: "/(podcast)/live-podcast-admin",
+                params: {
+                    id,
+                    title,
+                    about,
+                    hostId,
+                    hostName,
+                    hostPictureUrl
+                }
+            }
+        );
         else router.push("/(podcast)/live-podcast-member")
     }
 
