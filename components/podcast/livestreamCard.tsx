@@ -34,7 +34,19 @@ const LiveStreamCard = ({
                 }
             }
         );
-        else router.push("/(podcast)/live-podcast-member")
+        else router.push(
+            {
+                pathname: "/(podcast)/live-podcast-member",
+                params: {
+                    id,
+                    title,
+                    playlist,
+                    hostId,
+                    hostName,
+                    hostPictureUrl
+                }
+            }
+        )
     }
 
     return (
