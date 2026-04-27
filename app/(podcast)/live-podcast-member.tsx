@@ -202,7 +202,6 @@ const MemberLivePodcast = () => {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         <SafeAreaView className="flex-1">
           <View className="flex-1 px-4 pt-3">
