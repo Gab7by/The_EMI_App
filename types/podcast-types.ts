@@ -30,13 +30,36 @@ export type LiveStreamVisibilityOptionsType = {
 export type LiveStreamInfoType = {
     title: string
     setTitle: React.Dispatch<React.SetStateAction<string>>
-    about: string
-    setAbout: React.Dispatch<React.SetStateAction<string>>
+    playlist: PlaylistOption
+    setPlaylist: React.Dispatch<React.SetStateAction<PlaylistOption>>
     isCreatingLivePodcast: boolean
     startLiveStream: (closeModal: () => void) => void
+    errorStartingLivePodcast: string | null
 }
 
 export type PodcastStatus = 'scheduled' | 'live' | 'ended'
+
+export type Playlist =
+  | 'Lunch Prayer Fire'
+  | 'Priesthood Time'
+  | 'School of the Prophets'
+  | 'School of Spiritual Mysteries'
+  | 'Mega One Word From the Lord'
+  | '45 minutes in Tongues'
+
+export type PlaylistOption = {
+    label: string
+    value: string
+}
+
+export const PLAYLISTS: Playlist[] = [
+  'Lunch Prayer Fire',
+  'Priesthood Time',
+  'School of the Prophets',
+  'School of Spiritual Mysteries',
+  'Mega One Word From the Lord',
+  '45 minutes in Tongues'
+]
 
 export type LivePodcastParticipant = {
   id: string
@@ -50,11 +73,11 @@ export type LivePodcastParticipant = {
 export type LivePodcast = {
   id: string
   title: string
-  about: string | null
+  playlist: Playlist   
   is_public: boolean
   is_unlisted: boolean
   status: PodcastStatus
-  host: Profile       
+  host: Profile
   cover_image_url: string | null
   start_time: string
   end_time: string | null
@@ -64,7 +87,7 @@ export type LivePodcast = {
 
 export type CreateLivePodcastInput = {
   title: string
-  about?: string
+  playlist: Playlist
   is_public: boolean
   is_unlisted: boolean
   start_time: string
@@ -72,11 +95,15 @@ export type CreateLivePodcastInput = {
 }
 
 export type LiveStreamCardType = {
-    playlist: string
     title: string
+    playlist: Playlist
     hostPictureUrl: string | null
     hostName: string
     id: string
-    about: string | null
     hostId: string
 }
+
+export const PLAYLIST_OPTIONS = PLAYLISTS.map((playlist) => ({
+  label: playlist,
+  value: playlist,
+}))

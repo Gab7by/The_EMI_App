@@ -5,7 +5,7 @@ import { Colors } from "@/constants/theme"
 import { Wifi, ChevronRight, SunIcon, Loader2 } from "lucide-react-native"
 import { Icon } from "../ui/icon"
 
-const LiveStreamStartDialogModal = ({title, isPublic, startLiveStream, isCreatingLivePodcast}:{title: string, isPublic: boolean, startLiveStream: (closeModal:() => void) => void, isCreatingLivePodcast: boolean}) => {
+const LiveStreamStartDialogModal = ({playlist, isPublic, startLiveStream, isCreatingLivePodcast, errorStartingLivePodcast}:{errorStartingLivePodcast: string | null, playlist: string, isPublic: boolean, startLiveStream: (closeModal:() => void) => void, isCreatingLivePodcast: boolean}) => {
 
     const isModalOpen = useLiveStreamStartDialogModalStore(state => state.isOpen)
     const setModalOpen = useLiveStreamStartDialogModalStore(state => state.setIsOpen)
@@ -54,7 +54,8 @@ const LiveStreamStartDialogModal = ({title, isPublic, startLiveStream, isCreatin
                             <Wifi size={35} color={Colors.menorah.primary} />
                             <View className="flex-1 ml-5">
                                 <Text className="text-white font-bold text-base">Live Stream Information</Text>
-                                <Text className="text-menorah-textGray text-sm">{title}</Text>
+                                <Text className="text-menorah-textGray text-sm">{playlist}</Text>
+                                {errorStartingLivePodcast && <Text className="text-menorah-error text-xs">{errorStartingLivePodcast}</Text>}
                             </View>
                             <ChevronRight size={35} color={Colors.menorah.primary} />
                     </Pressable>

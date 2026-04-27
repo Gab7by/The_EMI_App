@@ -14,6 +14,7 @@ import { createLivePodcast } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveStreamStartModalStore } from "@/store/podcast-store";
+import { Playlist, PLAYLIST_OPTIONS, PlaylistOption, PLAYLISTS } from "@/types/podcast-types";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { Plus } from "lucide-react-native";
@@ -28,11 +29,13 @@ const PodcastScreen = () => {
   const [isPublic, setIsPublic] = useState<boolean>(true);
   const [isunlisted, setIsUnlisted] = useState<boolean>(false);
 
-  const [title, setTitle] = useState<string>("I will pray");
-  const [about, setAbout] = useState<string>("");
+  const [playlist, setPlaylist] = useState<PlaylistOption>(PLAYLIST_OPTIONS[0]);
+  const [title, setTitle] = useState<string>("");
+
+  const [errorStartingLivePodcast, setErrorStartingLivePodcast] = useState<string | null>(null)
 
   const [isCreatingLivePodcast, setIsCreatingLivePodcast] =
-    useState<boolean>(false);
+    useState<boolean>(false)
 
   const setOpenLiveStreamStartModal = useLiveStreamStartModalStore(
     (state) => state.setIsOpen,
@@ -48,13 +51,20 @@ const PodcastScreen = () => {
   const { data, isLoading, isRefetching, refetch } = useLivePodcastSessions();
 
   const startLiveStream = (closeModal: () => void) => {
+    if(title.length < 1) {
+        setErrorStartingLivePodcast("Podcast title is required")
+        setTimeout(() => {
+            setErrorStartingLivePodcast(null)
+        }, 2000)
+        return
+    }
     setIsCreatingLivePodcast(true);
     createLivePodcast({
       is_public: isPublic,
       is_unlisted: isunlisted,
       start_time: new Date().toISOString(),
       title: title,
-      about: about,
+      playlist: playlist.value as Playlist,
     }).then((livePodcast) => {
       setIsCreatingLivePodcast(false);
       if (livePodcast === null) {
@@ -62,8 +72,8 @@ const PodcastScreen = () => {
       }
       setIsPublic(true);
       setIsUnlisted(false);
-      setTitle("I will Pray");
-      setAbout("");
+      setPlaylist(PLAYLIST_OPTIONS[0]);
+      setTitle("");
       queryClient.invalidateQueries({ queryKey: ["live-podcast-sessions"] });
       closeModal();
       setTimeout(() => {
@@ -72,8 +82,8 @@ const PodcastScreen = () => {
                 pathname: "/(podcast)/live-podcast-admin",
                 params: {
                     id: livePodcast.id,
+                    playlist: livePodcast.playlist,
                     title: livePodcast.title,
-                    about: livePodcast.about,
                     hostId: livePodcast.host.id,
                     hostName: livePodcast.host.full_name,
                     hostPictureUrl: livePodcast.host.avatar_url
@@ -102,8 +112,7 @@ const PodcastScreen = () => {
             data={data}
             renderItem={({ item }) => (
                 <LiveStreamCard
-                    playlist="Lunch Prayer Fire"
-                    about={item.about}
+                    playlist={item.playlist}
                     hostId={item.host.id}
                     id={item.id}
                     hostName={item.host.full_name!}
@@ -134,15 +143,17 @@ const PodcastScreen = () => {
           <LiveStreamStartModal />
           <LiveStreamStartDialogModal
             isPublic={isPublic}
-            title={title}
+            playlist={playlist.value}
+            errorStartingLivePodcast={errorStartingLivePodcast}
             startLiveStream={startLiveStream}
             isCreatingLivePodcast={isCreatingLivePodcast}
           />
           <LiveStreamInfoModal
-            about={about}
-            title={title}
-            setAbout={setAbout}
+            playlist={playlist}
+            errorStartingLivePodcast={errorStartingLivePodcast}
+            setPlaylist={setPlaylist}
             setTitle={setTitle}
+            title={title}
             startLiveStream={startLiveStream}
             isCreatingLivePodcast={isCreatingLivePodcast}
           />

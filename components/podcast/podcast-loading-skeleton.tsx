@@ -1,12 +1,11 @@
 import {View} from "react-native"
 import { Skeleton } from "../ui/skeleton"
+import { Colors } from "@/constants/theme"
 
 const PodcastLoadingSkeleton = () => {
     return (
-        <View className="gap-5">
-            <Skeleton className="h-[50px] w-[300px]" />
-            <Skeleton className="h-[50px] w-[300px]" />
-            <Skeleton className="h-[50px] w-[300px]" />
+        <View className="py-5">
+            <Skeleton style={{backgroundColor: Colors.menorah.primary}} className="h-[200px] w-[300px]" />
         </View>
     )
 }

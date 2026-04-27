@@ -13,7 +13,7 @@ export const createLivePodcast = async (
     .from('live_podcasts')
     .insert({
       title: input.title.length > 1 ? input.title : "I will Pray",
-      about: input.about ?? null,
+      playlist: input.playlist,
       is_public: input.is_public,
       is_unlisted: input.is_unlisted,
       start_time: input.start_time,
@@ -54,7 +54,9 @@ export const getLiveSessions = async (): Promise<LivePodcast[]> => {
 
 export async function updateLivePodcast(
   podcastId: string,
-  updates: Partial<Pick<CreateLivePodcastInput, 'title' | 'about' | 'cover_image_url'>>
+  updates: Partial<Pick<CreateLivePodcastInput,
+    'title' | 'playlist' | 'cover_image_url'
+  >>
 ): Promise<boolean> {
 
   const { error } = await supabase

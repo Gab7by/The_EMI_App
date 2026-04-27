@@ -11,7 +11,6 @@ const LiveStreamCard = ({
     hostPictureUrl,
     playlist, 
     title,
-    about,
     hostId,
     id
 }:LiveStreamCardType) => {
@@ -28,7 +27,7 @@ const LiveStreamCard = ({
                 params: {
                     id,
                     title,
-                    about,
+                    playlist,
                     hostId,
                     hostName,
                     hostPictureUrl
