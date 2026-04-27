@@ -6,6 +6,7 @@ import MicrophoneButton from "@/assets/svgs/microphone_button.svg";
 import MusicButton from "@/assets/svgs/music_button_icon.svg";
 import { Icon } from "@/components/ui/icon";
 import { Colors } from "@/constants/theme";
+import { useLivePodcastParticipants } from "@/hooks/tanstack-query-hooks";
 import { endLiveSession } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -93,13 +94,13 @@ const comments = [
 
 const AdminLivePodcast = () => {
 
-  const {id, title, about, hostId, hostName, hostPictureUrl} = useLocalSearchParams<{
+  const {id, title, playlist, hostId, hostName, hostPictureUrl} = useLocalSearchParams<{
             id: string,
             title: string,
-            about: string,
             hostId: string,
             hostName: string,
-            hostPictureUrl: string
+            hostPictureUrl: string,
+            playlist: string
   }>()
 
   const router = useRouter();
@@ -113,6 +114,8 @@ const AdminLivePodcast = () => {
   const [volumeLevel, setVolumeLevel] = useState(0.7);
   const messageInputRef = useRef<TextInput | null>(null);
   const [isEndingSession, setIsEndingSession] = useState<boolean>(false)
+
+  const {data: participantCount} = useLivePodcastParticipants(hostId, id)
 
   const clampVolume = (value: number) => Math.min(1, Math.max(0, value));
 
@@ -236,25 +239,35 @@ const AdminLivePodcast = () => {
           
             <View className="mb-10 flex-row items-center justify-between">
               <View className="mr-3 flex-1 flex-row items-center rounded-full bg-menorah-bg px-3 py-3">
-                <Image
-                  source={require("@/assets/pictures/host_profile_image.png")}
+                {
+                  hostPictureUrl ?
+                  <Image
+                  source={{uri: hostPictureUrl}}
                   style={{ width: 42, height: 42, borderRadius: 21 }}
                   contentFit="cover"
-                />
+                /> :
+                (
+                    <View style={{width: 42, height: 42, borderRadius: 21}} className="bg-menorah-bg items-center justify-center border border-menorah-primary">
+                        <Text className="text-menorah-primary text-base font-bold">
+                            {hostName.charAt(0).toUpperCase()}
+                        </Text>
+                    </View>
+                )
+}
                 <View className="ml-3 flex-1">
                   <Text className="text-sm text-menorah-whiteSoft">
-                    Lunch Prayer Fire
+                    {playlist}
                   </Text>
                   <View className="mt-1 flex-row items-center">
                     <Text className="text-[10px] text-menorah-whiteSoft/70">
-                      Prophet Seth Owusu
+                      {hostName}
                     </Text>
                     <View className="ml-2">
                         <LivePeople  width={10} height={10} />
                     </View>
                     
-                    <Text className=" ml-0.5 text-[9px] text-menorah-whiteSoft/60">
-                      388
+                    <Text className=" ml-1 text-[9px] text-menorah-whiteSoft/60">
+                      {participantCount}
                     </Text>
                   </View>
                 </View>
@@ -279,17 +292,24 @@ const AdminLivePodcast = () => {
             <View className="mb-6 flex-row flex-wrap justify-between gap-y-4">
               <View className="w-[19%] items-center">
                 <View className="h-[62px] w-[62px] rounded-full border border-white/40 bg-white/15">
-                  <Image
+                  {
+                    hostPictureUrl ?
+                    <Image
                     source={require("@/assets/pictures/host_profile_image.png")}
-                    style={{ width: "100%", height: "100%", borderRadius: 999 }}
-                    contentFit="cover"
-                  />
+                    style={{ width: 60, height: 60, borderRadius: 30 }}
+                    contentFit="cover"/> :
+                    <View style={{width: 62, height: 62, borderRadius: 31}} className="bg-menorah-bg items-center justify-center border border-menorah-primary">
+                        <Text className="text-menorah-primary text-2xl font-bold">
+                            {hostName.charAt(0).toUpperCase()}
+                        </Text>
+                    </View>
+                  }
                 </View>
                 <Text
-                  className="mt-2 text-center text-[10px] text-menorah-whiteSoft/85"
+                  className="mt-2 text-center text-[10px] text-menorah-whiteSoft/85 overflow-ellipsis"
                   numberOfLines={1}
                 >
-                  Rev. Dr...
+                  {hostName}
                 </Text>
               </View>
 
@@ -451,9 +471,7 @@ const AdminLivePodcast = () => {
               <Text className="text-[12px] leading-5 text-[#FFD700]">
                 Please keep comments respectful and uplifting. &quot;Let your
                 words edify and bring grace to those who hear.&quot; - Ephesians
-                4:29. Please keep comments respectful and uplifting. &quot;Let
-                your words edify and bring grace to those who hear.&quot; -
-                Ephesians 4:29.
+                4:29.
               </Text>
             </View>
 
