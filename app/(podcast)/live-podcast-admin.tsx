@@ -499,10 +499,10 @@ const AdminLivePodcast = () => {
           </ScrollView>
           </View>
 
-          <View className="absolute bottom-0 left-0 right-0 bg-[#143703] px-2 pb-3 pt-3">
+          <View className="absolute bottom-0 left-0 right-0 bg-[#143703] p-4">
             {isMessageComposerVisible ? (
               <View className="flex-row items-center">
-                <View className="mr-5 flex-1 flex-row items-center rounded-[15px] h-[50px] border-[2px] border-[#ECE8E8] bg-[#143703] px-4 py-2">
+                <View className="mr-5 flex-1 flex-row items-center rounded-[15px] h-[50px] border-[2px] border-[#ECE8E8] bg-[#143703] px-2">
                   <TextInput
                     ref={messageInputRef}
                     value={message}
