@@ -8,3 +8,12 @@ export const imageItems: SliderItem[] = [
         {id: "5", source: require("@/assets/pictures/slider-image-5.png")},
         {id: "6", source: require("@/assets/pictures/slider-image-6.png")}
     ]
+
+export const PODCAST_SELECT = `
+  *,
+  host:profiles!host_id(*),
+  participants:live_podcast_participants(
+    *,
+    profile:profiles(*)
+  )`
+

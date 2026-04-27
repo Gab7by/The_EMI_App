@@ -2,12 +2,10 @@ import { Modal, Pressable, Text, View } from "react-native"
 import {BlurView} from "expo-blur"
 import { useLiveStreamInfoModalStore, useLiveStreamStartDialogModalStore, useLiveStreamVisibilityModalStore } from "@/store/podcast-store"
 import { Colors } from "@/constants/theme"
-import { Wifi, ChevronRight, SunIcon } from "lucide-react-native"
-import { useRouter } from "expo-router"
+import { Wifi, ChevronRight, SunIcon, Loader2 } from "lucide-react-native"
+import { Icon } from "../ui/icon"
 
-const LiveStreamStartDialogModal = ({title, isPublic}:{title: string, isPublic: boolean}) => {
-
-    const router = useRouter()
+const LiveStreamStartDialogModal = ({playlist, isPublic, startLiveStream, isCreatingLivePodcast, errorStartingLivePodcast}:{errorStartingLivePodcast: string | null, playlist: string, isPublic: boolean, startLiveStream: (closeModal:() => void) => void, isCreatingLivePodcast: boolean}) => {
 
     const isModalOpen = useLiveStreamStartDialogModalStore(state => state.isOpen)
     const setModalOpen = useLiveStreamStartDialogModalStore(state => state.setIsOpen)
@@ -26,13 +24,6 @@ const LiveStreamStartDialogModal = ({title, isPublic}:{title: string, isPublic: 
         setModalOpen(false)
         setTimeout(() => {
             setLiveStreamVisibiltyModal(true)
-        }, 100)
-    }
-
-    const startLiveStream = () => {
-        setModalOpen(false)
-        setTimeout(() => {
-            router.push("/(podcast)/live-podcast-admin")
         }, 100)
     }
 
@@ -63,7 +54,8 @@ const LiveStreamStartDialogModal = ({title, isPublic}:{title: string, isPublic: 
                             <Wifi size={35} color={Colors.menorah.primary} />
                             <View className="flex-1 ml-5">
                                 <Text className="text-white font-bold text-base">Live Stream Information</Text>
-                                <Text className="text-menorah-textGray text-sm">{title}</Text>
+                                <Text className="text-menorah-textGray text-sm">{playlist}</Text>
+                                {errorStartingLivePodcast && <Text className="text-menorah-error text-xs">{errorStartingLivePodcast}</Text>}
                             </View>
                             <ChevronRight size={35} color={Colors.menorah.primary} />
                     </Pressable>
@@ -75,9 +67,15 @@ const LiveStreamStartDialogModal = ({title, isPublic}:{title: string, isPublic: 
                             </View>                            
                             <ChevronRight size={35} color={Colors.menorah.primary} />
                     </Pressable>
-                    <Pressable onPress={startLiveStream} className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
-                            <Text className="text-menorah-bg font-bold text-base">Start Now</Text>
-                    </Pressable>
+                    <Pressable onPress={() => startLiveStream(() => setModalOpen(false))} className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
+                            {
+                                isCreatingLivePodcast ?
+                                (<View className="pointer-events-none animate-spin">
+                                    <Icon as={Loader2} color={Colors.menorah.bg} />
+                                </View>):
+                                <Text className="text-menorah-bg font-bold text-base">Start Now</Text>
+                                }
+                        </Pressable>
                 </View>
             </View>
         </Modal>
