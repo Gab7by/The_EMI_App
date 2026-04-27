@@ -17,6 +17,7 @@
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
     "@rn-primitives/portal": "^1.4.0",
+    "@rn-primitives/select": "^1.4.0",
     "@rn-primitives/slot": "^1.4.0",
     "@shopify/flash-list": "2.0.2",
     "@supabase/supabase-js": "^2.104.0",
