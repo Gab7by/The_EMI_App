@@ -84,15 +84,14 @@ const ForgotPasswordModal = () => {
                 onTouchEnd={() => closeModal()}
             />
 
-            <ScrollView
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{flex: 1}}
+            <View
+                className="bg-menorah-darkGreen"
+                style={{flex: 1}}
             >
-                <View
-                    className="bg-menorah-darkGreen px-5 gap-7"
-                    style={{
-                        flex: 1
-                    }}
+                <ScrollView
+                    contentContainerClassName="px-5 gap-7"
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
                     >
                     <View className="h-[3px] self-center bg-menorah-primary mt-4 w-[80px]" />
                     <View className="flex-1 gap-7">
@@ -122,8 +121,8 @@ const ForgotPasswordModal = () => {
                                  <Text className="text-menorah-bg font-bold text-base">Request token</Text>}
                         </Pressable>
                     </View>
-                </View>
-            </ScrollView>
+                </ScrollView>
+            </View>
         </Modal>
     )
 }
