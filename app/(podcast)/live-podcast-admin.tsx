@@ -58,6 +58,7 @@ const AdminLivePodcast = () => {
   const [volumeLevel, setVolumeLevel] = useState(0.7);
   const [isEndingSession, setIsEndingSession] = useState(false);
   const messageInputRef = useRef<TextInput | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const clampVolume = (value: number) => Math.min(1, Math.max(0, value));
 
@@ -87,23 +88,35 @@ const AdminLivePodcast = () => {
   );
 
   useEffect(() => {
-    if (!isMessageComposerVisible) {
-      return;
-    }
+  let focusTimeout: NodeJS.Timeout;
 
-    const focusTimeout = setTimeout(() => {
+  if (isMessageComposerVisible) {
+    focusTimeout = setTimeout(() => {
       messageInputRef.current?.focus();
     }, 60);
+  }
 
-    const keyboardHideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+  const showSubscription = Keyboard.addListener(
+    "keyboardDidShow",
+    (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    }
+  );
+
+  const hideSubscription = Keyboard.addListener(
+    "keyboardDidHide",
+    () => {
+      setKeyboardHeight(0);
       setIsMessageComposerVisible(false);
-    });
+    }
+  );
 
-    return () => {
-      clearTimeout(focusTimeout);
-      keyboardHideSubscription.remove();
-    };
-  }, [isMessageComposerVisible]);
+  return () => {
+    if (focusTimeout) clearTimeout(focusTimeout);
+    showSubscription.remove();
+    hideSubscription.remove();
+  };
+}, [isMessageComposerVisible]);
 
   const closeAllOverlays = () => {
     setActiveSheet("none");
@@ -168,7 +181,7 @@ const AdminLivePodcast = () => {
         </View>
 
         <PodcastBottomDock
-          bottom={footerBottom}
+          bottom={isMessageComposerVisible ? keyboardHeight + 8 : footerBottom}
           paddingBottom={footerPaddingBottom}
           onLayout={handleFooterLayout}
         >
