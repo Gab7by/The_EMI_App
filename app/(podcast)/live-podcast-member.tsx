@@ -8,6 +8,7 @@ import {
   PodcastDialog,
   PodcastFullScreenModal,
   PodcastHeader,
+  PodcastNotesDialog,
   PodcastParticipantsGrid,
   podcastCurrencies,
   podcastPaymentMethods,
@@ -25,7 +26,7 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const MemberLivePodcast = () => {
-  const { id, playlist, hostId, hostName, hostPictureUrl } = useLocalSearchParams<{
+  const { id, title, playlist, hostId, hostName, hostPictureUrl } = useLocalSearchParams<{
     id: string;
     title: string;
     hostId: string;
@@ -40,6 +41,7 @@ const MemberLivePodcast = () => {
     usePodcastFooterLayout();
 
   const [isExitPromptVisible, setIsExitPromptVisible] = useState(false);
+  const [isNotesVisible, setIsNotesVisible] = useState(false);
   const [isPaymentMethodsVisible, setIsPaymentMethodsVisible] = useState(false);
   const [isCurrencySheetVisible, setIsCurrencySheetVisible] = useState(false);
   const [selectedCurrencyId, setSelectedCurrencyId] =
@@ -69,7 +71,9 @@ const MemberLivePodcast = () => {
             actions={
               <>
                 <View className="ml-7">
-                  <HugeIcon width={30} height={30} />
+                  <Pressable onPress={() => setIsNotesVisible(true)} hitSlop={10}>
+                    <HugeIcon width={30} height={30} />
+                  </Pressable>
                 </View>
                 <Share2 size={25} color="#F3F6E7" strokeWidth={1.2} />
                 <Pressable
@@ -156,6 +160,13 @@ const MemberLivePodcast = () => {
             </View>
           </View>
         </PodcastDialog>
+
+        <PodcastNotesDialog
+          visible={isNotesVisible}
+          onClose={() => setIsNotesVisible(false)}
+          playlist={playlist}
+          title={title}
+        />
 
         <PodcastFullScreenModal
           visible={isPaymentMethodsVisible}

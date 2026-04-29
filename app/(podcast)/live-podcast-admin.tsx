@@ -9,6 +9,7 @@ import {
   PodcastComments,
   PodcastDialog,
   PodcastHeader,
+  PodcastNotesDialog,
   PodcastParticipantsGrid,
   usePodcastFooterLayout,
 } from "@/components/podcast/livePodcastShared";
@@ -36,7 +37,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 type AdminSheet = "none" | "settings" | "music" | "volume";
 
 const AdminLivePodcast = () => {
-  const { id, playlist, hostId, hostName, hostPictureUrl } = useLocalSearchParams<{
+  const { id, title, playlist, hostId, hostName, hostPictureUrl } = useLocalSearchParams<{
     id: string;
     title: string;
     hostId: string;
@@ -51,6 +52,7 @@ const AdminLivePodcast = () => {
     usePodcastFooterLayout();
 
   const [isExitPromptVisible, setIsExitPromptVisible] = useState(false);
+  const [isNotesVisible, setIsNotesVisible] = useState(false);
   const [activeSheet, setActiveSheet] = useState<AdminSheet>("none");
   const [isMessageComposerVisible, setIsMessageComposerVisible] = useState(false);
   const [message, setMessage] = useState("");
@@ -58,6 +60,7 @@ const AdminLivePodcast = () => {
   const [volumeLevel, setVolumeLevel] = useState(0.7);
   const [isEndingSession, setIsEndingSession] = useState(false);
   const messageInputRef = useRef<TextInput | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const clampVolume = (value: number) => Math.min(1, Math.max(0, value));
 
@@ -87,23 +90,35 @@ const AdminLivePodcast = () => {
   );
 
   useEffect(() => {
-    if (!isMessageComposerVisible) {
-      return;
-    }
+  let focusTimeout: NodeJS.Timeout;
 
-    const focusTimeout = setTimeout(() => {
+  if (isMessageComposerVisible) {
+    focusTimeout = setTimeout(() => {
       messageInputRef.current?.focus();
     }, 60);
+  }
 
-    const keyboardHideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+  const showSubscription = Keyboard.addListener(
+    "keyboardDidShow",
+    (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    }
+  );
+
+  const hideSubscription = Keyboard.addListener(
+    "keyboardDidHide",
+    () => {
+      setKeyboardHeight(0);
       setIsMessageComposerVisible(false);
-    });
+    }
+  );
 
-    return () => {
-      clearTimeout(focusTimeout);
-      keyboardHideSubscription.remove();
-    };
-  }, [isMessageComposerVisible]);
+  return () => {
+    if (focusTimeout) clearTimeout(focusTimeout);
+    showSubscription.remove();
+    hideSubscription.remove();
+  };
+}, [isMessageComposerVisible]);
 
   const closeAllOverlays = () => {
     setActiveSheet("none");
@@ -146,7 +161,9 @@ const AdminLivePodcast = () => {
             actions={
               <>
                 <View className="ml-7">
-                  <HugeIcon width={30} height={30} />
+                  <Pressable onPress={() => setIsNotesVisible(true)} hitSlop={10}>
+                    <HugeIcon width={30} height={30} />
+                  </Pressable>
                 </View>
                 <Share2 size={25} color="#F3F6E7" strokeWidth={1.2} />
                 <Pressable
@@ -168,7 +185,7 @@ const AdminLivePodcast = () => {
         </View>
 
         <PodcastBottomDock
-          bottom={footerBottom}
+          bottom={isMessageComposerVisible ? keyboardHeight + 8 : footerBottom}
           paddingBottom={footerPaddingBottom}
           onLayout={handleFooterLayout}
         >
@@ -397,6 +414,13 @@ const AdminLivePodcast = () => {
             </View>
           </View>
         </PodcastDialog>
+
+        <PodcastNotesDialog
+          visible={isNotesVisible}
+          onClose={() => setIsNotesVisible(false)}
+          playlist={playlist}
+          title={title}
+        />
       </SafeAreaView>
     </LinearGradient>
   );

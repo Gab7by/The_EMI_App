@@ -391,6 +391,58 @@ export const PodcastDialog = ({
   </Modal>
 );
 
+type PodcastNotesDialogProps = {
+  visible: boolean;
+  onClose: () => void;
+  playlist: string;
+  title: string;
+};
+
+export const PodcastNotesDialog = ({
+  visible,
+  onClose,
+  playlist,
+  title,
+}: PodcastNotesDialogProps) => (
+  <PodcastDialog visible={visible} onClose={onClose}>
+    <View className="w-full max-w-[360px] overflow-hidden rounded-[24px] border border-[#D7FF00]/20 bg-[#0E2B08]">
+      <View className="border-b border-[#D7FF00]/15 bg-[#143703] px-6 py-5">
+        <Text className="text-[18px] font-semibold text-[#F4F5F0]">About live podcast</Text>
+        <Text className="mt-1 text-[12px] text-[#B7C0BC]">
+          Details from the current stream
+        </Text>
+      </View>
+
+      <View className="px-6 py-5">
+        <View className="rounded-[18px] bg-white/5 px-4 py-4">
+          <Text className="text-[11px] uppercase tracking-[1px] text-[#D7FF00]">
+            Podcast Playlist
+          </Text>
+          <Text className="mt-2 text-[17px] font-semibold text-[#F4F5F0]">
+            {playlist}
+          </Text>
+        </View>
+
+        <View className="mt-4 rounded-[18px] bg-white/5 px-4 py-4">
+          <Text className="text-[11px] uppercase tracking-[1px] text-[#D7FF00]">
+            Podcast Title
+          </Text>
+          <Text className="mt-2 text-[17px] font-semibold text-[#F4F5F0]">
+            {title}
+          </Text>
+        </View>
+
+        <Pressable
+          onPress={onClose}
+          className="mt-6 items-center rounded-[18px] bg-[#D7FF00] px-4 py-4"
+        >
+          <Text className="text-[16px] font-semibold text-[#143703]">Close</Text>
+        </Pressable>
+      </View>
+    </View>
+  </PodcastDialog>
+);
+
 type PodcastFullScreenModalProps = {
   visible: boolean;
   onClose: () => void;

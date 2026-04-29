@@ -92,7 +92,7 @@ const ForgotPasswordScreen = () => {
                     </View>
                     <View className="gap-2">
                         <Text className="text-menorah-primary">An email has been sent {email}</Text>
-                        <Text className="text-white">Please enter your 6 digit reset token and set new Password</Text>
+                        <Text className="text-white">Please enter your 8 digit reset token and set new Password</Text>
                     </View>
                     {errorResetingPassword && (
                                 <View className="flex-row gap-2 items-center">
