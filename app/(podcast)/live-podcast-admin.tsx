@@ -9,6 +9,7 @@ import {
   PodcastComments,
   PodcastDialog,
   PodcastHeader,
+  PodcastNotesDialog,
   PodcastParticipantsGrid,
   usePodcastFooterLayout,
 } from "@/components/podcast/livePodcastShared";
@@ -36,7 +37,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 type AdminSheet = "none" | "settings" | "music" | "volume";
 
 const AdminLivePodcast = () => {
-  const { id, playlist, hostId, hostName, hostPictureUrl } = useLocalSearchParams<{
+  const { id, title, playlist, hostId, hostName, hostPictureUrl } = useLocalSearchParams<{
     id: string;
     title: string;
     hostId: string;
@@ -51,6 +52,7 @@ const AdminLivePodcast = () => {
     usePodcastFooterLayout();
 
   const [isExitPromptVisible, setIsExitPromptVisible] = useState(false);
+  const [isNotesVisible, setIsNotesVisible] = useState(false);
   const [activeSheet, setActiveSheet] = useState<AdminSheet>("none");
   const [isMessageComposerVisible, setIsMessageComposerVisible] = useState(false);
   const [message, setMessage] = useState("");
@@ -159,7 +161,9 @@ const AdminLivePodcast = () => {
             actions={
               <>
                 <View className="ml-7">
-                  <HugeIcon width={30} height={30} />
+                  <Pressable onPress={() => setIsNotesVisible(true)} hitSlop={10}>
+                    <HugeIcon width={30} height={30} />
+                  </Pressable>
                 </View>
                 <Share2 size={25} color="#F3F6E7" strokeWidth={1.2} />
                 <Pressable
@@ -410,6 +414,13 @@ const AdminLivePodcast = () => {
             </View>
           </View>
         </PodcastDialog>
+
+        <PodcastNotesDialog
+          visible={isNotesVisible}
+          onClose={() => setIsNotesVisible(false)}
+          playlist={playlist}
+          title={title}
+        />
       </SafeAreaView>
     </LinearGradient>
   );
