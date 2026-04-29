@@ -78,6 +78,7 @@ export type LivePodcast = {
   is_unlisted: boolean
   status: PodcastStatus
   host: Profile
+  livekit_room_name: string
   cover_image_url: string | null
   start_time: string
   end_time: string | null
@@ -101,9 +102,20 @@ export type LiveStreamCardType = {
     hostName: string
     id: string
     hostId: string
+    livekit_room_name: string
 }
 
 export const PLAYLIST_OPTIONS = PLAYLISTS.map((playlist) => ({
   label: playlist,
   value: playlist,
 }))
+
+export type LiveMessage = {
+  id: string
+  podcast_id: string
+  sender_id: string
+  sender_name: string
+  content: string 
+  created_at: string
+  isLocal?: boolean
+}

@@ -16,13 +16,16 @@ import {
 import { Icon } from "@/components/ui/icon";
 import { Colors } from "@/constants/theme";
 import { useLivePodcastParticipants } from "@/hooks/tanstack-query-hooks";
+import { useHostRooom } from "@/hooks/useHostRoom";
 import { endLiveSession } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
+import { useLiveKitStore } from "@/store/livekit-store";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, ChevronRight, Loader2, Mic, Power, Share2, X } from "lucide-react-native";
+import type { ConnectionState } from "livekit-client";
+import { ArrowLeft, ChevronRight, Loader2, Mic, MicOff, Power, Share2, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Keyboard,
@@ -37,13 +40,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 type AdminSheet = "none" | "settings" | "music" | "volume";
 
 const AdminLivePodcast = () => {
-  const { id, title, playlist, hostId, hostName, hostPictureUrl } = useLocalSearchParams<{
+  const { id, title, playlist, hostId, hostName, hostPictureUrl, livekitRoomName } = useLocalSearchParams<{
     id: string;
     title: string;
     hostId: string;
     hostName: string;
     hostPictureUrl: string;
     playlist: string;
+    livekitRoomName: string
   }>();
 
   const router = useRouter();
@@ -61,6 +65,16 @@ const AdminLivePodcast = () => {
   const [isEndingSession, setIsEndingSession] = useState(false);
   const messageInputRef = useRef<TextInput | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  const room = useLiveKitStore(state => state.room)
+  const isMuted = useLiveKitStore(state => state.isMuted)
+  const setIsMuted = useLiveKitStore(state => state.setIsMuted)
+  const clearRoom = useLiveKitStore(state => state.clearRoom)
+  const connectionState = useLiveKitStore(state => state.connectionState)
+
+  const isConnecting = connectionState !== 'connected'
+  
+  useHostRooom(livekitRoomName)
 
   const clampVolume = (value: number) => Math.min(1, Math.max(0, value));
 
@@ -133,6 +147,7 @@ const AdminLivePodcast = () => {
           setIsEndingSession(false);
           return;
         }
+        clearRoom()
         queryClient.invalidateQueries({ queryKey: ["live-podcast-sessions"] });
         setIsEndingSession(false);
         setIsExitPromptVisible(false);
@@ -143,6 +158,16 @@ const AdminLivePodcast = () => {
         setIsEndingSession(false);
       });
   };
+
+  const handleToggleMic = async () => {
+    if (!room) return 
+
+    const newMutedState = !isMuted
+
+    await room.localParticipant.setMicrophoneEnabled(!newMutedState)
+
+    setIsMuted(newMutedState)
+  }
 
   return (
     <LinearGradient
@@ -175,7 +200,13 @@ const AdminLivePodcast = () => {
               </>
             }
           />
-
+          {isConnecting && (
+            <View className="items-center py-4">
+              <Text className="text-menorah-primary text-sm">
+                Connecting...
+              </Text>
+            </View>
+          )}
           <PodcastParticipantsGrid
             hostName={hostName}
             hostPictureUrl={hostPictureUrl}
@@ -364,7 +395,15 @@ const AdminLivePodcast = () => {
               </View>
 
               <View className="ml-5">
-                <Mic size={25} color="#D7FF00" strokeWidth={2.4} />
+                <Pressable
+                  onPress={handleToggleMic}
+                  className="w-16 h-16 rounded-full bg-menorah-darkGreen items-center justify-center"
+                >
+                  {isMuted
+                    ? <MicOff size={24} color={Colors.menorah.primary} />
+                    : <Mic size={24} color={Colors.menorah.primary} />
+                  }
+                </Pressable>
               </View>
             </View>
           </View>

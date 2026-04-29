@@ -9,6 +9,8 @@ export const createLivePodcast = async (
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
+  const livekitRoomName = `menorah-${Date.now()}-${user.id.slice(0, 8)}`
+
   const { data, error } = await supabase
     .from('live_podcasts')
     .insert({
@@ -19,7 +21,8 @@ export const createLivePodcast = async (
       start_time: input.start_time,
       cover_image_url: input.cover_image_url ?? null,
       host_id: user.id,
-      status: 'live'
+      status: 'live',
+      livekit_room_name: livekitRoomName
     })
     .select(PODCAST_SELECT)
     .single()

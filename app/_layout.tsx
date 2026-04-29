@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import ForgotPasswordModal from "@/components/auth/forgot-password-modal";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query";
+import {AudioSession}  from "@livekit/react-native"
 
 export default function RootLayout() {
 
@@ -16,6 +17,14 @@ export default function RootLayout() {
   const isAuthLoading = useAuthStore(state => state.isAuthLoading)
   const setIsAuthLoading = useAuthStore(state => state.setIsAuthLoading)
   const setSession = useAuthStore(state => state.setSession)
+
+  useEffect(() => {
+    AudioSession.startAudioSession()
+
+    return () => {
+      AudioSession.stopAudioSession()
+    }
+  }, [])
 
   useEffect(() => {
     setIsAuthLoading(true)
