@@ -17,8 +17,10 @@ import { Icon } from "@/components/ui/icon";
 import { Colors } from "@/constants/theme";
 import { useLivePodcastParticipants } from "@/hooks/tanstack-query-hooks";
 import { useHostRooom } from "@/hooks/useHostRoom";
+import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { endLiveSession } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
+import { useAuthStore } from "@/store/authStore";
 import { useLiveKitStore } from "@/store/livekit-store";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -72,9 +74,13 @@ const AdminLivePodcast = () => {
   const clearRoom = useLiveKitStore(state => state.clearRoom)
   const connectionState = useLiveKitStore(state => state.connectionState)
 
+  const profile = useAuthStore(state => state.profile)
+
   const isConnecting = connectionState !== 'connected'
   
   useHostRooom(livekitRoomName)
+
+  const {raisedHands} = useRoomSignals(room, profile?.id ?? "")
 
   const clampVolume = (value: number) => Math.min(1, Math.max(0, value));
 

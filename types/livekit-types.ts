@@ -9,3 +9,16 @@ export type LiveKitStore = {
     setIsMuted: (muted: boolean) => void
     clearRoom: () => void
 }
+
+export type SignalType = 
+  | 'RAISE_HAND'      
+  | 'LOWER_HAND'    
+  | 'HAND_APPROVED'
+  | 'SESSION_ENDED'
+
+export type RoomSignal = {
+    type: SignalType
+    fromId: string
+    fromName: string
+    toId?: string
+}

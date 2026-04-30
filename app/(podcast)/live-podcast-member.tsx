@@ -17,11 +17,15 @@ import {
   type PodcastCurrencyOption,
 } from "@/components/podcast/livePodcastShared";
 import { useLivePodcastParticipants } from "@/hooks/tanstack-query-hooks";
+import { useRoomSignals } from "@/hooks/useRoomSignals";
+import { lowerHand, raiseHand } from "@/lib/livekit-signals";
+import { useAuthStore } from "@/store/authStore";
+import { useLiveKitStore } from "@/store/livekit-store";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, ChevronDown, ChevronRight, Power, Share2, X } from "lucide-react-native";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -53,6 +57,38 @@ const MemberLivePodcast = () => {
       podcastCurrencies[1],
     [selectedCurrencyId]
   );
+
+  const clearRoom = useLiveKitStore(state => state.clearRoom)
+  const room = useLiveKitStore(state => state.room)
+  const profile = useAuthStore(state => state.profile)
+  const {isApprovedToSpeak, sessionEnded} = useRoomSignals(room, profile?.id ?? "")
+  const [hasRaisedHand, setHasRaisedHand] = useState<boolean>(false)
+
+  useEffect(() => {
+    if (!isApprovedToSpeak || !room) return
+    
+    import('livekit-client').then(() => {
+      room.localParticipant.setMicrophoneEnabled(true)
+    })
+  }, [isApprovedToSpeak])
+
+  useEffect(() => {
+    if (!sessionEnded) return
+    clearRoom()
+    router.replace("/(tabs)/podcast")
+  }, [sessionEnded])
+
+  const handleRaiseHand = async () => {
+    if (!room || !profile) return
+
+    if (hasRaisedHand) {
+      await lowerHand(room, profile.id, profile.full_name ?? "Listener")
+      setHasRaisedHand(false)
+    } else {
+      await raiseHand(room, profile.id, profile.full_name ?? "Listener")
+      setHasRaisedHand(true)
+    }
+  }
 
   return (
     <LinearGradient
