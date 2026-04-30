@@ -17,6 +17,7 @@ import {
   type PodcastCurrencyOption,
 } from "@/components/podcast/livePodcastShared";
 import { useLivePodcastParticipants } from "@/hooks/tanstack-query-hooks";
+import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { lowerHand, raiseHand } from "@/lib/livekit-signals";
 import { useAuthStore } from "@/store/authStore";
@@ -50,6 +51,7 @@ const MemberLivePodcast = () => {
   const [isCurrencySheetVisible, setIsCurrencySheetVisible] = useState(false);
   const [selectedCurrencyId, setSelectedCurrencyId] =
     useState<PodcastCurrencyOption["id"]>("usd");
+  const [message, setMessage] = useState<string>('')
 
   const selectedCurrency = useMemo(
     () =>
@@ -63,6 +65,18 @@ const MemberLivePodcast = () => {
   const profile = useAuthStore(state => state.profile)
   const {isApprovedToSpeak, sessionEnded} = useRoomSignals(room, profile?.id ?? "")
   const [hasRaisedHand, setHasRaisedHand] = useState<boolean>(false)
+
+  const {messages, sendMessage} = useRoomChat(
+      room,
+      id,
+      profile?.id ?? ''
+    )
+
+  const handleSendMessage = async () => {
+    if (!message.trim()) return
+    await sendMessage(message, profile?.full_name ?? "User", profile?.avatar_url ?? null)
+    setMessage('')
+  }
 
   useEffect(() => {
     if (!isApprovedToSpeak || !room) return
@@ -127,7 +141,7 @@ const MemberLivePodcast = () => {
             hostPictureUrl={hostPictureUrl}
           />
 
-          <PodcastComments footerPadding={scrollPaddingBottom} />
+          <PodcastComments messages={messages} footerPadding={scrollPaddingBottom} />
         </View>
 
         <PodcastBottomDock
@@ -139,9 +153,14 @@ const MemberLivePodcast = () => {
             <View className="mr-4 flex-1 flex-row items-center rounded-2xl border border-white bg-[#143703] px-5 py-3">
               <TextInput
                 placeholder="Input your message"
+                value={message}
+                onChangeText={setMessage}
                 placeholderTextColor="#A9A9A9"
                 className="flex-1 text-[14px] text-white"
                 returnKeyType="send"
+                onSubmitEditing={() => {
+                  handleSendMessage()
+                }}
               />
             </View>
 

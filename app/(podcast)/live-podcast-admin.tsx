@@ -17,6 +17,7 @@ import { Icon } from "@/components/ui/icon";
 import { Colors } from "@/constants/theme";
 import { useLivePodcastParticipants } from "@/hooks/tanstack-query-hooks";
 import { useHostRooom } from "@/hooks/useHostRoom";
+import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { endLiveSession } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
@@ -81,6 +82,17 @@ const AdminLivePodcast = () => {
   useHostRooom(livekitRoomName)
 
   const {raisedHands} = useRoomSignals(room, profile?.id ?? "")
+  const {messages, sendMessage} = useRoomChat(
+    room,
+    id,
+    profile?.id ?? ''
+  )
+
+  const handleSendMessage = async () => {
+    if (!message.trim()) return
+    await sendMessage(message, profile?.full_name ?? "User", profile?.avatar_url ?? null)
+    setMessage('')
+  }
 
   const clampVolume = (value: number) => Math.min(1, Math.max(0, value));
 
@@ -218,7 +230,7 @@ const AdminLivePodcast = () => {
             hostPictureUrl={hostPictureUrl}
           />
 
-          <PodcastComments footerPadding={scrollPaddingBottom} />
+          <PodcastComments messages={messages} footerPadding={scrollPaddingBottom} />
         </View>
 
         <PodcastBottomDock
@@ -239,6 +251,7 @@ const AdminLivePodcast = () => {
                   selectionColor="#FFFFFF"
                   returnKeyType="send"
                   onSubmitEditing={() => {
+                    handleSendMessage()
                     Keyboard.dismiss();
                     setIsMessageComposerVisible(false);
                   }}

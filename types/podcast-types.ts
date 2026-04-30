@@ -115,6 +115,7 @@ export type LiveMessage = {
   podcast_id: string
   sender_id: string
   sender_name: string
+  sender_avartar_url: string | null
   content: string 
   created_at: string
   isLocal?: boolean

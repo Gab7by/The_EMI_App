@@ -1,5 +1,7 @@
 import LivePeople from "@/assets/svgs/live_people_icon.svg";
+import { LiveMessage } from "@/types/podcast-types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { FlashList } from "@shopify/flash-list";
 import { Image } from "expo-image";
 import { useEffect, useState, type ReactNode } from "react";
 import {
@@ -243,43 +245,59 @@ export const PodcastParticipantsGrid = ({
 
 type PodcastCommentsProps = {
   footerPadding: number;
+  messages: LiveMessage[]
 };
 
-export const PodcastComments = ({ footerPadding }: PodcastCommentsProps) => (
-  <ScrollView
-    showsVerticalScrollIndicator={false}
-    keyboardShouldPersistTaps="handled"
+export const PodcastComments = ({ footerPadding, messages }: PodcastCommentsProps) => (
+  <FlashList
+    data={messages}
+    ListEmptyComponent={() => (
+      <Text className="text-white text-sm">No messages yet</Text>
+    )}
+    keyExtractor={(item) => item.id}
     contentContainerStyle={{ paddingBottom: footerPadding }}
-  >
-    <View className="mb-7 rounded-[22px] bg-menorah-bg px-4 py-4">
-      <Text className="text-[12px] leading-5 text-[#FFD700]">
-        Please keep comments respectful and uplifting. &quot;Let your words edify and
-        bring grace to those who hear.&quot; - Ephesians 4:29.
-      </Text>
-    </View>
-
-    <View className="gap-5">
-      {podcastComments.map((comment) => (
-        <View key={comment.id} className="flex-row items-start">
-          <Image
-            source={comment.avatar}
-            style={{ width: 34, height: 34, borderRadius: 17 }}
-            contentFit="cover"
-          />
-          <View className="ml-3 flex-1">
-            <Text className="mb-2 text-[11px] font-medium text-menorah-whiteSoft">
-              {comment.name}
+    ListHeaderComponent={
+      () => (
+        <View className="mb-7 rounded-[22px] bg-menorah-bg px-4 py-4">
+          <Text className="text-[12px] leading-5 text-[#FFD700]">
+            Please keep comments respectful and uplifting. &quot;Let your words edify and
+            bring grace to those who hear.&quot; - Ephesians 4:29.
+          </Text>
+        </View>  
+      )
+    }
+    renderItem={({item}) => (
+      <View className={`flex-row mb-5 ${item.isLocal ? 'justify-end' : 'justify-start'}`}>
+        {
+          !item.isLocal && (
+          item.sender_avartar_url ? (
+              <Image
+                source={{uri: item.sender_avartar_url}}
+                style={{ width: 34, height: 34, borderRadius: 17 }}
+                contentFit="cover"
+              />
+          ) : (
+              <View style={{width: 34, height: 34, borderRadius: 17}} className="bg-menorah-primary items-center justify-center">
+                  <Text className="text-menorah-bg font-bold text-lg">
+                      {item.sender_name.charAt(0).toUpperCase()}
+                  </Text>
+              </View>
+          ) )
+      }
+        <View className="ml-3 flex-1">
+          {!item.isLocal && 
+          (<Text className="mb-2 text-[11px] font-medium text-menorah-whiteSoft">
+            {item.sender_name}
+          </Text>)}
+          <View className="self-start rounded-2xl bg-white/20 px-4 py-3">
+            <Text className={`max-w-[240px] text-[12px] font-semibold leading-4 ${item.isLocal ? 'text-black' : 'text-menorah-whiteSoft'}`}>
+              {item.content}
             </Text>
-            <View className="self-start rounded-2xl bg-white/20 px-4 py-3">
-              <Text className="max-w-[240px] text-[12px] font-semibold leading-4 text-menorah-whiteSoft/95">
-                {comment.message}
-              </Text>
-            </View>
           </View>
         </View>
-      ))}
-    </View>
-  </ScrollView>
+      </View>
+    )}
+  />
 );
 
 export const usePodcastFooterLayout = () => {
