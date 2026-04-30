@@ -19,6 +19,7 @@ import { useLivePodcastParticipants } from "@/hooks/tanstack-query-hooks";
 import { useHostRooom } from "@/hooks/useHostRoom";
 import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
+import { sendSessionEnded } from "@/lib/livekit-signals";
 import { endLiveSession } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { useAuthStore } from "@/store/authStore";
@@ -158,24 +159,35 @@ const AdminLivePodcast = () => {
   };
 
   const leaveLiveRoom = () => {
-    setIsEndingSession(true);
-    endLiveSession(id)
-      .then((success) => {
-        if (!success) {
-          setIsEndingSession(false);
-          return;
+    setIsEndingSession(true)
+
+    const finish = async () => {
+        if (room && profile) {
+        await sendSessionEnded(room, profile.id, profile.full_name ?? 'Host')
+
+        await new Promise(resolve => setTimeout(resolve, 500))
         }
+
+        const success = await endLiveSession(id)
+        if (!success) {
+            setIsEndingSession(false)
+            return
+        }
+
         clearRoom()
-        queryClient.invalidateQueries({ queryKey: ["live-podcast-sessions"] });
-        setIsEndingSession(false);
-        setIsExitPromptVisible(false);
-        router.replace("/(tabs)/podcast");
-      })
-      .catch((error) => {
-        console.error(error);
-        setIsEndingSession(false);
-      });
-  };
+
+        queryClient.invalidateQueries({ queryKey: ['live-podcast-sessions'] })
+
+        setIsEndingSession(false)
+        setIsExitPromptVisible(false)
+        router.replace('/(tabs)/podcast')
+    }
+
+    finish().catch((error) => {
+        console.error(error)
+        setIsEndingSession(false)
+    })
+}
 
   const handleToggleMic = async () => {
     if (!room) return 
