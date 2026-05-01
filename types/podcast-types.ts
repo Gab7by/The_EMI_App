@@ -102,7 +102,7 @@ export type LiveStreamCardType = {
     hostName: string
     id: string
     hostId: string
-    livekit_room_name: string
+    livekitRoomName: string
 }
 
 export const PLAYLIST_OPTIONS = PLAYLISTS.map((playlist) => ({

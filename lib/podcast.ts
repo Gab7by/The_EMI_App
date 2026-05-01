@@ -10,6 +10,8 @@ export const createLivePodcast = async (
   if (!user) return null
 
   const livekitRoomName = `menorah-${Date.now()}-${user.id.slice(0, 8)}`
+  // const livekitRoomName = `menorah-${user.id.slice(0, 8)}`
+  // const livekitRoomName = "test-room"
 
   const { data, error } = await supabase
     .from('live_podcasts')

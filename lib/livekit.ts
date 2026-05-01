@@ -14,3 +14,9 @@ export const getLiveKitToken = async (roomName: string, isHost: boolean): Promis
 
         return data.token
 }
+
+export async function testToken() {
+  const token = await getLiveKitToken('test-room', true)
+  console.log('Token received:', token ? 'YES — token exists' : 'NO — null returned')
+  console.log(token)
+}

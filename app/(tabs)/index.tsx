@@ -4,6 +4,7 @@ import ImageSlider from "@/components/commons/image-slider"
 import HomeProfileBar from "@/components/profile/homePofileBar"
 import HomeProfileModal from "@/components/profile/homeProfileModal"
 import { imageItems } from "@/constants/podcast"
+import { testToken } from "@/lib/livekit"
 import { Pressable, ScrollView, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
@@ -27,6 +28,7 @@ const Home = () => {
             <Text className="font-bold text-left text-base">Manifestation Of The Sons of God</Text>
             <Text className="text-left text-sm mt-2">Raising Matured Sons for Kingdom {"\n"}Dominion...</Text>
             <Pressable
+              onPress={testToken}
               className="bg-[#0B1F0E] w-32 h-12 flex-row items-center pl-3 justify-start rounded-2xl mt-6">
               <Text className="text-white font-bold mr-2">Read More</Text>
               <ArrowRight width={10} height={10} />

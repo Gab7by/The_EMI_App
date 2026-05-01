@@ -12,17 +12,29 @@ export const useRoomChat = (
 
     useEffect(() => {
         const loadHistory = async () => {
-            const {data} = await supabase
+            const {data, error} = await supabase
                 .from('live_podcast_messages')
                 .select('*')
                 .eq('podcast_id', podcastId)
                 .order("created_at", {ascending: true})
 
-            if (data) setMessages(data)
+            if (error) {
+                console.error("Failed to load live podcast messages", error)
+                return
+            }
+
+            if (data) {
+                setMessages(
+                    data.map((message) => ({
+                        ...message,
+                        isLocal: message.sender_id === currentUserId,
+                    }))
+                )
+            }
         }
 
         loadHistory()
-    }, [podcastId])
+    }, [podcastId, currentUserId])
 
     useEffect(() => {
         if (!room) return
@@ -40,18 +52,22 @@ export const useRoomChat = (
 
                     if (parsed.type !== 'CHAT') return
 
-                    if (parsed.sender_id === currentUserId) return
+                    setMessages(prev => {
+                        if (prev.some((message) => message.id === parsed.id)) {
+                            return prev
+                        }
 
-                    setMessages(prev => [...prev, {
-                        id: parsed.id,
-                        podcast_id: parsed.podcast_id,
-                        sender_id: parsed.sender_id,
-                        sender_name: parsed.sender_name,
-                        sender_avartar_url: parsed.sender_avartar_url ?? null,
-                        content: parsed.content,
-                        created_at: parsed.created_at,
-                        isLocal: false
-                    }])
+                        return [...prev, {
+                            id: parsed.id,
+                            podcast_id: parsed.podcast_id,
+                            sender_id: parsed.sender_id,
+                            sender_name: parsed.sender_name,
+                            sender_avartar_url: parsed.sender_avartar_url ?? null,
+                            content: parsed.content,
+                            created_at: parsed.created_at,
+                            isLocal: parsed.sender_id === currentUserId
+                        }]
+                    })
                 } catch {
 
                 }
@@ -74,18 +90,24 @@ export const useRoomChat = (
             const id = `${Date.now()}-${currentUserId}`
             const created_at = new Date().toISOString()
 
-            setMessages(prev => [
-                ...prev, {
-                    id,
-                    podcast_id: podcastId,
-                    sender_id: currentUserId,
-                    sender_name: senderName,
-                    sender_avartar_url: senderAvatarUrl,
-                    content: content.trim(),
-                    created_at,
-                    isLocal: true
+            setMessages(prev => {
+                if (prev.some((message) => message.id === id)) {
+                    return prev
                 }
-            ])
+
+                return [
+                    ...prev, {
+                        id,
+                        podcast_id: podcastId,
+                        sender_id: currentUserId,
+                        sender_name: senderName,
+                        sender_avartar_url: senderAvatarUrl,
+                        content: content.trim(),
+                        created_at,
+                        isLocal: true
+                    }
+                ]
+            })
 
             const messageData = {
                 type: 'CHAT',
@@ -106,12 +128,17 @@ export const useRoomChat = (
                 )
             })
 
-            supabase.from('live_podcast_messages').insert({
+            const { error } = await supabase.from('live_podcast_messages').insert({
                 podcast_id: podcastId,
                 sender_id: currentUserId,
                 sender_name: senderName,
+                sender_avartar_url: senderAvatarUrl,
                 content: content.trim()
             })
+
+            if (error) {
+                console.error("Failed to save live podcast message", error)
+            }
         }, [room, podcastId, currentUserId])
 
         return {messages, sendMessage}
