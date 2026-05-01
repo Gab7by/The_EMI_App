@@ -197,47 +197,32 @@ export const PodcastHeader = ({
 );
 
 type PodcastParticipantsGridProps = {
-  hostName: string;
-  hostPictureUrl?: string | null;
-  slots?: number;
+  participants: {
+    id: string;
+    name: string;
+    pictureUrl?: string | null;
+  }[];
 };
 
 export const PodcastParticipantsGrid = ({
-  hostName,
-  hostPictureUrl,
-  slots = 9,
+  participants,
 }: PodcastParticipantsGridProps) => (
-  <View className="mb-6 flex-row flex-wrap justify-between gap-y-4">
-    <View className="w-[19%] items-center">
-      <View className="h-[62px] w-[62px] items-center justify-center rounded-full border border-white/40 bg-white/15">
-        <HostAvatar
-          hostName={hostName}
-          hostPictureUrl={hostPictureUrl}
-          size={60}
-          textClassName="text-2xl font-bold text-menorah-primary"
-        />
-      </View>
-      <Text
-        className="mt-2 text-center text-[10px] text-menorah-whiteSoft/85"
-        numberOfLines={1}
-      >
-        {hostName}
-      </Text>
-    </View>
-    {Array.from({ length: slots }, (_, index) => (
-      <View key={index} className="w-[19%] items-center">
+  <View className="mb-6 flex-row flex-wrap gap-y-4">
+    {participants.map((participant) => (
+      <View key={participant.id} className="mb-1 w-[20%] items-center">
         <View className="h-[62px] w-[62px] items-center justify-center rounded-full border border-white/40 bg-[#C8D2BC]">
-          <Image
-            source={require("@/assets/pictures/call_in_image.png")}
-            style={{ width: "100%", height: "100%", borderRadius: 999 }}
-            contentFit="cover"
+          <HostAvatar
+            hostName={participant.name}
+            hostPictureUrl={participant.pictureUrl}
+            size={60}
+            textClassName="text-2xl font-bold text-menorah-primary"
           />
         </View>
         <Text
           className="mt-2 text-center text-[10px] text-menorah-whiteSoft/85"
           numberOfLines={1}
         >
-          #{index + 1} Call In
+          {participant.name}
         </Text>
       </View>
     ))}
@@ -252,6 +237,7 @@ type PodcastCommentsProps = {
 export const PodcastComments = ({ footerPadding, messages }: PodcastCommentsProps) => (
   <FlashList
     data={messages}
+    showsVerticalScrollIndicator={false}
     ListEmptyComponent={() => (
       <View className="mx-2 mt-8 items-center rounded-[24px] border border-white/10 bg-[#0F2A08]/80 px-6 py-8">
         <View className="h-[58px] w-[58px] items-center justify-center rounded-full bg-[#D7FF00]/15">

@@ -104,6 +104,7 @@ const PodcastScreen = () => {
       ) : (
         <FlashList
             ListEmptyComponent={<NoLiveStreamCard />}
+            showsVerticalScrollIndicator={false}
             contentContainerStyle={{paddingBottom: insets.bottom + 80}}
             ListHeaderComponent={
                 <Text className="text-xl font-bold text-menorah-goldDark mb-4">

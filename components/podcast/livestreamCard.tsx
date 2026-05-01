@@ -45,7 +45,8 @@ const LiveStreamCard = ({
                     playlist,
                     hostId,
                     hostName,
-                    hostPictureUrl
+                    hostPictureUrl,
+                    livekitRoomName
                 }
             }
         )

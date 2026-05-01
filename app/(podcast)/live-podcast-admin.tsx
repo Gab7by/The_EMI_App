@@ -10,30 +10,29 @@ import {
   PodcastConnectingOverlay,
   PodcastDialog,
   PodcastHeader,
+  HostAvatar,
   PodcastNotesDialog,
   PodcastParticipantsGrid,
   usePodcastFooterLayout,
 } from "@/components/podcast/livePodcastShared";
 import { Icon } from "@/components/ui/icon";
 import { Colors } from "@/constants/theme";
-import { useLivePodcastParticipants } from "@/hooks/tanstack-query-hooks";
+import { useActiveLivePodcastParticipants, useLivePodcastParticipants } from "@/hooks/tanstack-query-hooks";
 import { useHostRooom } from "@/hooks/useHostRoom";
 import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
-import { sendSessionEnded } from "@/lib/livekit-signals";
-import { endLiveSession } from "@/lib/podcast";
+import { approveSpeaker, sendSessionEnded } from "@/lib/livekit-signals";
+import { endLiveSession, updateParticipantCalledIn } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveKitStore } from "@/store/livekit-store";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, ChevronRight, Loader2, Mic, MicOff, Power, Share2, X } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronRight, Loader2, Mic, MicOff, Power, Share2, X } from "lucide-react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Keyboard,
-  PanResponder,
   Pressable,
   Text,
   TextInput,
@@ -41,7 +40,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-type AdminSheet = "none" | "settings" | "music" | "volume";
+type AdminSheet = "none" | "settings" | "music" | "speakers";
 
 const AdminLivePodcast = () => {
   const { id, title, playlist, hostId, hostName, hostPictureUrl, livekitRoomName } = useLocalSearchParams<{
@@ -56,6 +55,7 @@ const AdminLivePodcast = () => {
 
   const router = useRouter();
   const { data: participantCount } = useLivePodcastParticipants(hostId, id);
+  const { data: activeParticipants = [] } = useActiveLivePodcastParticipants(id);
   const { footerBottom, footerPaddingBottom, scrollPaddingBottom, handleFooterLayout } =
     usePodcastFooterLayout();
 
@@ -64,8 +64,6 @@ const AdminLivePodcast = () => {
   const [activeSheet, setActiveSheet] = useState<AdminSheet>("none");
   const [isMessageComposerVisible, setIsMessageComposerVisible] = useState(false);
   const [message, setMessage] = useState("");
-  const [sliderWidth, setSliderWidth] = useState(0);
-  const [volumeLevel, setVolumeLevel] = useState(0.7);
   const [isEndingSession, setIsEndingSession] = useState(false);
   const messageInputRef = useRef<TextInput | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -93,45 +91,19 @@ const AdminLivePodcast = () => {
   
   useHostRooom(livekitRoomName)
 
-  const {raisedHands} = useRoomSignals(room, profile?.id ?? "")
+  const {raisedHands, dismissRaisedHand} = useRoomSignals(room, profile?.id ?? "")
   const {messages, sendMessage} = useRoomChat(
     room,
     id,
     profile?.id ?? ''
   )
+  const latestRaisedHand = raisedHands[raisedHands.length - 1]
 
   const handleSendMessage = async () => {
     if (!message.trim()) return
     await sendMessage(message, profile?.full_name ?? "User", profile?.avatar_url ?? null)
     setMessage('')
   }
-
-  const clampVolume = (value: number) => Math.min(1, Math.max(0, value));
-
-  const updateVolumeFromGesture = useCallback(
-    (locationX: number) => {
-      if (!sliderWidth) {
-        return;
-      }
-      setVolumeLevel(clampVolume(locationX / sliderWidth));
-    },
-    [sliderWidth]
-  );
-
-  const sliderPanResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: (event) => {
-          updateVolumeFromGesture(event.nativeEvent.locationX);
-        },
-        onPanResponderMove: (event) => {
-          updateVolumeFromGesture(event.nativeEvent.locationX);
-        },
-      }),
-    [updateVolumeFromGesture]
-  );
 
   useEffect(() => {
   let focusTimeout: NodeJS.Timeout;
@@ -210,6 +182,57 @@ const AdminLivePodcast = () => {
     setIsMuted(newMutedState)
   }
 
+  const speakerParticipants = activeParticipants.filter((participant) => participant.is_called_in)
+
+  const speakerRows = [
+    {
+      id: hostId,
+      name: hostName,
+      avatarUrl: hostPictureUrl ?? null,
+      isMuted,
+      isHost: true,
+    },
+    ...speakerParticipants.map((participant) => {
+      const liveParticipant = room?.remoteParticipants.get(participant.profile_id)
+      return {
+        id: participant.profile_id,
+        name: participant.profile?.full_name ?? "Speaker",
+        avatarUrl: participant.profile?.avatar_url ?? null,
+        isMuted: !(liveParticipant?.isMicrophoneEnabled ?? false),
+        isHost: false,
+      }
+    })
+  ]
+
+  const speakerGridParticipants = speakerRows.map((speaker) => ({
+    id: speaker.id,
+    name: speaker.name,
+    pictureUrl: speaker.avatarUrl,
+  }))
+
+  const handleApproveRaisedHand = async (participantId: string) => {
+    if (!room || !profile) return
+
+    await approveSpeaker(
+      room,
+      profile.id,
+      profile.full_name ?? "Host",
+      participantId
+    )
+    await updateParticipantCalledIn(id, participantId, true)
+    dismissRaisedHand(participantId)
+    queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+  }
+
+  const handleRejectRaisedHand = (participantId: string) => {
+    dismissRaisedHand(participantId)
+  }
+
+  const handleRemoveSpeaker = async (participantId: string) => {
+    await updateParticipantCalledIn(id, participantId, false)
+    queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+  }
+
   return (
     <LinearGradient
       colors={["#143703", "#4a7108", "#143703"]}
@@ -241,9 +264,36 @@ const AdminLivePodcast = () => {
               </>
             }
           />
+
+          {latestRaisedHand ? (
+            <Pressable
+              onPress={() => {
+                closeAllOverlays();
+                setActiveSheet("speakers");
+              }}
+              className="mb-5 flex-row items-center rounded-[20px] border border-[#D7FF00]/20 bg-[#0F2A08]/90 px-4 py-4"
+            >
+              <View className="h-[42px] w-[42px] items-center justify-center rounded-full bg-[#D7FF00]/15">
+                <Mic size={18} color="#D7FF00" strokeWidth={2.4} />
+              </View>
+              <View className="ml-3 flex-1">
+                <Text className="text-[14px] font-semibold text-[#F4F5F0]">
+                  {latestRaisedHand.fromName} is requesting to call in
+                </Text>
+                <Text className="mt-1 text-[11px] text-[#B7C0BC]">
+                  Tap to review speaker requests.
+                </Text>
+              </View>
+              <View className="ml-3 rounded-full bg-[#D7FF00] px-3 py-1">
+                <Text className="text-[11px] font-semibold text-[#143703]">
+                  {raisedHands.length}
+                </Text>
+              </View>
+            </Pressable>
+          ) : null}
+
           <PodcastParticipantsGrid
-            hostName={hostName}
-            hostPictureUrl={hostPictureUrl}
+            participants={speakerGridParticipants}
           />
 
           <PodcastComments messages={messages} footerPadding={scrollPaddingBottom} />
@@ -322,7 +372,7 @@ const AdminLivePodcast = () => {
               <Pressable
                 onPress={() => {
                   closeAllOverlays();
-                  setActiveSheet("volume");
+                  setActiveSheet("speakers");
                 }}
                 hitSlop={10}
               >
@@ -377,70 +427,119 @@ const AdminLivePodcast = () => {
         </PodcastBottomSheet>
 
         <PodcastBottomSheet
-          visible={activeSheet === "volume"}
+          visible={activeSheet === "speakers"}
           onClose={() => setActiveSheet("none")}
         >
           <View className="items-center">
             <View className="h-[4px] w-[112px] rounded-full bg-[#D7FF00]" />
           </View>
 
-          <View className="mt-8 flex-row items-center justify-between">
-            <Pressable onPress={() => setActiveSheet("none")} hitSlop={12}>
-              <ArrowLeft size={24} color="#D7FF00" strokeWidth={2.8} />
-            </Pressable>
-            <Text className="text-[18px] font-bold text-[#D7FF00]">Volume Control</Text>
-            <View className="w-[42px]" />
-          </View>
+          <Text className="mt-8 text-center text-[18px] font-bold text-[#D7FF00]">
+            Speakers & Requests
+          </Text>
 
-          <View className="mt-10 flex-row items-center">
-            <Image
-              source={
-                hostPictureUrl
-                  ? { uri: hostPictureUrl }
-                  : require("@/assets/pictures/host_profile_image.png")
-              }
-              style={{ width: 50, height: 50, borderRadius: 10 }}
-              contentFit="cover"
-            />
+          <Text className="mt-8 text-[13px] font-semibold uppercase tracking-[1px] text-[#B7C0BC]">
+            Raised Hands
+          </Text>
 
-            <View className="ml-2 w-[110px]">
-              <Text className="text-[14px] text-[#D7FF00]" numberOfLines={1}>
-                {hostName}
-              </Text>
-              <Text className="mt-1 text-[14px] text-[#B7C0BC]">(Host)</Text>
-            </View>
-
-            <View className="flex-1 flex-row items-center">
-              <View
-                className="flex-1 justify-center"
-                onLayout={(event) => setSliderWidth(event.nativeEvent.layout.width)}
-                {...sliderPanResponder.panHandlers}
-              >
-                <View className="h-[16px] justify-center">
-                  <View className="h-[10px] rounded-full bg-[#184832]" />
-                  <View
-                    className="absolute left-0 top-[3px] h-[10px] rounded-full bg-[#D7FF00]"
-                    style={{ width: `${volumeLevel * 100}%` }}
-                  />
-                  <View
-                    className="absolute top-1/2 h-[32px] w-[32px] -translate-x-[16px] -translate-y-[16px] rounded-full bg-[#D7FF00]"
-                    style={{ left: `${volumeLevel * 100}%` }}
-                  />
-                </View>
-              </View>
-
-              <View className="ml-5">
-                <Pressable
-                  onPress={handleToggleMic}
-                  className="w-16 h-16 rounded-full bg-menorah-darkGreen items-center justify-center"
+          {raisedHands.length ? (
+            <View className="mt-4 gap-4">
+              {raisedHands.map((request) => (
+                <View
+                  key={request.fromId}
+                  className="rounded-[22px] bg-[#143703] px-4 py-4"
                 >
-                  {isMuted
-                    ? <MicOff size={24} color={Colors.menorah.primary} />
-                    : <Mic size={24} color={Colors.menorah.primary} />
-                  }
-                </Pressable>
-              </View>
+                  <Text className="text-[16px] font-semibold text-[#F4F5F0]">
+                    {request.fromName}
+                  </Text>
+                  <Text className="mt-1 text-[12px] text-[#B7C0BC]">
+                    Wants to call in and join as a speaker.
+                  </Text>
+                  <View className="mt-4 flex-row gap-3">
+                    <Pressable
+                      onPress={() => handleApproveRaisedHand(request.fromId)}
+                      className="flex-1 items-center rounded-[16px] bg-[#D7FF00] px-4 py-3"
+                    >
+                      <Text className="text-[14px] font-semibold text-[#143703]">Accept</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => handleRejectRaisedHand(request.fromId)}
+                      className="flex-1 items-center rounded-[16px] bg-white/10 px-4 py-3"
+                    >
+                      <Text className="text-[14px] font-semibold text-[#F4F5F0]">Reject</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
             </View>
+          ) : (
+            <View className="mt-4 rounded-[22px] bg-[#143703] px-4 py-4">
+              <Text className="text-[14px] text-[#B7C0BC]">No call-in requests right now.</Text>
+            </View>
+          )}
+
+          <Text className="mt-8 text-[13px] font-semibold uppercase tracking-[1px] text-[#B7C0BC]">
+            Active Speakers
+          </Text>
+
+          <View className="mt-4 gap-4">
+            {speakerRows.map((speaker) => (
+              <View
+                key={speaker.id}
+                className="flex-row items-center rounded-[22px] bg-[#143703] px-4 py-4"
+              >
+                <HostAvatar
+                  hostName={speaker.name}
+                  hostPictureUrl={speaker.avatarUrl}
+                  size={42}
+                  textClassName="text-base font-bold text-menorah-primary"
+                />
+                <View className="ml-3 flex-1">
+                  <Text className="text-[15px] font-semibold text-[#F4F5F0]">
+                    {speaker.name}
+                  </Text>
+                  <Text className="mt-1 text-[12px] text-[#B7C0BC]">
+                    {speaker.isHost ? "Host" : "Speaker"}
+                  </Text>
+                </View>
+                {speaker.isHost ? (
+                  <Pressable
+                    onPress={handleToggleMic}
+                    className="flex-row items-center rounded-full bg-menorah-darkGreen px-3 py-2"
+                  >
+                    {speaker.isMuted ? (
+                      <MicOff size={18} color={Colors.menorah.primary} />
+                    ) : (
+                      <Mic size={18} color={Colors.menorah.primary} />
+                    )}
+                    <Text className="ml-2 text-[12px] font-semibold text-[#F4F5F0]">
+                      {speaker.isMuted ? "Muted" : "Live"}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <View className="items-end gap-2">
+                    <View className="flex-row items-center rounded-full bg-white/10 px-3 py-2">
+                      {speaker.isMuted ? (
+                        <MicOff size={18} color="#F3F6E7" />
+                      ) : (
+                        <Mic size={18} color="#D7FF00" />
+                      )}
+                      <Text className="ml-2 text-[12px] font-semibold text-[#F4F5F0]">
+                        {speaker.isMuted ? "Muted" : "Live"}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => handleRemoveSpeaker(speaker.id)}
+                      className="rounded-full bg-[#F3523C]/15 px-3 py-2"
+                    >
+                      <Text className="text-[11px] font-semibold text-[#FF8A7A]">
+                        Remove
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            ))}
           </View>
         </PodcastBottomSheet>
 
@@ -476,7 +575,7 @@ const AdminLivePodcast = () => {
                     <Icon as={Loader2} color={Colors.menorah.bg} />
                   </View>
                 ) : (
-                  <Text className="text-[18px] font-medium text-black">Leave</Text>
+                  <Text className="text-[18px] font-medium text-black">End session</Text>
                 )}
               </Pressable>
               <Pressable

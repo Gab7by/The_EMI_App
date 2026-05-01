@@ -9,6 +9,7 @@ import {
   PodcastDialog,
   PodcastFullScreenModal,
   PodcastHeader,
+  HostAvatar,
   PodcastNotesDialog,
   PodcastParticipantsGrid,
   podcastCurrencies,
@@ -17,10 +18,13 @@ import {
   usePodcastFooterLayout,
   type PodcastCurrencyOption,
 } from "@/components/podcast/livePodcastShared";
-import { useLivePodcastParticipants } from "@/hooks/tanstack-query-hooks";
+import { useActiveLivePodcastParticipants, useLivePodcastParticipants } from "@/hooks/tanstack-query-hooks";
+import { useAudienceRoom } from "@/hooks/useAudienceRoom";
 import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { lowerHand, raiseHand } from "@/lib/livekit-signals";
+import { joinLivePodcastParticipant, leaveLivePodcastParticipant } from "@/lib/podcast";
+import { queryClient } from "@/lib/query";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveKitStore } from "@/store/livekit-store";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -32,17 +36,19 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const MemberLivePodcast = () => {
-  const { id, title, playlist, hostId, hostName, hostPictureUrl } = useLocalSearchParams<{
+  const { id, title, playlist, hostId, hostName, hostPictureUrl, livekitRoomName } = useLocalSearchParams<{
     id: string;
     title: string;
     hostId: string;
     hostName: string;
     hostPictureUrl: string;
     playlist: string;
+    livekitRoomName: string;
   }>();
 
   const router = useRouter();
   const { data: participantCount } = useLivePodcastParticipants(hostId, id);
+  const { data: activeParticipants = [] } = useActiveLivePodcastParticipants(id);
   const { footerBottom, footerPaddingBottom, scrollPaddingBottom, handleFooterLayout } =
     usePodcastFooterLayout();
 
@@ -62,6 +68,24 @@ const MemberLivePodcast = () => {
     [selectedCurrencyId]
   );
 
+  const speakerGridParticipants = useMemo(
+    () => [
+      {
+        id: hostId,
+        name: hostName,
+        pictureUrl: hostPictureUrl ?? null,
+      },
+      ...activeParticipants
+        .filter((participant) => participant.is_called_in)
+        .map((participant) => ({
+          id: participant.profile_id,
+          name: participant.profile?.full_name ?? "Speaker",
+          pictureUrl: participant.profile?.avatar_url ?? null,
+        })),
+    ],
+    [activeParticipants, hostId, hostName, hostPictureUrl]
+  );
+
   const clearRoom = useLiveKitStore(state => state.clearRoom)
   const room = useLiveKitStore(state => state.room)
   const connectionState = useLiveKitStore(state => state.connectionState)
@@ -69,6 +93,8 @@ const MemberLivePodcast = () => {
   const {isApprovedToSpeak, sessionEnded} = useRoomSignals(room, profile?.id ?? "")
   const [hasRaisedHand, setHasRaisedHand] = useState<boolean>(false)
   const isConnecting = connectionState !== "connected"
+
+  useAudienceRoom(livekitRoomName)
 
   useFocusEffect(
     useCallback(() => {
@@ -98,13 +124,37 @@ const MemberLivePodcast = () => {
     import('livekit-client').then(() => {
       room.localParticipant.setMicrophoneEnabled(true)
     })
+    setHasRaisedHand(false)
   }, [isApprovedToSpeak])
 
   useEffect(() => {
+    if (connectionState !== "connected" || !profile?.id) return
+
+    joinLivePodcastParticipant(id, profile.id).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["live-podcast-participants", id, hostId] })
+      queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+    })
+  }, [connectionState, profile?.id, id, hostId])
+
+  useEffect(() => {
     if (!sessionEnded) return
+    if (profile?.id) {
+      leaveLivePodcastParticipant(id, profile.id)
+    }
     clearRoom()
     router.replace("/(tabs)/podcast")
-  }, [sessionEnded])
+  }, [sessionEnded, profile?.id, id])
+
+  useEffect(() => {
+    return () => {
+      if (profile?.id) {
+        leaveLivePodcastParticipant(id, profile.id).then(() => {
+          queryClient.invalidateQueries({ queryKey: ["live-podcast-participants", id, hostId] })
+          queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+        })
+      }
+    }
+  }, [profile?.id, id, hostId])
 
   const handleRaiseHand = async () => {
     if (!room || !profile) return
@@ -151,8 +201,7 @@ const MemberLivePodcast = () => {
           />
 
           <PodcastParticipantsGrid
-            hostName={hostName}
-            hostPictureUrl={hostPictureUrl}
+            participants={speakerGridParticipants}
           />
 
           <PodcastComments messages={messages} footerPadding={scrollPaddingBottom} />
@@ -180,7 +229,12 @@ const MemberLivePodcast = () => {
 
             <View className="flex-row items-center gap-4">
               <MaterialCommunityIcons name="heart" size={36} color="#FF4B1F" />
-              <Call width={34} height={34} />
+              <Pressable onPress={handleRaiseHand} hitSlop={10} className="items-center">
+                <Call width={34} height={34} />
+                <Text className="mt-1 text-[10px] font-medium text-[#F3F6E7]">
+                  {isApprovedToSpeak ? "Live" : hasRaisedHand ? "Pending" : "Call in"}
+                </Text>
+              </Pressable>
               <Pressable onPress={() => setIsPaymentMethodsVisible(true)} hitSlop={10}>
                 <MoneyIcon width={34} height={34} />
               </Pressable>
@@ -214,6 +268,9 @@ const MemberLivePodcast = () => {
               <Pressable
                 onPress={() => {
                   setIsExitPromptVisible(false);
+                  if (profile?.id) {
+                    leaveLivePodcastParticipant(id, profile.id)
+                  }
                   router.replace("/(tabs)/podcast");
                 }}
                 className="flex-1 items-center justify-center bg-[#D7FF00] px-4 py-4"
@@ -356,6 +413,27 @@ const MemberLivePodcast = () => {
         <PodcastConnectingOverlay
           visible={shouldShowConnectingOverlay && isConnecting}
         />
+
+        {hasRaisedHand && !isApprovedToSpeak ? (
+          <View className="absolute left-4 right-4 top-[122px] rounded-[18px] border border-[#D7FF00]/20 bg-[#0F2A08]/90 px-4 py-3">
+            <View className="flex-row items-center">
+              <HostAvatar
+                hostName={profile?.full_name ?? "You"}
+                hostPictureUrl={profile?.avatar_url}
+                size={34}
+                textClassName="text-sm font-bold text-menorah-primary"
+              />
+              <View className="ml-3 flex-1">
+                <Text className="text-[13px] font-semibold text-[#F4F5F0]">
+                  Call-in request sent
+                </Text>
+                <Text className="mt-1 text-[11px] text-[#B7C0BC]">
+                  Waiting for the host to accept your request.
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
       </SafeAreaView>
     </LinearGradient>
   );
