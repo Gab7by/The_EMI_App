@@ -12,7 +12,8 @@ const LiveStreamCard = ({
     playlist, 
     title,
     hostId,
-    id
+    id,
+    livekitRoomName
 }:LiveStreamCardType) => {
 
     const profile = useAuthStore(state => state.profile)
@@ -30,7 +31,8 @@ const LiveStreamCard = ({
                     playlist,
                     hostId,
                     hostName,
-                    hostPictureUrl
+                    hostPictureUrl,
+                    livekitRoomName
                 }
             }
         );

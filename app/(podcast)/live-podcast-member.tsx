@@ -5,6 +5,7 @@ import {
   PodcastBottomDock,
   PodcastBottomSheet,
   PodcastComments,
+  PodcastConnectingOverlay,
   PodcastDialog,
   PodcastFullScreenModal,
   PodcastHeader,
@@ -24,9 +25,9 @@ import { useAuthStore } from "@/store/authStore";
 import { useLiveKitStore } from "@/store/livekit-store";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, ChevronDown, ChevronRight, Power, Share2, X } from "lucide-react-native";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -52,6 +53,7 @@ const MemberLivePodcast = () => {
   const [selectedCurrencyId, setSelectedCurrencyId] =
     useState<PodcastCurrencyOption["id"]>("usd");
   const [message, setMessage] = useState<string>('')
+  const [shouldShowConnectingOverlay, setShouldShowConnectingOverlay] = useState(true)
 
   const selectedCurrency = useMemo(
     () =>
@@ -62,9 +64,21 @@ const MemberLivePodcast = () => {
 
   const clearRoom = useLiveKitStore(state => state.clearRoom)
   const room = useLiveKitStore(state => state.room)
+  const connectionState = useLiveKitStore(state => state.connectionState)
   const profile = useAuthStore(state => state.profile)
   const {isApprovedToSpeak, sessionEnded} = useRoomSignals(room, profile?.id ?? "")
   const [hasRaisedHand, setHasRaisedHand] = useState<boolean>(false)
+  const isConnecting = connectionState !== "connected"
+
+  useFocusEffect(
+    useCallback(() => {
+      setShouldShowConnectingOverlay(true)
+
+      return () => {
+        setShouldShowConnectingOverlay(false)
+      }
+    }, [])
+  )
 
   const {messages, sendMessage} = useRoomChat(
       room,
@@ -338,6 +352,10 @@ const MemberLivePodcast = () => {
             </View>
           </PodcastBottomSheet>
         </PodcastFullScreenModal>
+
+        <PodcastConnectingOverlay
+          visible={shouldShowConnectingOverlay && isConnecting}
+        />
       </SafeAreaView>
     </LinearGradient>
   );

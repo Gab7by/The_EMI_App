@@ -5,6 +5,7 @@ import { FlashList } from "@shopify/flash-list";
 import { Image } from "expo-image";
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  ActivityIndicator,
   Keyboard,
   Modal,
   Platform,
@@ -252,7 +253,21 @@ export const PodcastComments = ({ footerPadding, messages }: PodcastCommentsProp
   <FlashList
     data={messages}
     ListEmptyComponent={() => (
-      <Text className="text-white text-sm">No messages yet</Text>
+      <View className="mx-2 mt-8 items-center rounded-[24px] border border-white/10 bg-[#0F2A08]/80 px-6 py-8">
+        <View className="h-[58px] w-[58px] items-center justify-center rounded-full bg-[#D7FF00]/15">
+          <MaterialCommunityIcons
+            name="message-text-outline"
+            size={26}
+            color="#D7FF00"
+          />
+        </View>
+        <Text className="mt-4 text-[16px] font-semibold text-[#F4F5F0]">
+          No messages yet
+        </Text>
+        <Text className="mt-2 text-center text-[12px] leading-5 text-[#B7C0BC]">
+          Start the conversation with an encouraging message for everyone in the room.
+        </Text>
+      </View>
     )}
     keyExtractor={(item) => item.id}
     contentContainerStyle={{ paddingBottom: footerPadding }}
@@ -267,30 +282,39 @@ export const PodcastComments = ({ footerPadding, messages }: PodcastCommentsProp
       )
     }
     renderItem={({item}) => (
-      <View className={`flex-row mb-5 ${item.isLocal ? 'justify-end' : 'justify-start'}`}>
-        {
-          !item.isLocal && (
+      <View
+        className={`mb-5 flex-row ${item.isLocal ? "justify-end" : "items-start"}`}
+      >
+        {!item.isLocal && (
           item.sender_avartar_url ? (
-              <Image
-                source={{uri: item.sender_avartar_url}}
-                style={{ width: 34, height: 34, borderRadius: 17 }}
-                contentFit="cover"
-              />
+            <Image
+              source={{uri: item.sender_avartar_url}}
+              style={{ width: 34, height: 34, borderRadius: 17 }}
+              contentFit="cover"
+            />
           ) : (
-              <View style={{width: 34, height: 34, borderRadius: 17}} className="bg-menorah-primary items-center justify-center">
-                  <Text className="text-menorah-bg font-bold text-lg">
-                      {item.sender_name.charAt(0).toUpperCase()}
-                  </Text>
-              </View>
-          ) )
-      }
-        <View className="ml-3 flex-1">
-          {!item.isLocal && 
-          (<Text className="mb-2 text-[11px] font-medium text-menorah-whiteSoft">
-            {item.sender_name}
-          </Text>)}
-          <View className="self-start rounded-2xl bg-white/20 px-4 py-3">
-            <Text className={`max-w-[240px] text-[12px] font-semibold leading-4 ${item.isLocal ? 'text-black' : 'text-menorah-whiteSoft'}`}>
+            <View
+              style={{width: 34, height: 34, borderRadius: 17}}
+              className="items-center justify-center bg-menorah-primary"
+            >
+              <Text className="text-lg font-bold text-menorah-bg">
+                {item.sender_name.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          )
+        )}
+        <View className={`${item.isLocal ? "max-w-[82%] items-end" : "ml-3 flex-1"}`}>
+          {!item.isLocal && (
+            <Text className="mb-2 text-[11px] font-medium text-menorah-whiteSoft">
+              {item.sender_name}
+            </Text>
+          )}
+          <View
+            className={`rounded-2xl px-4 py-3 ${
+              item.isLocal ? "bg-[#D7FF00]" : "self-start bg-white/20"
+            }`}
+          >
+            <Text className={`max-w-[240px] text-[12px] font-semibold leading-4 ${item.isLocal ? 'text-[#143703]' : 'text-menorah-whiteSoft'}`}>
               {item.content}
             </Text>
           </View>
@@ -459,6 +483,33 @@ export const PodcastNotesDialog = ({
       </View>
     </View>
   </PodcastDialog>
+);
+
+type PodcastConnectingOverlayProps = {
+  visible: boolean;
+};
+
+export const PodcastConnectingOverlay = ({
+  visible,
+}: PodcastConnectingOverlayProps) => (
+  visible ? (
+    <View
+      pointerEvents="none"
+      className="absolute inset-0 items-center justify-center bg-black/35 px-6"
+    >
+      <View className="w-full max-w-[280px] items-center rounded-[28px] border border-[#D7FF00]/20 bg-[#143703]/95 px-8 py-10">
+        <View className="h-[74px] w-[74px] items-center justify-center rounded-full border border-[#D7FF00]/25 bg-[#0E2B08]">
+          <ActivityIndicator size="large" color="#D7FF00" />
+        </View>
+        <Text className="mt-6 text-[20px] font-semibold text-[#F4F5F0]">
+          Connecting...
+        </Text>
+        <Text className="mt-2 text-center text-[13px] leading-5 text-[#B7C0BC]">
+          Joining the live podcast room. Please hold on for a moment.
+        </Text>
+      </View>
+    </View>
+  ) : null
 );
 
 type PodcastFullScreenModalProps = {

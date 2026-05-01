@@ -7,6 +7,7 @@ import {
   PodcastBottomDock,
   PodcastBottomSheet,
   PodcastComments,
+  PodcastConnectingOverlay,
   PodcastDialog,
   PodcastHeader,
   PodcastNotesDialog,
@@ -27,8 +28,7 @@ import { useLiveKitStore } from "@/store/livekit-store";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import type { ConnectionState } from "livekit-client";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, ChevronRight, Loader2, Mic, MicOff, Power, Share2, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -69,6 +69,7 @@ const AdminLivePodcast = () => {
   const [isEndingSession, setIsEndingSession] = useState(false);
   const messageInputRef = useRef<TextInput | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [shouldShowConnectingOverlay, setShouldShowConnectingOverlay] = useState(true);
 
   const room = useLiveKitStore(state => state.room)
   const isMuted = useLiveKitStore(state => state.isMuted)
@@ -79,6 +80,16 @@ const AdminLivePodcast = () => {
   const profile = useAuthStore(state => state.profile)
 
   const isConnecting = connectionState !== 'connected'
+
+  useFocusEffect(
+    useCallback(() => {
+      setShouldShowConnectingOverlay(true);
+
+      return () => {
+        setShouldShowConnectingOverlay(false);
+      };
+    }, [])
+  );
   
   useHostRooom(livekitRoomName)
 
@@ -230,13 +241,6 @@ const AdminLivePodcast = () => {
               </>
             }
           />
-          {isConnecting && (
-            <View className="items-center py-4">
-              <Text className="text-menorah-primary text-sm">
-                Connecting...
-              </Text>
-            </View>
-          )}
           <PodcastParticipantsGrid
             hostName={hostName}
             hostPictureUrl={hostPictureUrl}
@@ -490,6 +494,10 @@ const AdminLivePodcast = () => {
           onClose={() => setIsNotesVisible(false)}
           playlist={playlist}
           title={title}
+        />
+
+        <PodcastConnectingOverlay
+          visible={shouldShowConnectingOverlay && isConnecting}
         />
       </SafeAreaView>
     </LinearGradient>

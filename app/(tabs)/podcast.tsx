@@ -86,7 +86,8 @@ const PodcastScreen = () => {
                     title: livePodcast.title,
                     hostId: livePodcast.host.id,
                     hostName: livePodcast.host.full_name,
-                    hostPictureUrl: livePodcast.host.avatar_url
+                    hostPictureUrl: livePodcast.host.avatar_url,
+                    livekitRoomName: livePodcast.livekit_room_name
                 }
             }
         )
@@ -112,6 +113,7 @@ const PodcastScreen = () => {
             data={data}
             renderItem={({ item }) => (
                 <LiveStreamCard
+                    livekitRoomName={item.livekit_room_name}
                     playlist={item.playlist}
                     hostId={item.host.id}
                     id={item.id}

@@ -65,6 +65,7 @@ const LiveStreamInfoModal = ({playlist, setPlaylist, setTitle, title, isCreating
                 <ScrollView
                     contentContainerClassName="px-5 gap-7"
                     showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
                     >
                     <View className="h-[3px] self-center bg-menorah-primary mt-4 w-[80px]" />
                     <View className="flex-1 gap-7">
