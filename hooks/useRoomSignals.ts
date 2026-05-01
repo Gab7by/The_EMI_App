@@ -7,17 +7,13 @@ export const useRoomSignals = (
     currentUserId: string
 ) => {
     const [raisedHands, setRaisedHands] = useState<RoomSignal[]>([])
-
     const [isApprovedToSpeak, setIsApprovedToSpeak] = useState<boolean>(false)
-
     const [sessionEnded, setSessionEnded] = useState<boolean>(false)
 
     useEffect(() => {
         if (!room) return
 
-        const handleData = async (payload: Uint8Array) => {
-            const {RoomEvent} = await import('livekit-client')
-
+        const handleData = (payload: Uint8Array) => {
             const decoder = new TextDecoder()
             const text = decoder.decode(payload)
 
@@ -33,6 +29,12 @@ export const useRoomSignals = (
                     })
                 }
 
+                if (signal.type === 'LOWER_HAND') {
+                    setRaisedHands(prev =>
+                        prev.filter(s => s.fromId !== signal.fromId)
+                    )
+                }
+
                 if (signal.type === 'HAND_APPROVED') {
                     setRaisedHands(prev => 
                         prev.filter(s => s.fromId !== signal.toId)
@@ -42,22 +44,29 @@ export const useRoomSignals = (
                         setIsApprovedToSpeak(true)
                     }
                 }
+
+                if (signal.type === 'SESSION_ENDED') {
+                    setSessionEnded(true)
+                }
             } catch {
 
             }
+        }
 
-            let cleanup: (() => void) | null = null
+        import('livekit-client').then(({RoomEvent}) => {
+            room.on(RoomEvent.DataReceived, handleData)
+        })
 
+        return () => {
             import('livekit-client').then(({RoomEvent}) => {
-                room.on(RoomEvent.DataReceived, handleData)
-                cleanup = () => room.off(RoomEvent.DataReceived, handleData)
+                room.off(RoomEvent.DataReceived, handleData)
             })
-
-            return () => {
-                cleanup?.()
-            }
         }
     }, [room, currentUserId])
 
-    return {raisedHands, isApprovedToSpeak, sessionEnded}
+    const dismissRaisedHand = (participantId: string) => {
+        setRaisedHands(prev => prev.filter(signal => signal.fromId !== participantId))
+    }
+
+    return {raisedHands, isApprovedToSpeak, sessionEnded, dismissRaisedHand}
 }
