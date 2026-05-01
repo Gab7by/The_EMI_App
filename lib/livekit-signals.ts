@@ -1,5 +1,6 @@
 import { RoomSignal } from "@/types/livekit-types";
 import type { Room } from "livekit-client";
+import { supabase } from "./supabase";
 
 export const sendSignal = async (room: Room, signal: RoomSignal) => {
     const encoder = new TextEncoder()
@@ -42,8 +43,24 @@ export const approveSpeaker = async (
     room: Room,
     hostId: string,
     hostName: string,
-    participantId: string
+    participantId: string,
+    roomName: string,
+    podcastId: string
 ) => {
+
+    const {error} = await supabase.functions.invoke('livekit-grant-speaker', {
+        body: {
+            roomName,
+            participantIdentity: participantId,
+            podcastId
+        }
+    })
+
+    if (error) {
+        console.error('Failed to grant speaker permission: ', error.message)
+        return
+    }
+
     await sendSignal(room, {
         type: 'HAND_APPROVED',
         fromId: hostId,

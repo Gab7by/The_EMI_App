@@ -10,6 +10,9 @@ import ForgotPasswordModal from "@/components/auth/forgot-password-modal";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query";
 import {AudioSession}  from "@livekit/react-native"
+import * as SplashScreen from "expo-splash-screen"
+
+SplashScreen.preventAutoHideAsync()
 
 export default function RootLayout() {
 
@@ -19,7 +22,28 @@ export default function RootLayout() {
   const setSession = useAuthStore(state => state.setSession)
 
   useEffect(() => {
-    AudioSession.startAudioSession()
+    const startAudio = async () => {
+      await AudioSession.configureAudio({
+        android: {
+          preferredOutputList: ['bluetooth', 'speaker', 'earpiece'],
+          audioTypeOptions: {
+            manageAudioFocus: true,
+            audioMode: 'normal',
+            audioFocusMode: 'gain',
+            audioStreamType: 'music',
+            audioAttributesUsageType: 'media',
+            audioAttributesContentType: 'unknown'
+          }
+        }, 
+        ios: {
+          defaultOutput: 'speaker'
+        }
+      })
+
+      await AudioSession.startAudioSession()
+    }
+
+    startAudio()
 
     return () => {
       AudioSession.stopAudioSession()
@@ -27,17 +51,23 @@ export default function RootLayout() {
   }, [])
 
   useEffect(() => {
-    setIsAuthLoading(true)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      if (session) {
-        useAuthStore.getState().fetchProfile(session.user.id);
-      }
-    }).finally(
-      () => {
+    const bootstrapAuth = async () => {
+      setIsAuthLoading(true)
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        setSession(session)
+
+        if (session) {
+          await useAuthStore.getState().fetchProfile(session.user.id)
+        }
+      } finally {
         setIsAuthLoading(false)
+        SplashScreen.hideAsync()
       }
-    )
+    }
+
+    bootstrapAuth()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
@@ -49,10 +79,10 @@ export default function RootLayout() {
           useAuthStore.getState().clearAuth();
         }
       }
-  );
+    );
 
-  return () => subscription.unsubscribe();
-}, []);
+    return () => subscription.unsubscribe();
+  }, []);
 
   const isLoggedIn = session !== null
 

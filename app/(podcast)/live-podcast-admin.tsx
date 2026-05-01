@@ -27,6 +27,7 @@ import { queryClient } from "@/lib/query";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveKitStore } from "@/store/livekit-store";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useIOSAudioManagement } from "@livekit/react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronRight, Loader2, Mic, MicOff, Power, Share2, X } from "lucide-react-native";
@@ -90,6 +91,7 @@ const AdminLivePodcast = () => {
   );
   
   useHostRooom(livekitRoomName)
+  room && useIOSAudioManagement(room)
 
   const {raisedHands, dismissRaisedHand} = useRoomSignals(room, profile?.id ?? "")
   const {messages, sendMessage} = useRoomChat(
@@ -217,7 +219,9 @@ const AdminLivePodcast = () => {
       room,
       profile.id,
       profile.full_name ?? "Host",
-      participantId
+      participantId,
+      livekitRoomName,
+      id
     )
     await updateParticipantCalledIn(id, participantId, true)
     dismissRaisedHand(participantId)
