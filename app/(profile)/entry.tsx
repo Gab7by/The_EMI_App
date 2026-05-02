@@ -4,7 +4,7 @@ import { ProfileManagementCategories } from "@/constants/profile"
 import { Colors } from "@/constants/theme"
 import { useAuthStore } from "@/store/authStore"
 import { useRouter } from "expo-router"
-import { ArrowLeft } from "lucide-react-native"
+import { ArrowLeft, Camera } from "lucide-react-native"
 import {  Pressable, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
@@ -27,8 +27,9 @@ const ProfileEntryScreen = () => {
                 </Pressable>
             </View>
             <View className="gap-4">
-                <View className="items-center">
+                <View className="items-center relative">
                     <ProfileModalIcon borderColor={Colors.menorah.primary} />
+                    <Camera />
                 </View>
                 <View className="items-center">
                     <Text className="text-lg text-white font-bold" numberOfLines={2}>{name}</Text>

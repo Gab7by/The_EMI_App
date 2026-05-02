@@ -18,7 +18,7 @@ const ProfileModalIcon = ({borderColor}:{borderColor: string}) => {
                 height: 70,
                 borderRadius: 35,
                 justifyContent: "center",
-                alignItems: "center"
+                alignItems: "center",
             }}
         >
             <View
