@@ -18,12 +18,12 @@ import {
   usePodcastFooterLayout,
   type PodcastCurrencyOption,
 } from "@/components/podcast/livePodcastShared";
-import { useActiveLivePodcastParticipants, useLivePodcastParticipants } from "@/hooks/tanstack-query-hooks";
+import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useAudienceRoom } from "@/hooks/useAudienceRoom";
 import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { lowerHand, raiseHand } from "@/lib/livekit-signals";
-import { joinLivePodcastParticipant, leaveLivePodcastParticipant } from "@/lib/podcast";
+import { getLivePodcastStatus, joinLivePodcastParticipant, leaveLivePodcastParticipant } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveKitStore } from "@/store/livekit-store";
@@ -47,8 +47,6 @@ const MemberLivePodcast = () => {
   }>();
 
   const router = useRouter();
-  const { data: participantCount } = useLivePodcastParticipants(hostId, id);
-  const { data: activeParticipants = [] } = useActiveLivePodcastParticipants(id);
   const { footerBottom, footerPaddingBottom, scrollPaddingBottom, handleFooterLayout } =
     usePodcastFooterLayout();
 
@@ -68,6 +66,18 @@ const MemberLivePodcast = () => {
     [selectedCurrencyId]
   );
 
+  const clearRoom = useLiveKitStore(state => state.clearRoom)
+  const room = useLiveKitStore(state => state.room)
+  const { participants: roomParticipants } = useLiveRoomSnapshot(room)
+  const connectionState = useLiveKitStore(state => state.connectionState)
+  const isMuted = useLiveKitStore(state => state.isMuted)
+  const setIsMuted = useLiveKitStore(state => state.setIsMuted)
+  const profile = useAuthStore(state => state.profile)
+  const {isApprovedToSpeak, sessionEnded, isSpeakerRevoked} = useRoomSignals(room, profile?.id ?? "")
+  const [hasRaisedHand, setHasRaisedHand] = useState<boolean>(false)
+  const isConnecting = connectionState !== "connected"
+  const participantCount = roomParticipants.filter((participant) => participant.id !== hostId).length
+
   const speakerGridParticipants = useMemo(
     () => [
       {
@@ -75,24 +85,16 @@ const MemberLivePodcast = () => {
         name: hostName,
         pictureUrl: hostPictureUrl ?? null,
       },
-      ...activeParticipants
-        .filter((participant) => participant.is_called_in)
+      ...roomParticipants
+        .filter((participant) => participant.id !== hostId && participant.canPublish)
         .map((participant) => ({
-          id: participant.profile_id,
-          name: participant.profile?.full_name ?? "Speaker",
-          pictureUrl: participant.profile?.avatar_url ?? null,
+          id: participant.id,
+          name: participant.isLocal ? profile?.full_name ?? participant.name : participant.name,
+          pictureUrl: participant.isLocal ? profile?.avatar_url ?? null : null,
         })),
     ],
-    [activeParticipants, hostId, hostName, hostPictureUrl]
+    [roomParticipants, hostId, hostName, hostPictureUrl, profile?.full_name, profile?.avatar_url]
   );
-
-  const clearRoom = useLiveKitStore(state => state.clearRoom)
-  const room = useLiveKitStore(state => state.room)
-  const connectionState = useLiveKitStore(state => state.connectionState)
-  const profile = useAuthStore(state => state.profile)
-  const {isApprovedToSpeak, sessionEnded} = useRoomSignals(room, profile?.id ?? "")
-  const [hasRaisedHand, setHasRaisedHand] = useState<boolean>(false)
-  const isConnecting = connectionState !== "connected"
 
   useAudienceRoom(livekitRoomName)
 
@@ -100,10 +102,24 @@ const MemberLivePodcast = () => {
     useCallback(() => {
       setShouldShowConnectingOverlay(true)
 
+      const verifySession = async () => {
+        const status = await getLivePodcastStatus(id)
+
+        if (status === "ended") {
+          if (profile?.id) {
+            await leaveLivePodcastParticipant(id, profile.id)
+          }
+          clearRoom()
+          router.replace("/(tabs)/podcast")
+        }
+      }
+
+      verifySession()
+
       return () => {
         setShouldShowConnectingOverlay(false)
       }
-    }, [])
+    }, [id, profile?.id, clearRoom, router])
   )
 
   const {messages, sendMessage} = useRoomChat(
@@ -121,11 +137,32 @@ const MemberLivePodcast = () => {
   useEffect(() => {
     if (!isApprovedToSpeak || !room) return
     
-    import('livekit-client').then(() => {
-      room.localParticipant.setMicrophoneEnabled(true)
-    })
-    setHasRaisedHand(false)
-  }, [isApprovedToSpeak])
+    room.localParticipant
+      .setMicrophoneEnabled(true)
+      .then(() => {
+        setIsMuted(false)
+        setHasRaisedHand(false)
+        queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+      })
+      .catch((error) => {
+        console.error("Failed to enable speaker microphone", error)
+      })
+  }, [isApprovedToSpeak, room, setIsMuted])
+
+  useEffect(() => {
+    if (!isSpeakerRevoked || !room) return
+
+    room.localParticipant
+      .setMicrophoneEnabled(false)
+      .then(() => {
+        setIsMuted(true)
+        setHasRaisedHand(false)
+        queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+      })
+      .catch((error) => {
+        console.error("Failed to disable revoked speaker microphone", error)
+      })
+  }, [isSpeakerRevoked, room, setIsMuted, id])
 
   useEffect(() => {
     if (connectionState !== "connected" || !profile?.id) return
@@ -158,6 +195,13 @@ const MemberLivePodcast = () => {
 
   const handleRaiseHand = async () => {
     if (!room || !profile) return
+
+    if (isApprovedToSpeak) {
+      const nextMutedState = !isMuted
+      await room.localParticipant.setMicrophoneEnabled(!nextMutedState)
+      setIsMuted(nextMutedState)
+      return
+    }
 
     if (hasRaisedHand) {
       await lowerHand(room, profile.id, profile.full_name ?? "Listener")
@@ -213,13 +257,13 @@ const MemberLivePodcast = () => {
           onLayout={handleFooterLayout}
         >
           <View className="mb-4 flex-row items-center">
-            <View className="mr-4 flex-1 flex-row items-center rounded-2xl border border-white bg-[#143703] px-5 py-3">
+            <View className="mr-3 flex-1 flex-row items-center rounded-[18px] border border-white/80 bg-[#143703] px-4 py-[10px]">
               <TextInput
                 placeholder="Input your message"
                 value={message}
                 onChangeText={setMessage}
                 placeholderTextColor="#A9A9A9"
-                className="flex-1 text-[14px] text-white"
+                className="flex-1 text-[13px] text-white"
                 returnKeyType="send"
                 onSubmitEditing={() => {
                   handleSendMessage()
@@ -227,16 +271,16 @@ const MemberLivePodcast = () => {
               />
             </View>
 
-            <View className="flex-row items-center gap-4">
-              <MaterialCommunityIcons name="heart" size={36} color="#FF4B1F" />
+            <View className="flex-row items-center gap-3">
+              <MaterialCommunityIcons name="heart" size={30} color="#FF4B1F" />
               <Pressable onPress={handleRaiseHand} hitSlop={10} className="items-center">
-                <Call width={34} height={34} />
+                <Call width={28} height={28} />
                 <Text className="mt-1 text-[10px] font-medium text-[#F3F6E7]">
-                  {isApprovedToSpeak ? "Live" : hasRaisedHand ? "Pending" : "Call in"}
+                  {isApprovedToSpeak ? (isMuted ? "Unmute" : "Mute") : hasRaisedHand ? "Pending" : "Call in"}
                 </Text>
               </Pressable>
               <Pressable onPress={() => setIsPaymentMethodsVisible(true)} hitSlop={10}>
-                <MoneyIcon width={34} height={34} />
+                <MoneyIcon width={28} height={28} />
               </Pressable>
             </View>
           </View>

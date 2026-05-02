@@ -14,6 +14,7 @@ export type SignalType =
   | 'RAISE_HAND'      
   | 'LOWER_HAND'    
   | 'HAND_APPROVED'
+  | 'SPEAKER_REVOKED'
   | 'SESSION_ENDED'
 
 export type RoomSignal = {

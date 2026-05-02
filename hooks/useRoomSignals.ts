@@ -9,6 +9,7 @@ export const useRoomSignals = (
     const [raisedHands, setRaisedHands] = useState<RoomSignal[]>([])
     const [isApprovedToSpeak, setIsApprovedToSpeak] = useState<boolean>(false)
     const [sessionEnded, setSessionEnded] = useState<boolean>(false)
+    const [isSpeakerRevoked, setIsSpeakerRevoked] = useState<boolean>(false)
 
     useEffect(() => {
         if (!room) return
@@ -41,7 +42,15 @@ export const useRoomSignals = (
                     )
 
                     if (signal.toId === currentUserId) {
+                        setIsSpeakerRevoked(false)
                         setIsApprovedToSpeak(true)
+                    }
+                }
+
+                if (signal.type === 'SPEAKER_REVOKED') {
+                    if (signal.toId === currentUserId) {
+                        setIsApprovedToSpeak(false)
+                        setIsSpeakerRevoked(true)
                     }
                 }
 
@@ -68,5 +77,5 @@ export const useRoomSignals = (
         setRaisedHands(prev => prev.filter(signal => signal.fromId !== participantId))
     }
 
-    return {raisedHands, isApprovedToSpeak, sessionEnded, dismissRaisedHand}
+    return {raisedHands, isApprovedToSpeak, sessionEnded, isSpeakerRevoked, dismissRaisedHand}
 }

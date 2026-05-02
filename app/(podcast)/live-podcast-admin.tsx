@@ -17,11 +17,11 @@ import {
 } from "@/components/podcast/livePodcastShared";
 import { Icon } from "@/components/ui/icon";
 import { Colors } from "@/constants/theme";
-import { useActiveLivePodcastParticipants, useLivePodcastParticipants } from "@/hooks/tanstack-query-hooks";
+import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useHostRooom } from "@/hooks/useHostRoom";
 import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
-import { approveSpeaker, sendSessionEnded } from "@/lib/livekit-signals";
+import { approveSpeaker, revokeSpeaker, sendSessionEnded } from "@/lib/livekit-signals";
 import { endLiveSession, updateParticipantCalledIn } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { useAuthStore } from "@/store/authStore";
@@ -43,6 +43,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 type AdminSheet = "none" | "settings" | "music" | "speakers";
 
+const RoomAudioManager = ({ room }: { room: NonNullable<ReturnType<typeof useLiveKitStore.getState>["room"]> }) => {
+  useIOSAudioManagement(room);
+  return null;
+};
+
 const AdminLivePodcast = () => {
   const { id, title, playlist, hostId, hostName, hostPictureUrl, livekitRoomName } = useLocalSearchParams<{
     id: string;
@@ -55,8 +60,6 @@ const AdminLivePodcast = () => {
   }>();
 
   const router = useRouter();
-  const { data: participantCount } = useLivePodcastParticipants(hostId, id);
-  const { data: activeParticipants = [] } = useActiveLivePodcastParticipants(id);
   const { footerBottom, footerPaddingBottom, scrollPaddingBottom, handleFooterLayout } =
     usePodcastFooterLayout();
 
@@ -91,7 +94,7 @@ const AdminLivePodcast = () => {
   );
   
   useHostRooom(livekitRoomName)
-  room && useIOSAudioManagement(room)
+  const { participants: roomParticipants } = useLiveRoomSnapshot(room)
 
   const {raisedHands, dismissRaisedHand} = useRoomSignals(room, profile?.id ?? "")
   const {messages, sendMessage} = useRoomChat(
@@ -100,6 +103,7 @@ const AdminLivePodcast = () => {
     profile?.id ?? ''
   )
   const latestRaisedHand = raisedHands[raisedHands.length - 1]
+  const participantCount = roomParticipants.filter((participant) => participant.id !== hostId).length
 
   const handleSendMessage = async () => {
     if (!message.trim()) return
@@ -184,8 +188,6 @@ const AdminLivePodcast = () => {
     setIsMuted(newMutedState)
   }
 
-  const speakerParticipants = activeParticipants.filter((participant) => participant.is_called_in)
-
   const speakerRows = [
     {
       id: hostId,
@@ -194,16 +196,15 @@ const AdminLivePodcast = () => {
       isMuted,
       isHost: true,
     },
-    ...speakerParticipants.map((participant) => {
-      const liveParticipant = room?.remoteParticipants.get(participant.profile_id)
-      return {
-        id: participant.profile_id,
-        name: participant.profile?.full_name ?? "Speaker",
-        avatarUrl: participant.profile?.avatar_url ?? null,
-        isMuted: !(liveParticipant?.isMicrophoneEnabled ?? false),
+    ...roomParticipants
+      .filter((participant) => participant.id !== hostId && participant.canPublish)
+      .map((participant) => ({
+        id: participant.id,
+        name: participant.isLocal ? profile?.full_name ?? participant.name : participant.name,
+        avatarUrl: participant.isLocal ? profile?.avatar_url ?? null : null,
+        isMuted: !participant.isMicrophoneEnabled,
         isHost: false,
-      }
-    })
+      }))
   ]
 
   const speakerGridParticipants = speakerRows.map((speaker) => ({
@@ -215,7 +216,7 @@ const AdminLivePodcast = () => {
   const handleApproveRaisedHand = async (participantId: string) => {
     if (!room || !profile) return
 
-    await approveSpeaker(
+    const approved = await approveSpeaker(
       room,
       profile.id,
       profile.full_name ?? "Host",
@@ -223,6 +224,7 @@ const AdminLivePodcast = () => {
       livekitRoomName,
       id
     )
+    if (!approved) return
     await updateParticipantCalledIn(id, participantId, true)
     dismissRaisedHand(participantId)
     queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
@@ -233,6 +235,17 @@ const AdminLivePodcast = () => {
   }
 
   const handleRemoveSpeaker = async (participantId: string) => {
+    if (!room || !profile) return
+
+    const revoked = await revokeSpeaker(
+      room,
+      profile.id,
+      profile.full_name ?? "Host",
+      participantId,
+      livekitRoomName,
+      id
+    )
+    if (!revoked) return
     await updateParticipantCalledIn(id, participantId, false)
     queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
   }
@@ -245,6 +258,7 @@ const AdminLivePodcast = () => {
       style={{ flex: 1 }}
     >
       <SafeAreaView className="flex-1">
+        {room ? <RoomAudioManager room={room} /> : null}
         <View className="flex-1 px-4 pt-3">
           <PodcastHeader
             playlist={playlist}
@@ -310,14 +324,14 @@ const AdminLivePodcast = () => {
         >
           {isMessageComposerVisible ? (
             <View className="flex-row items-center">
-              <View className="mr-5 h-[50px] flex-1 flex-row items-center rounded-[15px] border-[2px] border-[#ECE8E8] bg-[#143703] px-2">
+              <View className="mr-4 h-[44px] flex-1 flex-row items-center rounded-[14px] border border-[#ECE8E8]/60 bg-[#143703] px-3">
                 <TextInput
                   ref={messageInputRef}
                   value={message}
                   onChangeText={setMessage}
                   placeholder="Input your message"
                   placeholderTextColor="#9D9D9D"
-                  className="flex-1 text-[14px] text-white"
+                  className="flex-1 text-[13px] text-white"
                   selectionColor="#FFFFFF"
                   returnKeyType="send"
                   onSubmitEditing={() => {
@@ -331,7 +345,7 @@ const AdminLivePodcast = () => {
               <Pressable hitSlop={10} className="mr-2">
                 <MaterialCommunityIcons
                   name="image-outline"
-                  size={35}
+                  size={30}
                   color="#F5F2F2"
                 />
               </Pressable>
@@ -339,13 +353,13 @@ const AdminLivePodcast = () => {
               <Pressable hitSlop={10}>
                 <MaterialCommunityIcons
                   name="emoticon-happy-outline"
-                  size={35}
+                  size={30}
                   color="#F5F2F2"
                 />
               </Pressable>
             </View>
           ) : (
-            <View className="flex-row items-center justify-between px-4">
+            <View className="flex-row items-center justify-between px-6">
               <Pressable
                 onPress={() => {
                   closeAllOverlays();
@@ -353,7 +367,7 @@ const AdminLivePodcast = () => {
                 }}
                 hitSlop={10}
               >
-                <TreeButton width={30} height={30} />
+                <TreeButton width={26} height={26} />
               </Pressable>
               <Pressable
                 onPress={() => {
@@ -362,7 +376,7 @@ const AdminLivePodcast = () => {
                 }}
                 hitSlop={10}
               >
-                <MusicButton width={30} height={30} />
+                <MusicButton width={26} height={26} />
               </Pressable>
               <Pressable
                 onPress={() => {
@@ -371,7 +385,7 @@ const AdminLivePodcast = () => {
                 }}
                 hitSlop={10}
               >
-                <MessagingButton width={30} height={30} />
+                <MessagingButton width={26} height={26} />
               </Pressable>
               <Pressable
                 onPress={() => {
@@ -380,7 +394,7 @@ const AdminLivePodcast = () => {
                 }}
                 hitSlop={10}
               >
-                <MicrophoneButton width={30} height={30} />
+                <MicrophoneButton width={26} height={26} />
               </Pressable>
             </View>
           )}
@@ -443,7 +457,7 @@ const AdminLivePodcast = () => {
           </Text>
 
           <Text className="mt-8 text-[13px] font-semibold uppercase tracking-[1px] text-[#B7C0BC]">
-            Raised Hands
+            Call-in Requests
           </Text>
 
           {raisedHands.length ? (
@@ -473,6 +487,14 @@ const AdminLivePodcast = () => {
                       <Text className="text-[14px] font-semibold text-[#F4F5F0]">Reject</Text>
                     </Pressable>
                   </View>
+                  <Pressable
+                    onPress={() => handleDebugGrantSpeaker(request.fromId)}
+                    className="mt-3 items-center rounded-[14px] border border-white/10 bg-black/10 px-4 py-3"
+                  >
+                    <Text className="text-[12px] font-semibold text-[#B7C0BC]">
+                      Debug grant edge function
+                    </Text>
+                  </Pressable>
                 </View>
               ))}
             </View>

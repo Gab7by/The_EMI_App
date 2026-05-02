@@ -10,8 +10,6 @@ export const createLivePodcast = async (
   if (!user) return null
 
   const livekitRoomName = `menorah-${Date.now()}-${user.id.slice(0, 8)}`
-  // const livekitRoomName = `menorah-${user.id.slice(0, 8)}`
-  // const livekitRoomName = "test-room"
 
   const { data, error } = await supabase
     .from('live_podcasts')
@@ -54,6 +52,21 @@ export const getLiveSessions = async (): Promise<LivePodcast[]> => {
   }
 
   return data as LivePodcast[]
+}
+
+export const getLivePodcastStatus = async (podcastId: string): Promise<string | null> => {
+  const { data, error } = await supabase
+    .from("live_podcasts")
+    .select("status")
+    .eq("id", podcastId)
+    .maybeSingle()
+
+  if (error) {
+    console.error("getLivePodcastStatus:", error.message)
+    return null
+  }
+
+  return data?.status ?? null
 }
 
 
@@ -119,48 +132,84 @@ export async function getParticipantCount(
   return count ?? 0
 }
 
-export const joinLivePodcastParticipant = async (
+const ensureActiveParticipantRecord = async (
   podcastId: string,
   profileId: string
-): Promise<void> => {
-  const { data: existing, error: existingError } = await supabase
+) => {
+  const { data: activeRecord, error: activeRecordError } = await supabase
     .from("live_podcast_participants")
     .select("id")
     .eq("podcast_id", podcastId)
     .eq("profile_id", profileId)
+    .is("left_at", null)
+    .order("joined_at", { ascending: false })
+    .limit(1)
     .maybeSingle()
 
-  if (existingError) {
-    console.error("joinLivePodcastParticipant:load", existingError.message)
-    return
+  if (activeRecordError) {
+    console.error("ensureActiveParticipantRecord:active", activeRecordError.message)
+    return null
   }
 
-  if (existing) {
+  if (activeRecord) {
+    return activeRecord.id
+  }
+
+  const { data: latestRecord, error: latestRecordError } = await supabase
+    .from("live_podcast_participants")
+    .select("id")
+    .eq("podcast_id", podcastId)
+    .eq("profile_id", profileId)
+    .order("joined_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (latestRecordError) {
+    console.error("ensureActiveParticipantRecord:latest", latestRecordError.message)
+    return null
+  }
+
+  if (latestRecord) {
     const { error } = await supabase
       .from("live_podcast_participants")
       .update({
         left_at: null,
+        joined_at: new Date().toISOString(),
       })
-      .eq("id", existing.id)
+      .eq("id", latestRecord.id)
 
     if (error) {
-      console.error("joinLivePodcastParticipant:update", error.message)
+      console.error("ensureActiveParticipantRecord:reactivate", error.message)
+      return null
     }
 
-    return
+    return latestRecord.id
   }
 
-  const { error } = await supabase
+  const { data: insertedRecord, error: insertError } = await supabase
     .from("live_podcast_participants")
     .insert({
       podcast_id: podcastId,
       profile_id: profileId,
       is_called_in: false,
+      joined_at: new Date().toISOString(),
     })
+    .select("id")
+    .single()
 
-  if (error) {
-    console.error("joinLivePodcastParticipant:insert", error.message)
+  if (insertError) {
+    console.error("ensureActiveParticipantRecord:insert", insertError.message)
+    return null
   }
+
+  return insertedRecord.id
+}
+
+export const joinLivePodcastParticipant = async (
+  podcastId: string,
+  profileId: string
+): Promise<void> => {
+  await ensureActiveParticipantRecord(podcastId, profileId)
 }
 
 export const leaveLivePodcastParticipant = async (
@@ -187,14 +236,18 @@ export const updateParticipantCalledIn = async (
   profileId: string,
   isCalledIn: boolean
 ): Promise<void> => {
+  const participantRecordId = await ensureActiveParticipantRecord(podcastId, profileId)
+
+  if (!participantRecordId) {
+    return
+  }
+
   const { error } = await supabase
     .from("live_podcast_participants")
     .update({
       is_called_in: isCalledIn,
     })
-    .eq("podcast_id", podcastId)
-    .eq("profile_id", profileId)
-    .is("left_at", null)
+    .eq("id", participantRecordId)
 
   if (error) {
     console.error("updateParticipantCalledIn:", error.message)
