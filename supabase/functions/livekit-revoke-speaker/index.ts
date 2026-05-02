@@ -60,7 +60,7 @@ serve(async (req) => {
 
     if (!podcast || podcast.host_id !== user.id) {
       return new Response(
-        JSON.stringify({ error: 'Only the host can grant speaker permissions' }),
+        JSON.stringify({ error: 'Only the host can revoke speaker permissions' }),
         { status: 403 }
       )
     }
@@ -90,7 +90,7 @@ serve(async (req) => {
     )
 
     await roomService.updateParticipant(roomName, participantIdentity, undefined, {
-      canPublish: true,
+      canPublish: false,
       canSubscribe: true,
       canPublishData: true,
     })
@@ -101,7 +101,7 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('livekit-grant-speaker error:', error)
+    console.error('livekit-revoke-speaker error:', error)
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: String(error) }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
