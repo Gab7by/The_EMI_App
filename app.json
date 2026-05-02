@@ -45,9 +45,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon-light.png",
-          "imageWidth": 200,
+          "imageWidth": 336,
           "resizeMode": "contain",
-          "backgroundColor": "#333333"
+          "backgroundColor": "#0B1F0E"
           // "dark": {
           //   "backgroundColor": "#000000"
           // }
@@ -55,7 +55,15 @@
       ],
       "expo-secure-store",
       "@livekit/react-native-expo-plugin",
-      "@config-plugins/react-native-webrtc"
+      "@config-plugins/react-native-webrtc",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The Menorah needs access to your photos to set your profile picture and session backgrounds",
+          "cameraPermission": "The Menorah needs camera access to take your profile picture",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
