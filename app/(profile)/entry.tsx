@@ -35,14 +35,13 @@ const ProfileEntryScreen = () => {
 
         setUploading(true)
 
-        const secure_url = await updateProfilePicture(profile.id, asset)
-
-        setUploading(false)
+        const secure_url = await updateProfilePicture(profile.id, asset, profile.avatar_url)
 
         if (secure_url) {
-            useAuthStore.getState().fetchProfile(profile.id)
+            await useAuthStore.getState().fetchProfile(profile.id)
+            setUploading(false)
         } else {
-            // will show toast in the future
+            setUploading(false)
             Alert.alert("Error", "There was an error uploading your profile picture. Please try again.")
         }
     }

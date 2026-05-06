@@ -142,7 +142,6 @@ export const HostAvatar = ({
         source={{ uri: hostPictureUrl }}
         style={{ width: size, height: size, borderRadius: size / 2 }}
         contentFit="cover"
-        cachePolicy="none"
       />
     );
   }
@@ -278,7 +277,6 @@ export const PodcastComments = ({ footerPadding, messages }: PodcastCommentsProp
               source={{uri: item.sender_avartar_url}}
               style={{ width: 34, height: 34, borderRadius: 17 }}
               contentFit="cover"
-              cachePolicy="none"
             />
           ) : (
             <View

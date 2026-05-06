@@ -37,7 +37,6 @@ const ProfileModalIcon = ({borderColor}:{borderColor: string}) => {
                             source={{uri: profileImageUrl}}
                             style={{width: 54, height: 54, borderRadius: 27}}
                             contentFit="cover"
-                            cachePolicy="none"
                         />
                     ) : (
                         <View style={{width: 54, height: 54, borderRadius: 27}} className="bg-menorah-bg items-center justify-center">

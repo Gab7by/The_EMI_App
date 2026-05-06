@@ -4,11 +4,12 @@ import { supabase } from "./supabase";
 
 export const updateProfilePicture = async (
     userId: string,
-    asset: ImagePickerAsset
+    asset: ImagePickerAsset,
+    currentAvatarUrl: string | null
 ): Promise<string | null> => {
 
     const fileExt = asset.uri.split('.').pop()?.toLocaleLowerCase() ?? 'jpg'
-    const path = `${userId}/avatar.${fileExt}`
+    const path = `${userId}/avatar-${Date.now()}.${fileExt}`
 
     const result = await uploadImage(asset, 'avatars', path)
 
@@ -24,5 +25,12 @@ export const updateProfilePicture = async (
         return null
     }
 
+    if (currentAvatarUrl) {
+        const oldPath = currentAvatarUrl.split('/avatars/')[1]?.split('?')[0]
+        if (oldPath) {
+            await supabase.storage.from('avatars').remove([oldPath])
+        }
+    }
+    
     return result.url
 }
