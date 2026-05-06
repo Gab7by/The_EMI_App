@@ -1,4 +1,5 @@
 import LivePeople from "@/assets/svgs/live_people_icon.svg";
+import { hapticMedium } from "@/lib/haptics";
 import { LiveMessage, PodcastBackgroundProps } from "@/types/podcast-types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
@@ -6,18 +7,17 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useState, type ReactNode } from "react";
 import {
-  ActivityIndicator,
-  Keyboard,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  type LayoutChangeEvent,
+    ActivityIndicator,
+    Keyboard,
+    Modal,
+    Platform,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
+    type LayoutChangeEvent
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export const podcastComments = [
   {
@@ -181,10 +181,14 @@ export const PodcastHeader = ({
         size={42}
         textClassName="text-base font-bold text-menorah-primary"
       />
-      <View className="ml-3 flex-1">
-        <Text className="text-sm text-menorah-whiteSoft">{playlist}</Text>
+      <View className="ml-3 flex-1 min-w-0">
+        <Text className="text-sm text-menorah-whiteSoft" numberOfLines={1} ellipsizeMode="tail">
+          {playlist}
+        </Text>
         <View className="mt-1 flex-row items-center">
-          <Text className="text-[10px] text-menorah-whiteSoft/70">{hostName}</Text>
+          <Text className="text-[10px] text-menorah-whiteSoft/70 flex-1 min-w-0" numberOfLines={1} ellipsizeMode="tail">
+            {hostName}
+          </Text>
           <View className="ml-2">
             <LivePeople width={10} height={10} />
           </View>
@@ -208,28 +212,42 @@ type PodcastParticipantsGridProps = {
 
 export const PodcastParticipantsGrid = ({
   participants,
-}: PodcastParticipantsGridProps) => (
-  <View className="mb-6 flex-row flex-wrap gap-y-4">
-    {participants.map((participant) => (
-      <View key={participant.id} className="mb-1 w-[20%] items-center">
-        <View className="h-[62px] w-[62px] items-center justify-center rounded-full border border-white/40 bg-[#C8D2BC]">
-          <HostAvatar
-            hostName={participant.name}
-            hostPictureUrl={participant.pictureUrl}
-            size={60}
-            textClassName="text-2xl font-bold text-menorah-primary"
-          />
-        </View>
-        <Text
-          className="mt-2 text-center text-[10px] text-menorah-whiteSoft/85"
-          numberOfLines={1}
+}: PodcastParticipantsGridProps) => {
+  const isFewParticipants = participants.length <= 2;
+  const avatarSize = isFewParticipants ? 80 : 62;
+  const containerStyle = isFewParticipants
+    ? "mb-6 items-center justify-center"
+    : "mb-6 flex-row flex-wrap gap-y-4";
+
+  return (
+    <View className={containerStyle}>
+      {participants.map((participant) => (
+        <View
+          key={participant.id}
+          className={isFewParticipants ? "mb-4 items-center" : "mb-1 w-[20%] items-center"}
         >
-          {participant.name}
-        </Text>
-      </View>
-    ))}
-  </View>
-);
+          <View
+            className="items-center justify-center rounded-full border border-white/40 bg-[#C8D2BC]"
+            style={{ height: avatarSize, width: avatarSize }}
+          >
+            <HostAvatar
+              hostName={participant.name}
+              hostPictureUrl={participant.pictureUrl}
+              size={avatarSize - 4}
+              textClassName="text-2xl font-bold text-menorah-primary"
+            />
+          </View>
+          <Text
+            className="mt-2 text-center text-[10px] text-menorah-whiteSoft/85"
+            numberOfLines={1}
+          >
+            {participant.name}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+};
 
 type PodcastCommentsProps = {
   footerPadding: number;
@@ -365,7 +383,7 @@ export const PodcastBottomDock = ({
   <View
     onLayout={onLayout}
     style={{ bottom }}
-    className="absolute left-0 right-0 bg-[#143703] px-4 pt-3"
+    className="absolute left-0 right-0 bg-[#143703] px-4 pt-2"
   >
     <View style={{ paddingBottom }}>{children}</View>
   </View>
@@ -435,38 +453,34 @@ export const PodcastNotesDialog = ({
   title,
 }: PodcastNotesDialogProps) => (
   <PodcastDialog visible={visible} onClose={onClose}>
-    <View className="w-full max-w-[360px] overflow-hidden rounded-[24px] border border-[#D7FF00]/20 bg-[#0E2B08]">
-      <View className="border-b border-[#D7FF00]/15 bg-[#143703] px-6 py-5">
-        <Text className="text-[18px] font-semibold text-[#F4F5F0]">About live podcast</Text>
-        <Text className="mt-1 text-[12px] text-[#B7C0BC]">
-          Details from the current stream
-        </Text>
-      </View>
-
-      <View className="px-6 py-5">
-        <View className="rounded-[18px] bg-white/5 px-4 py-4">
-          <Text className="text-[11px] uppercase tracking-[1px] text-[#D7FF00]">
-            Podcast Playlist
+    <View className="w-full max-w-[320px] overflow-hidden rounded-[20px] border border-[#D7FF00]/20 bg-[#0E2B08]">
+      <View className="px-5 py-4">
+        <View className="rounded-[16px] bg-white/5 px-3 py-3 mb-3">
+          <Text className="text-[10px] uppercase tracking-[1px] text-[#D7FF00]">
+            Playlist
           </Text>
-          <Text className="mt-2 text-[17px] font-semibold text-[#F4F5F0]">
+          <Text className="mt-1 text-[15px] font-semibold text-[#F4F5F0]" numberOfLines={2}>
             {playlist}
           </Text>
         </View>
 
-        <View className="mt-4 rounded-[18px] bg-white/5 px-4 py-4">
-          <Text className="text-[11px] uppercase tracking-[1px] text-[#D7FF00]">
-            Podcast Title
+        <View className="rounded-[16px] bg-white/5 px-3 py-3">
+          <Text className="text-[10px] uppercase tracking-[1px] text-[#D7FF00]">
+            Title
           </Text>
-          <Text className="mt-2 text-[17px] font-semibold text-[#F4F5F0]">
+          <Text className="mt-1 text-[15px] font-semibold text-[#F4F5F0]" numberOfLines={3}>
             {title}
           </Text>
         </View>
 
         <Pressable
-          onPress={onClose}
-          className="mt-6 items-center rounded-[18px] bg-[#D7FF00] px-4 py-4"
+          onPress={() => {
+            hapticMedium()
+            onClose()
+          }}
+          className="mt-5 items-center rounded-[16px] bg-[#D7FF00] px-4 py-3"
         >
-          <Text className="text-[16px] font-semibold text-[#143703]">Close</Text>
+          <Text className="text-[14px] font-semibold text-[#143703]">Close</Text>
         </Pressable>
       </View>
     </View>

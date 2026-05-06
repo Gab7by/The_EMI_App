@@ -1,9 +1,10 @@
-import { Modal, Pressable, Text, TextInput, View } from "react-native"
-import {BlurView} from "expo-blur"
-import { useLiveStreamStartDialogModalStore, useLiveStreamVisibilityModalStore } from "@/store/podcast-store"
-import { ArrowLeft, Earth, EyeOff  } from "lucide-react-native"
 import { Colors } from "@/constants/theme"
+import { hapticMedium } from "@/lib/haptics"
+import { useLiveStreamStartDialogModalStore, useLiveStreamVisibilityModalStore } from "@/store/podcast-store"
 import { LiveStreamVisibilityOptionsType } from "@/types/podcast-types"
+import { BlurView } from "expo-blur"
+import { ArrowLeft, Earth, EyeOff } from "lucide-react-native"
+import { Modal, Pressable, Text, View } from "react-native"
 
 const LiveStreamVisibilityModal = ({isPublic, isUnlisted, setIsPublic, setIsUnlisted}:LiveStreamVisibilityOptionsType) => {
 
@@ -13,6 +14,7 @@ const LiveStreamVisibilityModal = ({isPublic, isUnlisted, setIsPublic, setIsUnli
     const setDialogModalOpen = useLiveStreamStartDialogModalStore(state => state.setIsOpen)
 
     const goBackToDialogModal = () => {
+        hapticMedium()
         setModalOpen(false)
         setTimeout(() => {
             setDialogModalOpen(true)
@@ -61,7 +63,8 @@ const LiveStreamVisibilityModal = ({isPublic, isUnlisted, setIsPublic, setIsUnli
                             </View>
                             <Pressable
                                 onPress={() => {
-                                setIsPublic(prev => !prev)
+                                    hapticMedium()
+                                    setIsPublic(prev => !prev)
                                 }}
                                 className="h-7 w-7 border-2 border-menorah-primary rounded items-center justify-center"
                             >
@@ -81,7 +84,8 @@ const LiveStreamVisibilityModal = ({isPublic, isUnlisted, setIsPublic, setIsUnli
                             </View>
                             <Pressable
                                 onPress={() => {
-                                setIsUnlisted(prev => !prev)
+                                    hapticMedium()
+                                    setIsUnlisted(prev => !prev)
                                 }}
                                 className="h-7 w-7 border-2 border-menorah-primary rounded items-center justify-center"
                             >

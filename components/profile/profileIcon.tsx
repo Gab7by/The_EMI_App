@@ -1,7 +1,8 @@
-import { Pressable, Text, View } from "react-native"
-import {Image} from "expo-image"
+import { hapticMedium } from "@/lib/haptics"
 import { useAuthStore } from "@/store/authStore"
+import { Image } from "expo-image"
 import { useRouter } from "expo-router"
+import { Pressable, Text, View } from "react-native"
 
 const ProfileIcon = ({borderColor}: {borderColor: string}) => {
     
@@ -13,7 +14,10 @@ const ProfileIcon = ({borderColor}: {borderColor: string}) => {
 
     return (
         <Pressable
-            onPress={() => router.push("/(profile)/entry")}
+            onPress={() => {
+                hapticMedium()
+                router.push("/(profile)/entry")
+            }}
             style={{
                 borderWidth: 4,
                 borderColor,

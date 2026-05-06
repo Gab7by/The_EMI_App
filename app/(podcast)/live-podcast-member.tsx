@@ -2,6 +2,8 @@ import Call from "@/assets/svgs/call_icon.svg";
 import HugeIcon from "@/assets/svgs/hugeicons_note.svg";
 import MoneyIcon from "@/assets/svgs/send_money_icon.svg";
 import {
+  HostAvatar,
+  PodcastBackground,
   PodcastBottomDock,
   PodcastBottomSheet,
   PodcastComments,
@@ -9,20 +11,19 @@ import {
   PodcastDialog,
   PodcastFullScreenModal,
   PodcastHeader,
-  HostAvatar,
   PodcastNotesDialog,
   PodcastParticipantsGrid,
   podcastCurrencies,
   podcastPaymentMethods,
   renderPaymentMethodIcon,
   usePodcastFooterLayout,
-  PodcastBackground,
   type PodcastCurrencyOption
 } from "@/components/podcast/livePodcastShared";
-import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useAudienceRoom } from "@/hooks/useAudienceRoom";
+import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
+import { hapticMedium } from "@/lib/haptics";
 import { lowerHand, raiseHand } from "@/lib/livekit-signals";
 import { getLivePodcastStatus, joinLivePodcastParticipant, leaveLivePodcastParticipant } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
@@ -227,13 +228,13 @@ const MemberLivePodcast = () => {
             actions={
               <>
                 <View className="ml-7">
-                  <Pressable onPress={() => setIsNotesVisible(true)} hitSlop={10}>
+                  <Pressable onPress={() => { hapticMedium(); setIsNotesVisible(true) }} hitSlop={10}>
                     <HugeIcon width={30} height={30} />
                   </Pressable>
                 </View>
                 <Share2 size={25} color="#F3F6E7" strokeWidth={1.2} />
                 <Pressable
-                  onPress={() => setIsExitPromptVisible(true)}
+                  onPress={() => { hapticMedium(); setIsExitPromptVisible(true) }}
                   className="rounded-full bg-[#F3523C]/20 p-2"
                 >
                   <Power size={23} color="#FF5A45" strokeWidth={2} />
@@ -254,14 +255,14 @@ const MemberLivePodcast = () => {
           paddingBottom={footerPaddingBottom}
           onLayout={handleFooterLayout}
         >
-          <View className="mb-4 flex-row items-center">
-            <View className="mr-3 flex-1 flex-row items-center rounded-[18px] border border-white/80 bg-[#143703] px-4 py-[10px]">
+          <View className="mb-1 flex-row items-center">
+            <View className="mr-2 flex-1 flex-row items-center rounded-[8px] border border-white/80 bg-[#143703] px-2 py-1">
               <TextInput
                 placeholder="Input your message"
                 value={message}
                 onChangeText={setMessage}
                 placeholderTextColor="#A9A9A9"
-                className="flex-1 text-[13px] text-white"
+                className="flex-1 text-[12px] text-white"
                 returnKeyType="send"
                 onSubmitEditing={() => {
                   handleSendMessage()
@@ -270,15 +271,15 @@ const MemberLivePodcast = () => {
             </View>
 
             <View className="flex-row items-center gap-3">
-              <MaterialCommunityIcons name="heart" size={30} color="#FF4B1F" />
-              <Pressable onPress={handleRaiseHand} hitSlop={10} className="items-center">
-                <Call width={28} height={28} />
-                <Text className="mt-1 text-[10px] font-medium text-[#F3F6E7]">
+              <MaterialCommunityIcons name="heart" size={22} color="#FF4B1F" />
+              <Pressable onPress={() => { hapticMedium(); handleRaiseHand() }} hitSlop={8} className="items-center">
+                <Call width={22} height={22} />
+                <Text className="mt-0.5 text-[8px] font-medium text-[#F3F6E7]">
                   {isApprovedToSpeak ? (isMuted ? "Unmute" : "Mute") : hasRaisedHand ? "Pending" : "Call in"}
                 </Text>
               </Pressable>
-              <Pressable onPress={() => setIsPaymentMethodsVisible(true)} hitSlop={10}>
-                <MoneyIcon width={28} height={28} />
+              <Pressable onPress={() => { hapticMedium(); setIsPaymentMethodsVisible(true) }} hitSlop={8}>
+                <MoneyIcon width={22} height={22} />
               </Pressable>
             </View>
           </View>
@@ -320,7 +321,7 @@ const MemberLivePodcast = () => {
                 <Text className="text-[18px] font-medium text-black">Leave</Text>
               </Pressable>
               <Pressable
-                onPress={() => setIsExitPromptVisible(false)}
+                onPress={() => { hapticMedium(); setIsExitPromptVisible(false) }}
                 className="flex-1 items-center justify-center bg-[#01411D] px-4 py-4"
               >
                 <Text className="text-[18px] font-medium text-[#D7FF00]">Stay</Text>

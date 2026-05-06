@@ -1,24 +1,24 @@
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native"
-import {BlurView} from "expo-blur"
-import { useLiveStreamInfoModalStore, useLiveStreamStartDialogModalStore, useLiveStreamStartModalStore } from "@/store/podcast-store"
-import { ArrowLeft, Loader2 } from "lucide-react-native"
-import { Colors } from "@/constants/theme"
-import { LiveStreamInfoType, PLAYLIST_OPTIONS, PLAYLISTS } from "@/types/podcast-types"
-import { Icon } from "../ui/icon"
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import type { TriggerRef } from '@rn-primitives/select';
-import * as React from 'react';
-import { Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectLabel,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import { Colors } from "@/constants/theme"
+import { hapticMedium } from "@/lib/haptics"
+import { useLiveStreamInfoModalStore, useLiveStreamStartDialogModalStore } from "@/store/podcast-store"
+import { LiveStreamInfoType, PLAYLIST_OPTIONS } from "@/types/podcast-types"
 import { PortalHost } from "@rn-primitives/portal"
+import type { TriggerRef } from '@rn-primitives/select'
+import { BlurView } from "expo-blur"
+import { ArrowLeft, Loader2 } from "lucide-react-native"
+import * as React from 'react'
+import { Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native"
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Icon } from "../ui/icon"
 
 const LiveStreamInfoModal = ({playlist, setPlaylist, setTitle, title, isCreatingLivePodcast, startLiveStream, errorStartingLivePodcast}:LiveStreamInfoType) => {
 
@@ -37,6 +37,7 @@ const LiveStreamInfoModal = ({playlist, setPlaylist, setTitle, title, isCreating
     }
 
     const goBackToDialogModal = () => {
+        hapticMedium()
         setModalOpen(false)
         setTimeout(() => {
             setDialogModalOpen(true)
@@ -129,7 +130,7 @@ const LiveStreamInfoModal = ({playlist, setPlaylist, setTitle, title, isCreating
                             />
                             {errorStartingLivePodcast && <Text className="text-menorah-error text-xs">{errorStartingLivePodcast}</Text>}
                         </View>
-                        <Pressable onPress={() => startLiveStream(() => setModalOpen(false))} className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
+                        <Pressable onPress={() => { hapticMedium(); startLiveStream(() => setModalOpen(false)) }} className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
                                 {
                                     isCreatingLivePodcast ?
                                     (<View className="pointer-events-none animate-spin">

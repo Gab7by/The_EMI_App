@@ -4,34 +4,36 @@ import MessagingButton from "@/assets/svgs/messaging_button.svg";
 import MicrophoneButton from "@/assets/svgs/microphone_button.svg";
 import MusicButton from "@/assets/svgs/music_button_icon.svg";
 import {
+  HostAvatar,
+  PodcastBackground,
   PodcastBottomDock,
   PodcastBottomSheet,
   PodcastComments,
   PodcastConnectingOverlay,
   PodcastDialog,
   PodcastHeader,
-  HostAvatar,
   PodcastNotesDialog,
   PodcastParticipantsGrid,
   usePodcastFooterLayout,
-  PodcastBackground,
 } from "@/components/podcast/livePodcastShared";
 import { Icon } from "@/components/ui/icon";
 import { Colors } from "@/constants/theme";
-import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useHostRooom } from "@/hooks/useHostRoom";
+import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
+import { hapticMedium } from "@/lib/haptics";
 import { approveSpeaker, revokeSpeaker, sendBackgroundChangedSignal, sendSessionEnded } from "@/lib/livekit-signals";
 import { endLiveSession, updateParticipantCalledIn } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
+import { pickImage, uploadPodcastBackground } from "@/lib/storage";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveKitStore } from "@/store/livekit-store";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useIOSAudioManagement } from "@livekit/react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { Activity, ChevronRight, Loader2, Mic, MicOff, Power, Share2, X } from "lucide-react-native";
+import { ChevronRight, Loader2, Mic, MicOff, Power, Share2, X } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -42,7 +44,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { pickImage, uploadPodcastBackground } from "@/lib/storage";
 
 type AdminSheet = "none" | "settings" | "music" | "speakers";
 
@@ -80,6 +81,7 @@ const AdminLivePodcast = () => {
     (coverImageUrl || null)
   )
   const [uploadingBackground, setUploadingBackground] = useState(false)
+  const [approvingRequests, setApprovingRequests] = useState<Set<string>>(new Set())
 
   const room = useLiveKitStore(state => state.room)
   const isMuted = useLiveKitStore(state => state.isMuted)
@@ -222,20 +224,38 @@ const AdminLivePodcast = () => {
   }))
 
   const handleApproveRaisedHand = async (participantId: string) => {
-    if (!room || !profile) return
+    if (!room || !profile || approvingRequests.has(participantId)) return
 
-    const approved = await approveSpeaker(
-      room,
-      profile.id,
-      profile.full_name ?? "Host",
-      participantId,
-      livekitRoomName,
-      id
-    )
-    if (!approved) return
-    await updateParticipantCalledIn(id, participantId, true)
-    dismissRaisedHand(participantId)
-    queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+
+    setApprovingRequests(prev => new Set(prev).add(participantId))
+
+    try {
+      const approved = await approveSpeaker(
+        room,
+        profile.id,
+        profile.full_name ?? "Host",
+        participantId,
+        livekitRoomName,
+        id
+      )
+      if (!approved) return
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+
+      await updateParticipantCalledIn(id, participantId, true)
+      dismissRaisedHand(participantId)
+      queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      console.error("Failed to approve speaker:", error)
+    } finally {
+      setApprovingRequests(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(participantId)
+        return newSet
+      })
+    }
   }
 
   const handleRejectRaisedHand = (participantId: string) => {
@@ -295,13 +315,13 @@ const AdminLivePodcast = () => {
             actions={
               <>
                 <View className="ml-7">
-                  <Pressable onPress={() => setIsNotesVisible(true)} hitSlop={10}>
+                  <Pressable onPress={() => { hapticMedium(); setIsNotesVisible(true) }} hitSlop={10}>
                     <HugeIcon width={30} height={30} />
                   </Pressable>
                 </View>
                 <Share2 size={25} color="#F3F6E7" strokeWidth={1.2} />
                 <Pressable
-                  onPress={() => setIsExitPromptVisible(true)}
+                  onPress={() => { hapticMedium(); setIsExitPromptVisible(true) }}
                   className="rounded-full bg-[#F3523C]/20 p-2"
                 >
                   <Power size={23} color="#FF5A45" strokeWidth={2} />
@@ -389,6 +409,7 @@ const AdminLivePodcast = () => {
             <View className="flex-row items-center justify-between px-6">
               <Pressable
                 onPress={() => {
+                  hapticMedium();
                   closeAllOverlays();
                   setActiveSheet("settings");
                 }}
@@ -398,6 +419,7 @@ const AdminLivePodcast = () => {
               </Pressable>
               <Pressable
                 onPress={() => {
+                  hapticMedium();
                   closeAllOverlays();
                   setActiveSheet("music");
                 }}
@@ -407,6 +429,7 @@ const AdminLivePodcast = () => {
               </Pressable>
               <Pressable
                 onPress={() => {
+                  hapticMedium();
                   setActiveSheet("none");
                   setIsMessageComposerVisible(true);
                 }}
@@ -416,6 +439,7 @@ const AdminLivePodcast = () => {
               </Pressable>
               <Pressable
                 onPress={() => {
+                  hapticMedium();
                   closeAllOverlays();
                   setActiveSheet("speakers");
                 }}
@@ -503,12 +527,25 @@ const AdminLivePodcast = () => {
                   <View className="mt-4 flex-row gap-3">
                     <Pressable
                       onPress={() => handleApproveRaisedHand(request.fromId)}
-                      className="flex-1 items-center rounded-[16px] bg-[#D7FF00] px-4 py-3"
+                      disabled={approvingRequests.has(request.fromId)}
+                      className={`flex-1 items-center rounded-[16px] px-4 py-3 ${
+                        approvingRequests.has(request.fromId)
+                          ? 'bg-[#D7FF00]/70'
+                          : 'bg-[#D7FF00]'
+                      }`}
                     >
-                      <Text className="text-[14px] font-semibold text-[#143703]">Accept</Text>
+                      {approvingRequests.has(request.fromId) ? (
+                        <View className="flex-row items-center">
+                          <ActivityIndicator size="small" color="#143703" />
+                          <Text className="ml-2 text-[14px] font-semibold text-[#143703]">Approving...</Text>
+                        </View>
+                      ) : (
+                        <Text className="text-[14px] font-semibold text-[#143703]">Accept</Text>
+                      )}
                     </Pressable>
                     <Pressable
                       onPress={() => handleRejectRaisedHand(request.fromId)}
+                      disabled={approvingRequests.has(request.fromId)}
                       className="flex-1 items-center rounded-[16px] bg-white/10 px-4 py-3"
                     >
                       <Text className="text-[14px] font-semibold text-[#F4F5F0]">Reject</Text>
@@ -612,7 +649,7 @@ const AdminLivePodcast = () => {
 
             <View className="flex-row">
               <Pressable
-                onPress={leaveLiveRoom}
+                onPress={() => { hapticMedium(); leaveLiveRoom() }}
                 className="flex-1 items-center justify-center bg-[#D7FF00] px-4 py-4"
               >
                 {isEndingSession ? (
@@ -624,7 +661,7 @@ const AdminLivePodcast = () => {
                 )}
               </Pressable>
               <Pressable
-                onPress={() => setIsExitPromptVisible(false)}
+                onPress={() => { hapticMedium(); setIsExitPromptVisible(false) }}
                 className="flex-1 items-center justify-center bg-[#01411D] px-4 py-4"
               >
                 <Text className="text-[18px] font-medium text-[#D7FF00]">Stay</Text>

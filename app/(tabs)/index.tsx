@@ -6,17 +6,22 @@ import HomeProfileModal from "@/components/profile/homeProfileModal"
 import { imageItems } from "@/constants/podcast"
 import { testToken } from "@/lib/livekit"
 import { Pressable, ScrollView, Text, View } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 
 
 
 const Home = () => {
-  
+  const insets = useSafeAreaInsets()
+
   return (
-    <SafeAreaView className="flex-1 gap-7 px-4 py-8 bg-menorah-bg">
+    <SafeAreaView className="flex-1 gap-7 px-4 py-8 bg-menorah-bg" style={{ paddingBottom: insets.bottom + 16 }}>
       <HomeProfileBar />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerClassName="gap-6">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerClassName="gap-6"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}
+      >
         <ImageSlider items={imageItems} height={220} />
         <View className="gap-5">
           <Text className="text-xl font-bold text-[#EFBF04]">The Menorah</Text>

@@ -1,10 +1,11 @@
-import { Pressable, Text, View } from "react-native"
-import { Image } from "expo-image"
-import HostIcon from "./hostIcon"
 import Sun from "@/assets/svgs/sun-icon.svg"
+import { hapticMedium } from "@/lib/haptics"
 import { useAuthStore } from "@/store/authStore"
-import { useRouter } from "expo-router"
 import { LiveStreamCardType } from "@/types/podcast-types"
+import { Image } from "expo-image"
+import { useRouter } from "expo-router"
+import { Pressable, Text, View } from "react-native"
+import HostIcon from "./hostIcon"
 
 const LiveStreamCard = ({
     hostName,
@@ -23,6 +24,7 @@ const LiveStreamCard = ({
     const router = useRouter()
 
     const goToLiveStream = () => {
+        hapticMedium()
         if(isAdmin) router.push(
             {
                 pathname: "/(podcast)/live-podcast-admin",

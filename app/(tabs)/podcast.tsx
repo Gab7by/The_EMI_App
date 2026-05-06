@@ -14,7 +14,7 @@ import { createLivePodcast } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveStreamStartModalStore } from "@/store/podcast-store";
-import { Playlist, PLAYLIST_OPTIONS, PlaylistOption, PLAYLISTS } from "@/types/podcast-types";
+import { Playlist, PLAYLIST_OPTIONS, PlaylistOption } from "@/types/podcast-types";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { Plus } from "lucide-react-native";
@@ -105,7 +105,7 @@ const PodcastScreen = () => {
         <FlashList
             ListEmptyComponent={<NoLiveStreamCard />}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{paddingBottom: insets.bottom + 80}}
+            contentContainerStyle={{paddingBottom: insets.bottom + 120}}
             ListHeaderComponent={
                 <Text className="text-xl font-bold text-menorah-goldDark mb-4">
                     Livestreams

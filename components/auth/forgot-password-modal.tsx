@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/theme"
+import { hapticMedium } from "@/lib/haptics"
 import { supabase } from "@/lib/supabase"
 import { useForgotPasswordModalStore } from "@/store/authStore"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
@@ -21,6 +22,7 @@ const ForgotPasswordModal = () => {
     const [email, setEmail] = useState<string>("")
 
     const closeModal = () => {
+        hapticMedium()
         setEmail("")
         setModalOpen(false)
     }
@@ -113,7 +115,7 @@ const ForgotPasswordModal = () => {
                                     </View>
                                 )}
                         </View>
-                        <Pressable onPress={sendEmail}  className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
+                        <Pressable onPress={() => { hapticMedium(); sendEmail() }}  className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
                                 {isSendingEmail ?
                                 <View className="pointer-events-none animate-spin">
                                     <Icon as={Loader2} color={Colors.menorah.bg} />

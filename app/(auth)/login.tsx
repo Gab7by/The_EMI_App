@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Icon } from "@/components/ui/icon"
 import { Text as ShadText } from "@/components/ui/text"
 import { Colors } from "@/constants/theme"
+import { hapticMedium } from "@/lib/haptics"
 import { supabase } from "@/lib/supabase"
 import { LoginSchema } from "@/schemas/auth-schemas"
 import { useForgotPasswordModalStore } from "@/store/authStore"
@@ -12,7 +13,7 @@ import { LoginFormType } from "@/types/auth-types"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "expo-router"
-import { Loader2, LoaderPinwheel } from "lucide-react-native"
+import { Loader2 } from "lucide-react-native"
 import { useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { Pressable, Text, TextInput, View } from "react-native"
@@ -25,6 +26,7 @@ const LoginScreen = () => {
     const setForgotPasswordModalOpen = useForgotPasswordModalStore(state => state.setIsOpen)
 
     const openForgotPasswordModal = () => {
+        hapticMedium()
         setForgotPasswordModalOpen(true)
     }
 
@@ -32,6 +34,7 @@ const LoginScreen = () => {
     const [errorLogginIn, setErrorLogginIn] = useState<string | null>(null) 
 
     const goToPreviousScreen = () => {
+        hapticMedium()
         router.back()
     }
 
