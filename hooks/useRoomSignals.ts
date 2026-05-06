@@ -1,3 +1,4 @@
+import { queryClient } from "@/lib/query"
 import { RoomSignal } from "@/types/livekit-types"
 import type {Room} from "livekit-client"
 import { useEffect, useState } from "react"
@@ -10,6 +11,7 @@ export const useRoomSignals = (
     const [isApprovedToSpeak, setIsApprovedToSpeak] = useState<boolean>(false)
     const [sessionEnded, setSessionEnded] = useState<boolean>(false)
     const [isSpeakerRevoked, setIsSpeakerRevoked] = useState<boolean>(false)
+    const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null)
 
     useEffect(() => {
         if (!room) return
@@ -57,6 +59,11 @@ export const useRoomSignals = (
                 if (signal.type === 'SESSION_ENDED') {
                     setSessionEnded(true)
                 }
+
+                if (signal.type === 'BACKGROUND_CHANGED') {
+                    setBackgroundUrl(signal.fromName)
+                    queryClient.invalidateQueries({ queryKey: ['live-podcast-sessions'] })
+                }
             } catch {
 
             }
@@ -77,5 +84,5 @@ export const useRoomSignals = (
         setRaisedHands(prev => prev.filter(signal => signal.fromId !== participantId))
     }
 
-    return {raisedHands, isApprovedToSpeak, sessionEnded, isSpeakerRevoked, dismissRaisedHand}
+    return {raisedHands, isApprovedToSpeak, sessionEnded, isSpeakerRevoked, backgroundUrl, dismissRaisedHand}
 }

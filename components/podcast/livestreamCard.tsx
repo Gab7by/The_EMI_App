@@ -13,7 +13,8 @@ const LiveStreamCard = ({
     title,
     hostId,
     id,
-    livekitRoomName
+    livekitRoomName,
+    coverImageUrl
 }:LiveStreamCardType) => {
 
     const profile = useAuthStore(state => state.profile)
@@ -32,7 +33,8 @@ const LiveStreamCard = ({
                     hostId,
                     hostName,
                     hostPictureUrl,
-                    livekitRoomName
+                    livekitRoomName,
+                    coverImageUrl
                 }
             }
         );
@@ -46,7 +48,8 @@ const LiveStreamCard = ({
                     hostId,
                     hostName,
                     hostPictureUrl,
-                    livekitRoomName
+                    livekitRoomName,
+                    coverImageUrl
                 }
             }
         )

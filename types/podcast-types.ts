@@ -1,3 +1,4 @@
+import { ReactNode } from "react"
 import { Profile } from "./auth-types"
 
 export type liveStreamStartModalType = {
@@ -102,7 +103,8 @@ export type LiveStreamCardType = {
     hostName: string
     id: string
     hostId: string
-    livekitRoomName: string
+    livekitRoomName: string,
+    coverImageUrl: string | null
 }
 
 export const PLAYLIST_OPTIONS = PLAYLISTS.map((playlist) => ({
@@ -119,4 +121,9 @@ export type LiveMessage = {
   content: string 
   created_at: string
   isLocal?: boolean
+}
+
+export type PodcastBackgroundProps = {
+  coverUrl: string | null
+  children: ReactNode
 }

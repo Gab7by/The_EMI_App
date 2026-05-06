@@ -14,6 +14,7 @@ import {
   PodcastNotesDialog,
   PodcastParticipantsGrid,
   usePodcastFooterLayout,
+  PodcastBackground,
 } from "@/components/podcast/livePodcastShared";
 import { Icon } from "@/components/ui/icon";
 import { Colors } from "@/constants/theme";
@@ -21,7 +22,7 @@ import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useHostRooom } from "@/hooks/useHostRoom";
 import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
-import { approveSpeaker, revokeSpeaker, sendSessionEnded } from "@/lib/livekit-signals";
+import { approveSpeaker, revokeSpeaker, sendBackgroundChangedSignal, sendSessionEnded } from "@/lib/livekit-signals";
 import { endLiveSession, updateParticipantCalledIn } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { useAuthStore } from "@/store/authStore";
@@ -30,9 +31,10 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useIOSAudioManagement } from "@livekit/react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronRight, Loader2, Mic, MicOff, Power, Share2, X } from "lucide-react-native";
+import { Activity, ChevronRight, Loader2, Mic, MicOff, Power, Share2, X } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Keyboard,
   Pressable,
   Text,
@@ -40,6 +42,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { pickImage, uploadPodcastBackground } from "@/lib/storage";
 
 type AdminSheet = "none" | "settings" | "music" | "speakers";
 
@@ -49,7 +52,7 @@ const RoomAudioManager = ({ room }: { room: NonNullable<ReturnType<typeof useLiv
 };
 
 const AdminLivePodcast = () => {
-  const { id, title, playlist, hostId, hostName, hostPictureUrl, livekitRoomName } = useLocalSearchParams<{
+  const { id, title, playlist, hostId, hostName, hostPictureUrl, livekitRoomName, coverImageUrl } = useLocalSearchParams<{
     id: string;
     title: string;
     hostId: string;
@@ -57,6 +60,7 @@ const AdminLivePodcast = () => {
     hostPictureUrl: string;
     playlist: string;
     livekitRoomName: string
+    coverImageUrl?: string
   }>();
 
   const router = useRouter();
@@ -72,6 +76,10 @@ const AdminLivePodcast = () => {
   const messageInputRef = useRef<TextInput | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [shouldShowConnectingOverlay, setShouldShowConnectingOverlay] = useState(true);
+  const [coverUrl, setcoverUrl] = useState<string | null>(
+    (coverImageUrl || null)
+  )
+  const [uploadingBackground, setUploadingBackground] = useState(false)
 
   const room = useLiveKitStore(state => state.room)
   const isMuted = useLiveKitStore(state => state.isMuted)
@@ -250,12 +258,31 @@ const AdminLivePodcast = () => {
     queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
   }
 
+  const handleBackgroundUpload = async () => {
+    const asset = await pickImage({
+      allowsEditing: false
+    })
+
+    if (!asset) return
+
+    setUploadingBackground(true)
+
+    const newCoverUrl = await uploadPodcastBackground(asset, id, coverUrl)
+
+    if (newCoverUrl) {
+      setcoverUrl(newCoverUrl)
+
+      if (room && profile) {
+        await sendBackgroundChangedSignal(room, profile.id, newCoverUrl)
+      }
+      queryClient.invalidateQueries({ queryKey: ['live-podcast-sessions'] })
+    }
+
+    setUploadingBackground(false)
+  }
+
   return (
-    <LinearGradient
-      colors={["#143703", "#4a7108", "#143703"]}
-      start={{ x: 0.1, y: 0 }}
-      end={{ x: 0.9, y: 1 }}
-      style={{ flex: 1 }}
+    <PodcastBackground coverUrl={coverUrl}
     >
       <SafeAreaView className="flex-1">
         {room ? <RoomAudioManager room={room} /> : null}
@@ -417,11 +444,11 @@ const AdminLivePodcast = () => {
           </Pressable>
 
           <Pressable
-            onPress={() => setActiveSheet("none")}
+            onPress={() => handleBackgroundUpload()}
             className="mt-10 flex-row items-center justify-between"
           >
-            <Text className="text-[16px] font-medium text-[#F2F5EE]">Themes</Text>
-            <ChevronRight size={24} color="#D7FF00" strokeWidth={2.4} />
+            <Text className="text-[16px] font-medium text-[#F2F5EE]">Set Background</Text>
+            {uploadingBackground ? <ActivityIndicator size="small" color="#D7FF00" /> : <ChevronRight size={24} color="#D7FF00" strokeWidth={2.4} />}
           </Pressable>
         </PodcastBottomSheet>
 
@@ -617,7 +644,7 @@ const AdminLivePodcast = () => {
           visible={shouldShowConnectingOverlay && isConnecting}
         />
       </SafeAreaView>
-    </LinearGradient>
+    </PodcastBackground>
   );
 };
 

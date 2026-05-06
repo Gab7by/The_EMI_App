@@ -121,6 +121,7 @@ const PodcastScreen = () => {
                     hostName={item.host.full_name!}
                     title={item.title}
                     hostPictureUrl={item.host.avatar_url}
+                    coverImageUrl={item.cover_image_url}
                 />
             )}
             keyExtractor={(item) => item.id}

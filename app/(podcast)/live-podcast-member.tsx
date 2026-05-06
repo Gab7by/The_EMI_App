@@ -16,7 +16,8 @@ import {
   podcastPaymentMethods,
   renderPaymentMethodIcon,
   usePodcastFooterLayout,
-  type PodcastCurrencyOption,
+  PodcastBackground,
+  type PodcastCurrencyOption
 } from "@/components/podcast/livePodcastShared";
 import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useAudienceRoom } from "@/hooks/useAudienceRoom";
@@ -28,7 +29,6 @@ import { queryClient } from "@/lib/query";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveKitStore } from "@/store/livekit-store";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, ChevronDown, ChevronRight, Power, Share2, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -36,7 +36,7 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const MemberLivePodcast = () => {
-  const { id, title, playlist, hostId, hostName, hostPictureUrl, livekitRoomName } = useLocalSearchParams<{
+  const { id, title, playlist, hostId, hostName, hostPictureUrl, livekitRoomName, coverImageUrl } = useLocalSearchParams<{
     id: string;
     title: string;
     hostId: string;
@@ -44,6 +44,7 @@ const MemberLivePodcast = () => {
     hostPictureUrl: string;
     playlist: string;
     livekitRoomName: string;
+    coverImageUrl?: string
   }>();
 
   const router = useRouter();
@@ -73,10 +74,12 @@ const MemberLivePodcast = () => {
   const isMuted = useLiveKitStore(state => state.isMuted)
   const setIsMuted = useLiveKitStore(state => state.setIsMuted)
   const profile = useAuthStore(state => state.profile)
-  const {isApprovedToSpeak, sessionEnded, isSpeakerRevoked} = useRoomSignals(room, profile?.id ?? "")
+  const {isApprovedToSpeak, sessionEnded, isSpeakerRevoked, backgroundUrl} = useRoomSignals(room, profile?.id ?? "")
   const [hasRaisedHand, setHasRaisedHand] = useState<boolean>(false)
   const isConnecting = connectionState !== "connected"
   const participantCount = roomParticipants.filter((participant) => participant.id !== hostId).length
+
+  const activeCoverUrl = backgroundUrl ?? coverImageUrl ?? null
 
   const speakerGridParticipants = useMemo(
     () => [
@@ -213,12 +216,7 @@ const MemberLivePodcast = () => {
   }
 
   return (
-    <LinearGradient
-      colors={["#143703", "#4a7108", "#143703"]}
-      start={{ x: 0.1, y: 0 }}
-      end={{ x: 0.9, y: 1 }}
-      style={{ flex: 1 }}
-    >
+    <PodcastBackground coverUrl={activeCoverUrl}>
       <SafeAreaView className="flex-1">
         <View className="flex-1 px-4 pt-3">
           <PodcastHeader
@@ -479,7 +477,7 @@ const MemberLivePodcast = () => {
           </View>
         ) : null}
       </SafeAreaView>
-    </LinearGradient>
+    </PodcastBackground>
   );
 };
 

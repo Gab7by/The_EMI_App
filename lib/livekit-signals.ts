@@ -242,3 +242,15 @@ export const testRevokeSpeaker = async (
 
     return result
 }
+
+export const sendBackgroundChangedSignal = async (
+    room: Room,
+    hostId: string,
+    coverUrl: string
+) => {
+    await sendSignal(room, {
+        type: 'BACKGROUND_CHANGED',
+        fromId: hostId,
+        fromName: coverUrl
+    })
+}

@@ -16,6 +16,7 @@ export type SignalType =
   | 'HAND_APPROVED'
   | 'SPEAKER_REVOKED'
   | 'SESSION_ENDED'
+  | 'BACKGROUND_CHANGED'
 
 export type RoomSignal = {
     type: SignalType

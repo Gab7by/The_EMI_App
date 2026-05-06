@@ -74,3 +74,35 @@ export const uploadImage = async (
 
     return {url: publicUrl, path}
 }
+
+export const uploadPodcastBackground = async (
+    asset: ImagePicker.ImagePickerAsset,
+    podcastId: string,
+    currentCoverUrl: string | null
+): Promise<string | null> => {
+
+    const fileExt = asset.uri.split('.').pop()?.toLowerCase() ?? 'jpg'
+    const path = `${podcastId}/cover-${Date.now()}.${fileExt}`
+
+    const result = await uploadImage(asset, 'podcast-covers', path)
+    if (!result) return null
+
+    const {error} = await supabase
+        .from('live_podcasts')
+        .update({cover_image_url: result.url})
+        .eq('id', podcastId)
+
+    if (error) {
+        console.error('Podcast Cover update error: ', error.message)
+        return null
+    }
+
+    if (currentCoverUrl) {
+        const oldPath = currentCoverUrl.split('/podcast-covers/')[1]?.split('?')[0]
+        if (oldPath) {
+            await supabase.storage.from('podcast-covers').remove([oldPath])
+        }
+    }
+
+    return result.url
+}

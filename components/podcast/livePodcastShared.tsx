@@ -1,8 +1,9 @@
 import LivePeople from "@/assets/svgs/live_people_icon.svg";
-import { LiveMessage } from "@/types/podcast-types";
+import { LiveMessage, PodcastBackgroundProps } from "@/types/podcast-types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
@@ -11,6 +12,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   View,
   type LayoutChangeEvent,
@@ -517,4 +519,33 @@ export const PodcastFullScreenModal = ({
   >
     <View className="flex-1 bg-menorah-bg">{children}</View>
   </Modal>
+);
+
+export const PodcastBackground = ({
+  coverUrl,
+  children,
+}: PodcastBackgroundProps) => (
+  <View className="flex-1">
+    <LinearGradient
+          colors={["#143703", "#4a7108", "#143703"]}
+          start={{ x: 0.1, y: 0 }}
+          end={{ x: 0.9, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      {
+        coverUrl && (
+          <Image
+            source={{ uri: coverUrl }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+          />
+        )
+      }
+      {coverUrl && (
+        <View 
+          style={[StyleSheet.absoluteFill, 
+            { backgroundColor: "rgba(0, 0, 0, 0.45)" }]}
+        />)}
+      {children}
+  </View>
 );
