@@ -29,6 +29,8 @@ const ProfileIcon = ({borderColor}: {borderColor: string}) => {
                     <Image
                         source={{uri: profileImageUrl}}
                         style={{width: 26, height: 26, borderRadius: 13}}
+                        contentFit="cover"
+                        cachePolicy="none"
                     />
                 ) : (
                     <View style={{width: 26, height: 26, borderRadius: 13}} className="bg-menorah-bg items-center justify-center">
