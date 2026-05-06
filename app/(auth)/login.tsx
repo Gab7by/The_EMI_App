@@ -154,14 +154,14 @@ const LoginScreen = () => {
                 </Button>
                 <Divider />
             </View>
-            <View className="flex-row gap-14">
+            {/* <View className="flex-row gap-14">
                 <Pressable>
                     <GoogleLoginSvg />
                 </Pressable>
                 <Pressable>
                     <AppleLoginSvg />
                 </Pressable>
-            </View>
+            </View> */}
         </SafeAreaView>
     )
 }
