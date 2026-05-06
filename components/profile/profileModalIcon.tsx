@@ -1,4 +1,3 @@
-import { useProfileStore } from "@/store/profileStore"
 import { Pressable, Text, View } from "react-native"
 import {Image} from "expo-image"
 import { useAuthStore } from "@/store/authStore"
@@ -6,7 +5,7 @@ import { Colors } from "@/constants/theme"
 
 const ProfileModalIcon = ({borderColor}:{borderColor: string}) => {
     
-    const profileImageUrl = useProfileStore(state => state.profileImageUrl)
+    const profileImageUrl = useAuthStore(state => state.profile?.avatar_url)
     const name: string = useAuthStore(state => state.session?.user.user_metadata.full_name)
 
     return (

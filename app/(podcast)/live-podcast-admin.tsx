@@ -487,14 +487,6 @@ const AdminLivePodcast = () => {
                       <Text className="text-[14px] font-semibold text-[#F4F5F0]">Reject</Text>
                     </Pressable>
                   </View>
-                  <Pressable
-                    onPress={() => handleDebugGrantSpeaker(request.fromId)}
-                    className="mt-3 items-center rounded-[14px] border border-white/10 bg-black/10 px-4 py-3"
-                  >
-                    <Text className="text-[12px] font-semibold text-[#B7C0BC]">
-                      Debug grant edge function
-                    </Text>
-                  </Pressable>
                 </View>
               ))}
             </View>

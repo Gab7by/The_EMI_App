@@ -4,10 +4,10 @@ import { useForgotPasswordModalStore } from "@/store/authStore"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { BlurView } from "expo-blur"
 import { useRouter } from "expo-router"
+import { Loader2 } from "lucide-react-native"
 import { useState } from "react"
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native"
 import { Icon } from "../ui/icon"
-import { Loader2 } from "lucide-react-native"
 
 const ForgotPasswordModal = () => {
 
@@ -28,14 +28,14 @@ const ForgotPasswordModal = () => {
     const sendEmail = async () => {
         try{
             setIsSendingEmail(true)
-            if(email.length < 5 || !email.endsWith(".com")) {
+            if (!email || email.length < 5 || !email.endsWith(".com")) {
                 setErrorSendingEmail("Enter a valid email")
                 setTimeout(() => {
                     setErrorSendingEmail(null)
                 }, 2000)
 
                 return
-            } 
+            }
 
             const {error} = await supabase.auth.resetPasswordForEmail(email)
             if (error) {

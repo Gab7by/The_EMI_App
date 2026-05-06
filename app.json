@@ -10,7 +10,12 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bitcode": false
+      "bitcode": false,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "The Menorah needs microphone access for live audio sessions",
+        "NSPhotoLibraryUsageDescription": "The Menorah needs access to your photos",
+        "NSCameraUsageDescription": "The Menorah needs camera access"
+      }
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
@@ -48,9 +53,6 @@
           "imageWidth": 336,
           "resizeMode": "contain",
           "backgroundColor": "#0B1F0E"
-          // "dark": {
-          //   "backgroundColor": "#000000"
-          // }
         }
       ],
       "expo-secure-store",
@@ -60,8 +62,7 @@
         "expo-image-picker",
         {
           "photosPermission": "The Menorah needs access to your photos to set your profile picture and session backgrounds",
-          "cameraPermission": "The Menorah needs camera access to take your profile picture",
-          "microphonePermission": false
+          "cameraPermission": "The Menorah needs camera access to take your profile picture"
         }
       ]
     ],

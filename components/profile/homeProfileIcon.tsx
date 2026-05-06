@@ -9,7 +9,7 @@ const HomeProfileIcon = ({borderColor}: {borderColor: string}) => {
 
     const setModalOpen = useHomeProfileModalStore(state => state.setIsOpen)
     
-    const profileImageUrl = useProfileStore(state => state.profileImageUrl)
+    const profileImageUrl = useAuthStore(state => state.profile?.avatar_url)
     const name: string = useAuthStore(state => state.session?.user.user_metadata.full_name)
 
     return (
