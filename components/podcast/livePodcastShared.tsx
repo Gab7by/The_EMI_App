@@ -14,6 +14,7 @@ import {
     Pressable,
     StyleSheet,
     Text,
+    useWindowDimensions,
     View,
     type LayoutChangeEvent
 } from "react-native";
@@ -254,11 +255,16 @@ type PodcastCommentsProps = {
   messages: LiveMessage[]
 };
 
-export const PodcastComments = ({ footerPadding, messages }: PodcastCommentsProps) => (
-  <FlashList
-    data={messages}
-    showsVerticalScrollIndicator={false}
-    ListEmptyComponent={() => (
+export const PodcastComments = ({ footerPadding, messages }: PodcastCommentsProps) => {
+  const { width } = useWindowDimensions()
+  const imageWidth = Math.min(width * 0.68, 220)
+  const imageHeight = imageWidth * 0.72
+
+  return (
+    <FlashList
+      data={messages}
+      showsVerticalScrollIndicator={false}
+      ListEmptyComponent={() => (
       <View className="mx-2 mt-8 items-center rounded-[24px] border border-white/10 bg-[#0F2A08]/80 px-6 py-8">
         <View className="h-[58px] w-[58px] items-center justify-center rounded-full bg-[#D7FF00]/15">
           <MaterialCommunityIcons
@@ -309,26 +315,40 @@ export const PodcastComments = ({ footerPadding, messages }: PodcastCommentsProp
             </View>
           )
         )}
-        <View className={`${item.isLocal ? "max-w-[82%] items-end" : "ml-3 flex-1"}`}>
+        <View className={`${item.isLocal ? "items-end" : "ml-3"}`} style={{ maxWidth: width * 0.74, alignSelf: item.isLocal ? 'flex-end' : 'flex-start' }}>
           {!item.isLocal && (
             <Text className="mb-2 text-[11px] font-medium text-menorah-whiteSoft">
               {item.sender_name}
             </Text>
           )}
-          <View
-            className={`rounded-2xl px-4 py-3 ${
-              item.isLocal ? "bg-[#D7FF00]" : "self-start bg-white/20"
-            }`}
-          >
-            <Text className={`max-w-[240px] text-[12px] font-semibold leading-4 ${item.isLocal ? 'text-[#143703]' : 'text-menorah-whiteSoft'}`}>
-              {item.content}
-            </Text>
-          </View>
+          {
+            item.message_type === 'image' ? (
+              <View style={{ width: imageWidth, height: imageHeight, borderRadius: 18, overflow: 'hidden', backgroundColor: '#152b1d' }}>
+                <Image
+                  source={{uri: item.content}}
+                  style={{width: '100%', height: '100%'}}
+                  contentFit="cover"
+                />
+              </View>
+            ) : (
+              <View
+                className={`rounded-2xl px-4 py-3 ${
+                  item.isLocal ? "bg-[#D7FF00]" : "self-start bg-white/20"
+                }`}
+                style={{ maxWidth: width * 0.68 }}
+              >
+                <Text className={`text-[12px] font-semibold leading-5 ${item.isLocal ? 'text-[#143703]' : 'text-menorah-whiteSoft'}`}>
+                  {item.content}
+                </Text>
+              </View>
+            )
+          }
         </View>
       </View>
     )}
   />
-);
+)
+};
 
 export const usePodcastFooterLayout = () => {
   const insets = useSafeAreaInsets();

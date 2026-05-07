@@ -112,6 +112,8 @@ export const PLAYLIST_OPTIONS = PLAYLISTS.map((playlist) => ({
   value: playlist,
 }))
 
+export type MessageType = 'text' | 'image'
+
 export type LiveMessage = {
   id: string
   podcast_id: string
@@ -119,6 +121,7 @@ export type LiveMessage = {
   sender_name: string
   sender_avartar_url: string | null
   content: string 
+  message_type: MessageType
   created_at: string
   isLocal?: boolean
 }

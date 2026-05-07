@@ -107,7 +107,7 @@ const AdminLivePodcast = () => {
   const { participants: roomParticipants } = useLiveRoomSnapshot(room)
 
   const {raisedHands, dismissRaisedHand} = useRoomSignals(room, profile?.id ?? "")
-  const {messages, sendMessage} = useRoomChat(
+  const {messages, sendMessage, sendImage} = useRoomChat(
     room,
     id,
     profile?.id ?? ''
@@ -389,7 +389,14 @@ const AdminLivePodcast = () => {
                 />
               </View>
 
-              <Pressable hitSlop={10} className="mr-2">
+              <Pressable 
+                hitSlop={10} 
+                className="mr-2"
+                onPress={() => {
+                  hapticMedium()
+                  sendImage(profile?.full_name ?? "Admin", profile?.avatar_url ?? null)
+                }}
+                >
                 <MaterialCommunityIcons
                   name="image-outline"
                   size={30}

@@ -1,5 +1,6 @@
+import { pickImage, uploadChatImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
-import { LiveMessage } from "@/types/podcast-types";
+import { LiveMessage, MessageType } from "@/types/podcast-types";
 import type { Room } from "livekit-client";
 import { useCallback, useEffect, useState } from "react";
 
@@ -64,6 +65,7 @@ export const useRoomChat = (
                             sender_name: parsed.sender_name,
                             sender_avartar_url: parsed.sender_avartar_url ?? null,
                             content: parsed.content,
+                            message_type: parsed.message_type,
                             created_at: parsed.created_at,
                             isLocal: parsed.sender_id === currentUserId
                         }]
@@ -79,6 +81,56 @@ export const useRoomChat = (
 
         return () => cleanup?.()
     }, [room, currentUserId])
+
+    const sendImage = useCallback(async (senderName: string, senderAvatarUrl: string | null) => {
+        if (!room) return
+
+        const asset = await pickImage({allowsEditing: true})
+        if (!asset) return
+
+        const imageUrl = await uploadChatImage(asset, podcastId, currentUserId)
+        if (!imageUrl) return
+
+        const id = `${Date.now()}-${currentUserId}-img`
+        const created_at = new Date().toISOString()
+
+        const newMessage = {
+            id,
+            podcast_id: podcastId,
+            sender_id: currentUserId,
+            sender_name: senderName,
+            sender_avartar_url: senderAvatarUrl,
+            content: imageUrl,
+            message_type: 'image' as MessageType,
+            created_at,
+            isLocal: true
+        }
+
+        const { error } = await supabase.from('live_podcast_messages').insert({
+            podcast_id: podcastId,
+            sender_id: currentUserId,
+            sender_name: senderName,
+            sender_avartar_url: senderAvatarUrl,
+            content: imageUrl,
+            message_type: 'image'
+        })
+
+        if (error) {
+            console.error('Failed to save live podcast image message', error)
+            return
+        }
+
+        setMessages(prev => [...prev, newMessage])
+
+        const encoder = new TextEncoder()
+        room.localParticipant.publishData(
+            encoder.encode(JSON.stringify({
+                type: 'CHAT',
+                ...newMessage
+            })),
+            {reliable: true}
+        )
+    }, [room, podcastId, currentUserId])
 
     const sendMessage = useCallback(async (
         content: string,
@@ -103,6 +155,7 @@ export const useRoomChat = (
                         sender_name: senderName,
                         sender_avartar_url: senderAvatarUrl,
                         content: content.trim(),
+                        message_type: 'text' as MessageType,
                         created_at,
                         isLocal: true
                     }
@@ -117,6 +170,7 @@ export const useRoomChat = (
                 sender_name: senderName,
                 sender_avartar_url: senderAvatarUrl,
                 content: content.trim(),
+                message_type: 'text' as MessageType,
                 created_at
             }
 
@@ -133,7 +187,8 @@ export const useRoomChat = (
                 sender_id: currentUserId,
                 sender_name: senderName,
                 sender_avartar_url: senderAvatarUrl,
-                content: content.trim()
+                content: content.trim(),
+                message_type: 'text' as MessageType
             })
 
             if (error) {
@@ -141,6 +196,5 @@ export const useRoomChat = (
             }
         }, [room, podcastId, currentUserId])
 
-        return {messages, sendMessage}
+        return {messages, sendMessage, sendImage}
 }
-

@@ -106,3 +106,16 @@ export const uploadPodcastBackground = async (
 
     return result.url
 }
+
+export const uploadChatImage = async (
+    asset: ImagePicker.ImagePickerAsset,
+    podcastId: string,
+    userId: string
+): Promise<string | null> => {
+    const fileExt = asset.uri.split('.').pop()?.toLowerCase() ?? 'jpg'
+    const path = `${podcastId}/${userId}-${Date.now()}.${fileExt}`
+
+    const result = await uploadImage(asset, 'chat-images', path)
+
+    return result?.url ?? null
+}
