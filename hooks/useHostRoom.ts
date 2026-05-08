@@ -17,8 +17,8 @@ export const useHostRooom = (liveKitRoomName: string) => {
                 dynacast: true,
                 audioCaptureDefaults: {
                     echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true
+                    noiseSuppression: false,
+                    autoGainControl: false
                 }
             })
 
@@ -39,7 +39,14 @@ export const useHostRooom = (liveKitRoomName: string) => {
             }
 
             setRoom(room)
-            await room.localParticipant.setMicrophoneEnabled(true)
+            await room.localParticipant.setMicrophoneEnabled(true, {
+                echoCancellation: true,
+                noiseSuppression: false,
+                autoGainControl: false,
+                voiceIsolation: false,
+                channelCount: 1,
+                latency: 0
+            })
         }
 
         connect()

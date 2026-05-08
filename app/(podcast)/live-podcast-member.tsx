@@ -142,7 +142,14 @@ const MemberLivePodcast = () => {
     if (!isApprovedToSpeak || !room) return
     
     room.localParticipant
-      .setMicrophoneEnabled(true)
+      .setMicrophoneEnabled(true, {
+        echoCancellation: true,
+        noiseSuppression: false,
+        autoGainControl: false,
+        voiceIsolation: false,
+        channelCount: 1,
+        latency: 0
+      })
       .then(() => {
         setIsMuted(false)
         setHasRaisedHand(false)
