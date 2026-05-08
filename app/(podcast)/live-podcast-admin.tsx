@@ -54,7 +54,7 @@ const RoomAudioManager = ({ room }: { room: NonNullable<ReturnType<typeof useLiv
 };
 
 const AdminLivePodcast = () => {
-  const { id, title, playlist, hostId, hostName, hostPictureUrl, livekitRoomName, coverImageUrl, initialEgressId } = useLocalSearchParams<{
+  const { id, title, playlist, hostId, hostName, hostPictureUrl, livekitRoomName, coverImageUrl } = useLocalSearchParams<{
     id: string;
     title: string;
     hostId: string;
@@ -63,7 +63,6 @@ const AdminLivePodcast = () => {
     playlist: string;
     livekitRoomName: string
     coverImageUrl?: string
-    initialEgressId?: string
   }>();
 
   const router = useRouter();
@@ -86,6 +85,8 @@ const AdminLivePodcast = () => {
   const [approvingRequests, setApprovingRequests] = useState<Set<string>>(new Set())
   const [egressId, setEgressId] = useState<string | null>(null)
   const [isRecording, setIsRecording] = useState<boolean>(false)
+  const [hasRequestedRecording, setHasRequestedRecording] = useState(false)
+  const [isRecordingActionLoading, setIsRecordingActionLoading] = useState(false)
 
   const room = useLiveKitStore(state => state.room)
   const isMuted = useLiveKitStore(state => state.isMuted)
@@ -106,13 +107,6 @@ const AdminLivePodcast = () => {
       };
     }, [])
   );
-
-  useEffect(() => {
-    if (initialEgressId) {
-      setEgressId(initialEgressId);
-      setIsRecording(true);
-    }
-  }, [initialEgressId]);
   
   useHostRooom(livekitRoomName)
   const { participants: roomParticipants } = useLiveRoomSnapshot(room)
@@ -125,6 +119,26 @@ const AdminLivePodcast = () => {
   )
   const latestRaisedHand = raisedHands[raisedHands.length - 1]
   const participantCount = roomParticipants.filter((participant) => participant.id !== hostId).length
+
+  useEffect(() => {
+    const startRecordingWhenConnected = async () => {
+      if (!room || connectionState !== 'connected' || isRecording || egressId || hasRequestedRecording) {
+        return
+      }
+
+      setHasRequestedRecording(true)
+
+      const newEgressId = await startRecording(livekitRoomName, id)
+      if (newEgressId) {
+        setEgressId(newEgressId)
+        setIsRecording(true)
+      } else {
+        console.error('Automatic recording start failed after room connection')
+      }
+    }
+
+    startRecordingWhenConnected()
+  }, [room, connectionState, isRecording, egressId, hasRequestedRecording, livekitRoomName, id])
 
   const handleSendMessage = async () => {
     if (!message.trim()) return
@@ -314,18 +328,23 @@ const AdminLivePodcast = () => {
   }
 
   const handleToggleRecording = async () => {
-    if (isRecording && egressId) {
-      const success = await stopRecording(egressId, id)
-      if (success) {
-        setIsRecording(false)
-        setEgressId(null)
+    setIsRecordingActionLoading(true)
+    try {
+      if (isRecording && egressId) {
+        const success = await stopRecording(egressId, id)
+        if (success) {
+          setIsRecording(false)
+          setEgressId(null)
+        }
+      } else {
+        const newEgressId = await startRecording(livekitRoomName, id)
+        if (newEgressId) {
+          setIsRecording(true)
+          setEgressId(newEgressId)
+        }
       }
-    } else {
-      const newEgressId = await startRecording(livekitRoomName, id)
-      if (newEgressId) {
-        setIsRecording(true)
-        setEgressId(newEgressId)
-      }
+    } finally {
+      setIsRecordingActionLoading(false)
     }
   }
 
@@ -343,6 +362,9 @@ const AdminLivePodcast = () => {
             participantCount={participantCount}
             actions={
               <>
+                {isRecording && (
+                  <View className="w-3 h-3 rounded-full bg-red-500" />
+              )}
                 <View className="ml-7">
                   <Pressable onPress={() => { hapticMedium(); setIsNotesVisible(true) }} hitSlop={10}>
                     <HugeIcon width={30} height={30} />
@@ -497,15 +519,17 @@ const AdminLivePodcast = () => {
 
           <Pressable
               onPress={handleToggleRecording}
+              disabled={isRecordingActionLoading}
               className="mt-8 flex-row items-center justify-between"
           >
               <Text className="text-[16px] font-medium text-[#F2F5EE]">
                   {isRecording ? 'Stop Recording' : 'Start Recording'}
               </Text>
-              {isRecording && (
-                  <View className="w-3 h-3 rounded-full bg-red-500" />
+              {isRecordingActionLoading ? (
+                <ActivityIndicator size="small" color="#D7FF00" />
+              ) : (
+                <ChevronRight size={24} color="#D7FF00" strokeWidth={2.4} />
               )}
-              <ChevronRight size={24} color="#D7FF00" strokeWidth={2.4} />
           </Pressable>
 
           <Pressable

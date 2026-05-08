@@ -217,8 +217,8 @@ export const PodcastParticipantsGrid = ({
   const isFewParticipants = participants.length <= 2;
   const avatarSize = isFewParticipants ? 80 : 62;
   const containerStyle = isFewParticipants
-    ? "mb-6 items-center justify-center"
-    : "mb-6 flex-row flex-wrap gap-y-4";
+    ? "mb-6 flex-row flex-wrap items-center justify-center gap-x-4 gap-y-4"
+    : "mb-6 flex-row flex-wrap gap-y-4 gap-x-3";
 
   return (
     <View className={containerStyle}>

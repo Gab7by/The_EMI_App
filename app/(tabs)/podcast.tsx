@@ -77,8 +77,6 @@ const PodcastScreen = () => {
       setTitle("");
       queryClient.invalidateQueries({ queryKey: ["live-podcast-sessions"] });
 
-      const egressId = await startRecording(livePodcast.livekit_room_name, livePodcast.id);
-
       closeModal();
       setTimeout(() => {
         router.push(
@@ -91,8 +89,7 @@ const PodcastScreen = () => {
                     hostId: livePodcast.host.id,
                     hostName: livePodcast.host.full_name,
                     hostPictureUrl: livePodcast.host.avatar_url,
-                    livekitRoomName: livePodcast.livekit_room_name,
-                    initialEgressId: egressId || null
+                    livekitRoomName: livePodcast.livekit_room_name
                 }
             }
         )
