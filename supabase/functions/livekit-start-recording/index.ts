@@ -74,6 +74,7 @@ serve(async (req) => {
                             region: Deno.env.get('S3_REGION')!,
                             bucket: 'recordings',
                             endpoint: Deno.env.get('S3_ENDPOINT')!,
+                            forcePathStyle: true,
                         }
                     }
                 })
