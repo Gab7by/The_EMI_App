@@ -12,6 +12,7 @@ import { imageItems } from "@/constants/podcast";
 import { useLivePodcastSessions } from "@/hooks/tanstack-query-hooks";
 import { createLivePodcast } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
+import { startRecording } from "@/lib/recording";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveStreamStartModalStore } from "@/store/podcast-store";
 import { Playlist, PLAYLIST_OPTIONS, PlaylistOption } from "@/types/podcast-types";
@@ -65,7 +66,7 @@ const PodcastScreen = () => {
       start_time: new Date().toISOString(),
       title: title,
       playlist: playlist.value as Playlist,
-    }).then((livePodcast) => {
+    }).then(async (livePodcast) => {
       setIsCreatingLivePodcast(false);
       if (livePodcast === null) {
         return;
@@ -75,6 +76,9 @@ const PodcastScreen = () => {
       setPlaylist(PLAYLIST_OPTIONS[0]);
       setTitle("");
       queryClient.invalidateQueries({ queryKey: ["live-podcast-sessions"] });
+
+      const egressId = await startRecording(livePodcast.livekit_room_name, livePodcast.id);
+
       closeModal();
       setTimeout(() => {
         router.push(
@@ -87,7 +91,8 @@ const PodcastScreen = () => {
                     hostId: livePodcast.host.id,
                     hostName: livePodcast.host.full_name,
                     hostPictureUrl: livePodcast.host.avatar_url,
-                    livekitRoomName: livePodcast.livekit_room_name
+                    livekitRoomName: livePodcast.livekit_room_name,
+                    initialEgressId: egressId || null
                 }
             }
         )

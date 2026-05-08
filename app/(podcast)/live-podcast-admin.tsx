@@ -26,6 +26,7 @@ import { hapticMedium } from "@/lib/haptics";
 import { approveSpeaker, revokeSpeaker, sendBackgroundChangedSignal, sendSessionEnded } from "@/lib/livekit-signals";
 import { endLiveSession, updateParticipantCalledIn } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
+import { startRecording, stopRecording } from "@/lib/recording";
 import { pickImage, uploadPodcastBackground } from "@/lib/storage";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveKitStore } from "@/store/livekit-store";
@@ -53,7 +54,7 @@ const RoomAudioManager = ({ room }: { room: NonNullable<ReturnType<typeof useLiv
 };
 
 const AdminLivePodcast = () => {
-  const { id, title, playlist, hostId, hostName, hostPictureUrl, livekitRoomName, coverImageUrl } = useLocalSearchParams<{
+  const { id, title, playlist, hostId, hostName, hostPictureUrl, livekitRoomName, coverImageUrl, initialEgressId } = useLocalSearchParams<{
     id: string;
     title: string;
     hostId: string;
@@ -62,6 +63,7 @@ const AdminLivePodcast = () => {
     playlist: string;
     livekitRoomName: string
     coverImageUrl?: string
+    initialEgressId?: string
   }>();
 
   const router = useRouter();
@@ -82,6 +84,8 @@ const AdminLivePodcast = () => {
   )
   const [uploadingBackground, setUploadingBackground] = useState(false)
   const [approvingRequests, setApprovingRequests] = useState<Set<string>>(new Set())
+  const [egressId, setEgressId] = useState<string | null>(null)
+  const [isRecording, setIsRecording] = useState<boolean>(false)
 
   const room = useLiveKitStore(state => state.room)
   const isMuted = useLiveKitStore(state => state.isMuted)
@@ -102,6 +106,13 @@ const AdminLivePodcast = () => {
       };
     }, [])
   );
+
+  useEffect(() => {
+    if (initialEgressId) {
+      setEgressId(initialEgressId);
+      setIsRecording(true);
+    }
+  }, [initialEgressId]);
   
   useHostRooom(livekitRoomName)
   const { participants: roomParticipants } = useLiveRoomSnapshot(room)
@@ -162,15 +173,16 @@ const AdminLivePodcast = () => {
 
     const finish = async () => {
         if (room && profile) {
-        await sendSessionEnded(room, profile.id, profile.full_name ?? 'Host')
+          await sendSessionEnded(room, profile.id, profile.full_name ?? 'Host')
+        }
 
-        await new Promise(resolve => setTimeout(resolve, 500))
+        if (isRecording && egressId) {
+          await stopRecording(egressId, id)
         }
 
         const success = await endLiveSession(id)
         if (!success) {
-            setIsEndingSession(false)
-            return
+            console.error('Failed to end live session in backend')
         }
 
         clearRoom()
@@ -183,7 +195,7 @@ const AdminLivePodcast = () => {
     }
 
     finish().catch((error) => {
-        console.error(error)
+        console.error('Error during leaveLiveRoom:', error)
         setIsEndingSession(false)
     })
 }
@@ -300,6 +312,23 @@ const AdminLivePodcast = () => {
 
     setUploadingBackground(false)
   }
+
+  const handleToggleRecording = async () => {
+    if (isRecording && egressId) {
+      const success = await stopRecording(egressId, id)
+      if (success) {
+        setIsRecording(false)
+        setEgressId(null)
+      }
+    } else {
+      const newEgressId = await startRecording(livekitRoomName, id)
+      if (newEgressId) {
+        setIsRecording(true)
+        setEgressId(newEgressId)
+      }
+    }
+  }
+
 
   return (
     <PodcastBackground coverUrl={coverUrl}
@@ -467,11 +496,16 @@ const AdminLivePodcast = () => {
           </View>
 
           <Pressable
-            onPress={() => setActiveSheet("none")}
-            className="mt-8 flex-row items-center justify-between"
+              onPress={handleToggleRecording}
+              className="mt-8 flex-row items-center justify-between"
           >
-            <Text className="text-[16px] font-medium text-[#F2F5EE]">Recording</Text>
-            <ChevronRight size={24} color="#D7FF00" strokeWidth={2.4} />
+              <Text className="text-[16px] font-medium text-[#F2F5EE]">
+                  {isRecording ? 'Stop Recording' : 'Start Recording'}
+              </Text>
+              {isRecording && (
+                  <View className="w-3 h-3 rounded-full bg-red-500" />
+              )}
+              <ChevronRight size={24} color="#D7FF00" strokeWidth={2.4} />
           </Pressable>
 
           <Pressable
