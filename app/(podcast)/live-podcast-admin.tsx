@@ -18,6 +18,7 @@ import {
 } from "@/components/podcast/livePodcastShared";
 import { Icon } from "@/components/ui/icon";
 import { Colors } from "@/constants/theme";
+import { useForegroundService } from "@/hooks/useForegroundService";
 import { useHostRooom } from "@/hooks/useHostRoom";
 import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useRoomChat } from "@/hooks/useRoomChat";
@@ -109,6 +110,8 @@ const AdminLivePodcast = () => {
   );
   
   useHostRooom(livekitRoomName)
+  useForegroundService(connectionState === 'connected')
+
   const { participants: roomParticipants } = useLiveRoomSnapshot(room)
 
   const {raisedHands, dismissRaisedHand} = useRoomSignals(room, profile?.id ?? "")
