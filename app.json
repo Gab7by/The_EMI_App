@@ -71,6 +71,12 @@
           "photosPermission": "The Menorah needs access to your photos to set your profile picture and session backgrounds",
           "cameraPermission": "The Menorah needs camera access to take your profile picture"
         }
+      ],
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
       ]
     ],
     "experiments": {

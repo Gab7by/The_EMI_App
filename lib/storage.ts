@@ -1,6 +1,8 @@
 import * as ImagePicker from "expo-image-picker"
 import { supabase } from "./supabase"
 import { UploadResult } from "@/types/storage-types"
+import * as DocumentPicker from "expo-document-picker"
+import { AudioPickerAsset } from "@/types/podcast-types"
 
 export const pickImage = async (options?:{
     allowsEditing?: boolean,
@@ -118,4 +120,51 @@ export const uploadChatImage = async (
     const result = await uploadImage(asset, 'chat-images', path)
 
     return result?.url ?? null
+}
+
+export const pickAudioFile = async (): Promise<AudioPickerAsset | null> => {
+
+    const result = await DocumentPicker.getDocumentAsync({
+        type: 'audio/*',
+        copyToCacheDirectory: false
+    })
+
+    if (result.canceled) return null
+
+    const asset = result.assets[0]
+
+    return {
+        uri: asset.uri,
+        name: asset.name,
+        mimeType: asset.mimeType ?? 'audio/mpeg',
+        size: asset.size ?? 0
+    }
+}
+
+export const uploadAudioFile = async (
+    asset: AudioPickerAsset,
+    bucket: string,
+    path: string
+): Promise<string | null> => {
+
+    const response = await fetch(asset.uri)
+    const arrayBuffer = await response.arrayBuffer()
+
+    const {error} = await supabase.storage
+        .from(bucket)
+        .upload(path, arrayBuffer, {
+            contentType: asset.mimeType,
+            upsert: false
+        })
+    
+    if (error) {
+        console.error('Error uploading Audio File: ', error.message)
+        return null
+    }
+
+    const {data: {publicUrl}} = supabase.storage
+        .from(bucket)
+        .getPublicUrl(path)
+
+    return publicUrl
 }

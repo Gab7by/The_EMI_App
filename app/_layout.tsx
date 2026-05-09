@@ -4,13 +4,14 @@ import 'react-native-reanimated';
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { PortalHost } from "@rn-primitives/portal";
 import { useAuthStore } from "@/store/authStore";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import ForgotPasswordModal from "@/components/auth/forgot-password-modal";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query";
 import {AudioSession}  from "@livekit/react-native"
 import * as SplashScreen from "expo-splash-screen"
+import TrackPlayer , { Capability } from "react-native-track-player";
 
 SplashScreen.preventAutoHideAsync()
 
@@ -20,6 +21,8 @@ export default function RootLayout() {
   const isAuthLoading = useAuthStore(state => state.isAuthLoading)
   const setIsAuthLoading = useAuthStore(state => state.setIsAuthLoading)
   const setSession = useAuthStore(state => state.setSession)
+
+  const playerSetup = useRef<boolean>(false)
 
   useEffect(() => {
     const startAudio = async () => {
@@ -83,6 +86,31 @@ export default function RootLayout() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+
+    const setup = async () => {
+      if (playerSetup.current) return
+
+      playerSetup.current = true
+      
+      try {
+        await TrackPlayer.setupPlayer()
+
+        await TrackPlayer.updateOptions({
+          capabilities: [
+            Capability.Play,
+            Capability.Pause,
+            Capability.Stop
+          ]
+        })
+      } catch (e) {
+        console.log("Error setting up Track Player", e)
+      }
+    }
+
+    setup()
+  }, [])
 
   const isLoggedIn = session !== null
 

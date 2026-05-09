@@ -130,3 +130,17 @@ export type PodcastBackgroundProps = {
   coverUrl: string | null
   children: ReactNode
 }
+
+export type MusicTrack = {
+  id: string
+  name: string
+  url: string
+  duration_seconds: number | null
+}
+
+export type AudioPickerAsset = {
+  uri: string
+  name: string
+  mimeType: string
+  size: number
+}

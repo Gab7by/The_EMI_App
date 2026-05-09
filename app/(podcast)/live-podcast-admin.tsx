@@ -18,6 +18,7 @@ import {
 } from "@/components/podcast/livePodcastShared";
 import { Icon } from "@/components/ui/icon";
 import { Colors } from "@/constants/theme";
+import { useBackgoundMusicQuery } from "@/hooks/tanstack-query-hooks";
 import { useForegroundService } from "@/hooks/useForegroundService";
 import { useHostRooom } from "@/hooks/useHostRoom";
 import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
@@ -28,24 +29,27 @@ import { approveSpeaker, revokeSpeaker, sendBackgroundChangedSignal, sendSession
 import { endLiveSession, updateParticipantCalledIn } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { startRecording, stopRecording } from "@/lib/recording";
-import { pickImage, uploadPodcastBackground } from "@/lib/storage";
+import { pickAudioFile, pickImage, uploadPodcastBackground } from "@/lib/storage";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveKitStore } from "@/store/livekit-store";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useIOSAudioManagement } from "@livekit/react-native";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronRight, Loader2, Mic, MicOff, Power, Share2, X } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronRight, Loader2, Mic, MicOff, Pause, Play, Power, Share2, Square, Upload, X } from "lucide-react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
+  PanResponder,
   Pressable,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {useBackgroundMusic} from "@/hooks/useBackgroundMusic"
+import { uploadMusicTrack } from "@/lib/music";
 
 type AdminSheet = "none" | "settings" | "music" | "speakers";
 
@@ -88,6 +92,9 @@ const AdminLivePodcast = () => {
   const [isRecording, setIsRecording] = useState<boolean>(false)
   const [hasRequestedRecording, setHasRequestedRecording] = useState(false)
   const [isRecordingActionLoading, setIsRecordingActionLoading] = useState(false)
+  const [musicSliderWidth, setMusicSliderWidth] = useState(0)
+  const [isUploadingMusic, setIsUploadingMusic] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   const room = useLiveKitStore(state => state.room)
   const isMuted = useLiveKitStore(state => state.isMuted)
@@ -98,6 +105,45 @@ const AdminLivePodcast = () => {
   const profile = useAuthStore(state => state.profile)
 
   const isConnecting = connectionState !== 'connected'
+
+  const {
+    currentTrack,
+    isPlaying,
+    pauseMusic,
+    playTrack,
+    resumeMusic,
+    setMusicVolume,
+    stopMusic,
+    volume
+  } = useBackgroundMusic()
+  const {data: musicTracks = [] } = useBackgoundMusicQuery()
+
+  const clamp = (value: number) => Math.min(1, Math.max(0, value))
+
+    const updateMusicVolume = (useCallback((locationX: number) => {
+        if (!musicSliderWidth) return
+        const newVolume = clamp(locationX / musicSliderWidth)
+        setMusicVolume(newVolume)
+      }
+    , [musicSliderWidth, setMusicVolume]))
+
+    const musicSliderPanResponder = useMemo(
+        () =>
+            PanResponder.create({
+                onStartShouldSetPanResponder: () => true,
+
+                onMoveShouldSetPanResponder: () => true,
+
+                onPanResponderGrant: (event) => {
+                    updateMusicVolume(event.nativeEvent.locationX)
+                },
+
+                onPanResponderMove: (event) => {
+                    updateMusicVolume(event.nativeEvent.locationX)
+                },
+            }),
+        [updateMusicVolume]
+    )
 
   useFocusEffect(
     useCallback(() => {
@@ -197,6 +243,7 @@ const AdminLivePodcast = () => {
           await stopRecording(egressId, id)
         }
 
+        await stopMusic()
         const success = await endLiveSession(id)
         if (!success) {
             console.error('Failed to end live session in backend')
@@ -351,6 +398,24 @@ const AdminLivePodcast = () => {
     }
   }
 
+  const handleMusicUpload = async () => {
+    setUploadError(null)
+
+    const asset = await pickAudioFile()
+    if (!asset) return
+
+    setIsUploadingMusic(true)
+
+    const track = await uploadMusicTrack(asset)
+
+    setIsUploadingMusic(false)
+
+    if (track) {
+      queryClient.invalidateQueries({ queryKey: ["music-tracks"] })
+    } else {
+      setUploadError("Failed to upload track. Please try again.")
+    }
+  }
 
   return (
     <PodcastBackground coverUrl={coverUrl}
@@ -547,21 +612,171 @@ const AdminLivePodcast = () => {
         <PodcastBottomSheet
           visible={activeSheet === "music"}
           onClose={() => setActiveSheet("none")}
-        >
-          <View className="items-center">
-            <View className="h-[4px] w-[112px] rounded-full bg-[#D7FF00]" />
+          >
+          <View className="items-center mb-2">
+              <View className="h-[4px] w-[112px] rounded-full bg-[#D7FF00]" />
           </View>
 
-          <Pressable
-            onPress={() => setActiveSheet("none")}
-            className="mt-8 flex-row items-center justify-between"
-          >
-            <Text className="text-[16px] font-medium text-[#F2F5EE]">
-              Background Music
-            </Text>
-            <ChevronRight size={24} color="#D7FF00" strokeWidth={2.8} />
-          </Pressable>
-        </PodcastBottomSheet>
+          <View className="flex-row items-center justify-between mt-4 mb-5">
+              <View>
+                  <Text className="text-[18px] font-bold text-[#D7FF00]">
+                      Background Music
+                  </Text>
+                  {currentTrack && (
+                      <Text className="text-[12px] text-[#B7C0BC] mt-0.5">
+                          Playing: {currentTrack.name}
+                      </Text>
+                  )}
+              </View>
+
+              <Pressable
+                  onPress={handleMusicUpload}
+                  disabled={isUploadingMusic}
+                  className={`flex-row items-center gap-2 px-4 py-2.5 rounded-full ${
+                      isUploadingMusic
+                          ? 'bg-[#184832] opacity-60'
+                          : 'bg-[#D7FF00]'
+                  }`}
+              >
+                  {isUploadingMusic ? (
+                      <>
+                          <ActivityIndicator
+                              size="small"
+                              color="#143703"
+                          />
+                          <Text className="text-[13px] font-semibold text-[#143703]">
+                              Uploading...
+                          </Text>
+                      </>
+                  ) : (
+                      <>
+                          <Upload size={15} color="#143703" />
+                          <Text className="text-[13px] font-semibold text-[#143703]">
+                              Upload
+                          </Text>
+                      </>
+                  )}
+              </Pressable>
+          </View>
+
+          {uploadError && (
+              <Text className="text-[12px] text-red-400 mb-3 -mt-2">
+                  {uploadError}
+              </Text>
+          )}
+
+          {musicTracks.length === 0 ? (
+              <View className="items-center py-8">
+                  <Text className="text-[14px] text-[#B7C0BC] text-center">
+                      No tracks yet.{'\n'}Upload your first track above.
+                  </Text>
+              </View>
+          ) : (
+              <View className="gap-2 mb-4">
+                  {musicTracks.map((track) => {
+                      const isCurrentTrack = currentTrack?.id === track.id
+                      return (
+                          <Pressable
+                              key={track.id}
+                              onPress={() => playTrack(track)}
+                              className={`flex-row items-center px-4 py-3.5 rounded-2xl ${
+                                  isCurrentTrack ? 'bg-[#D7FF00]' : 'bg-[#184832]'
+                              }`}
+                          >
+                              <View className="w-7 items-center mr-3">
+                                  {isCurrentTrack && isPlaying ? (
+                                      <View className="w-2.5 h-2.5 rounded-full bg-[#143703]" />
+                                  ) : isCurrentTrack ? (
+                                      <View className="w-2.5 h-2.5 rounded-full bg-[#143703] opacity-50" />
+                                  ) : (
+                                      <View className="w-2.5 h-2.5 rounded-full bg-[#D7FF00] opacity-30" />
+                                  )}
+                              </View>
+
+                              <Text
+                                  className={`flex-1 text-[14px] ${
+                                      isCurrentTrack
+                                          ? 'text-[#143703] font-semibold'
+                                          : 'text-[#F2F5EE]'
+                                  }`}
+                                  numberOfLines={1}
+                              >
+                                  {track.name}
+                              </Text>
+                          </Pressable>
+                      )
+                  })}
+              </View>
+          )}
+
+          {/* Playback controls — only when a track is loaded */}
+          {currentTrack && (
+              <>
+                  <View className="flex-row gap-3 mb-5">
+                      <Pressable
+                          onPress={isPlaying ? pauseMusic : resumeMusic}
+                          className="flex-1 flex-row items-center justify-center gap-2 py-3 rounded-2xl bg-[#D7FF00]"
+                      >
+                          {isPlaying ? (
+                              <Pause size={16} color="#143703" />
+                          ) : (
+                              <Play size={16} color="#143703" />
+                          )}
+                          <Text className="font-semibold text-[14px] text-[#143703]">
+                              {isPlaying ? 'Pause' : 'Resume'}
+                          </Text>
+                      </Pressable>  
+
+                      <Pressable
+                          onPress={stopMusic}
+                          className="flex-1 flex-row items-center justify-center gap-2 py-3 rounded-2xl bg-[#184832]"
+                      >
+                          <Square size={16} color="#D7FF00" />
+                          <Text className="font-semibold text-[14px] text-[#D7FF00]">
+                              Stop
+                          </Text>
+                      </Pressable>
+                  </View>
+
+                  <View>
+                      <View className="flex-row justify-between mb-2">
+                          <Text className="text-[13px] text-[#B7C0BC]">
+                              Volume
+                          </Text>
+                          <Text className="text-[13px] text-[#D7FF00] font-semibold">
+                              {Math.round(volume * 100)}%
+                          </Text>
+                      </View>
+
+                      {/* Slider track — touch anywhere on it to set volume */}
+                      <View
+                          className="justify-center py-3"
+                          onLayout={(e) =>
+                              setMusicSliderWidth(e.nativeEvent.layout.width)
+                          }
+                          {...musicSliderPanResponder.panHandlers}
+                      >
+                          <View className="h-[6px] rounded-full bg-[#184832]" />
+
+                          <View
+                              className="absolute h-[6px] rounded-full bg-[#D7FF00]"
+                              style={{ width: `${volume * 100}%` }}
+                          />
+
+                          <View
+                              className="absolute w-[22px] h-[22px] rounded-full bg-[#D7FF00] -translate-y-[8px]"
+                              style={{ left: `${volume * 100}%`, marginLeft: -11 }}
+                          />
+                      </View>
+
+                      <View className="flex-row justify-between mt-1">
+                          <Text className="text-[11px] text-[#B7C0BC]">0%</Text>
+                          <Text className="text-[11px] text-[#B7C0BC]">100%</Text>
+                      </View>
+                  </View>
+              </>
+          )}
+      </PodcastBottomSheet>
 
         <PodcastBottomSheet
           visible={activeSheet === "speakers"}
