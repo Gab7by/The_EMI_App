@@ -26,7 +26,7 @@ const startService = async () => {
             title: "The Menorah - Live",
             message: "Session is active",
             visibility: "public",
-            icon: 'ic_laucher',
+            icon: 'ic_launcher',
             importance: "low",
             number: '0',
             button: false

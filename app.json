@@ -41,8 +41,7 @@
         "android.permission.WAKE_LOCK",
         "android.permission.BLUETOOTH",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-        "android.permission.WAKE_LOCK"
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
       "package": "com.mrroko.The_EMI_App"
     },

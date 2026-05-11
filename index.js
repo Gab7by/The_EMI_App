@@ -1,12 +1,13 @@
 import { registerGlobals } from "@livekit/react-native";
 import ReactNativeForegroundService from "@supersami/rn-foreground-service"
-import TrackPlayer from "react-native-track-player"
-import { PlaybackService } from "./services/playback-services";
 
 registerGlobals()
 
-ReactNativeForegroundService.register()
-
-TrackPlayer.registerPlaybackService(() => PlaybackService)
+ReactNativeForegroundService.register({
+  config: {
+    alert: false,
+    onServiceErrorCallBack: () => {},
+  },
+})
 
 import "expo-router/entry"

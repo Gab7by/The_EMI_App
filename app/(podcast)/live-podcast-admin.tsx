@@ -18,7 +18,6 @@ import {
 } from "@/components/podcast/livePodcastShared";
 import { Icon } from "@/components/ui/icon";
 import { Colors } from "@/constants/theme";
-import { useBackgoundMusicQuery } from "@/hooks/tanstack-query-hooks";
 import { useForegroundService } from "@/hooks/useForegroundService";
 import { useHostRooom } from "@/hooks/useHostRoom";
 import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
@@ -48,7 +47,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {useBackgroundMusic} from "@/hooks/useBackgroundMusic"
 import { uploadMusicTrack } from "@/lib/music";
 
 type AdminSheet = "none" | "settings" | "music" | "speakers";
@@ -106,44 +104,32 @@ const AdminLivePodcast = () => {
 
   const isConnecting = connectionState !== 'connected'
 
-  const {
-    currentTrack,
-    isPlaying,
-    pauseMusic,
-    playTrack,
-    resumeMusic,
-    setMusicVolume,
-    stopMusic,
-    volume
-  } = useBackgroundMusic()
-  const {data: musicTracks = [] } = useBackgoundMusicQuery()
-
   const clamp = (value: number) => Math.min(1, Math.max(0, value))
 
-    const updateMusicVolume = (useCallback((locationX: number) => {
-        if (!musicSliderWidth) return
-        const newVolume = clamp(locationX / musicSliderWidth)
-        setMusicVolume(newVolume)
-      }
-    , [musicSliderWidth, setMusicVolume]))
+  // const updateMusicVolume = (useCallback((locationX: number) => {
+  //     if (!musicSliderWidth) return
+  //     const newVolume = clamp(locationX / musicSliderWidth)
+  //     setMusicVolume(newVolume)
+  //   }
+  // , [musicSliderWidth, setMusicVolume]))
 
-    const musicSliderPanResponder = useMemo(
-        () =>
-            PanResponder.create({
-                onStartShouldSetPanResponder: () => true,
+  const musicSliderPanResponder = useMemo(
+      () =>
+          PanResponder.create({
+              onStartShouldSetPanResponder: () => true,
 
-                onMoveShouldSetPanResponder: () => true,
+              onMoveShouldSetPanResponder: () => true,
 
-                onPanResponderGrant: (event) => {
-                    updateMusicVolume(event.nativeEvent.locationX)
-                },
+              onPanResponderGrant: (event) => {
+                  // updateMusicVolume(event.nativeEvent.locationX)
+              },
 
-                onPanResponderMove: (event) => {
-                    updateMusicVolume(event.nativeEvent.locationX)
-                },
-            }),
-        [updateMusicVolume]
-    )
+              onPanResponderMove: (event) => {
+                  // updateMusicVolume(event.nativeEvent.locationX)
+              },
+          }),
+      [/*updateMusicVolume*/]
+  )
 
   useFocusEffect(
     useCallback(() => {
@@ -243,7 +229,7 @@ const AdminLivePodcast = () => {
           await stopRecording(egressId, id)
         }
 
-        await stopMusic()
+        // await stopMusic()
         const success = await endLiveSession(id)
         if (!success) {
             console.error('Failed to end live session in backend')
@@ -618,7 +604,7 @@ const AdminLivePodcast = () => {
           </View>
 
           <View className="flex-row items-center justify-between mt-4 mb-5">
-              <View>
+              {/* <View>
                   <Text className="text-[18px] font-bold text-[#D7FF00]">
                       Background Music
                   </Text>
@@ -627,7 +613,7 @@ const AdminLivePodcast = () => {
                           Playing: {currentTrack.name}
                       </Text>
                   )}
-              </View>
+              </View> */}
 
               <Pressable
                   onPress={handleMusicUpload}
@@ -665,7 +651,7 @@ const AdminLivePodcast = () => {
               </Text>
           )}
 
-          {musicTracks.length === 0 ? (
+          {/* musicTracks.length === 0 ? (
               <View className="items-center py-8">
                   <Text className="text-[14px] text-[#B7C0BC] text-center">
                       No tracks yet.{'\n'}Upload your first track above.
@@ -709,7 +695,6 @@ const AdminLivePodcast = () => {
               </View>
           )}
 
-          {/* Playback controls — only when a track is loaded */}
           {currentTrack && (
               <>
                   <View className="flex-row gap-3 mb-5">
@@ -748,7 +733,6 @@ const AdminLivePodcast = () => {
                           </Text>
                       </View>
 
-                      {/* Slider track — touch anywhere on it to set volume */}
                       <View
                           className="justify-center py-3"
                           onLayout={(e) =>
@@ -775,10 +759,10 @@ const AdminLivePodcast = () => {
                       </View>
                   </View>
               </>
-          )}
+          )*/ }
       </PodcastBottomSheet>
 
-        <PodcastBottomSheet
+      <PodcastBottomSheet
           visible={activeSheet === "speakers"}
           onClose={() => setActiveSheet("none")}
         >
