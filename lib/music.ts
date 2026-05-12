@@ -19,14 +19,18 @@ export const uploadMusicTrack = async (
     asset: AudioPickerAsset
 ): Promise<MusicTrack | null> => {
 
-    const fileExt = asset.uri.split('.').pop()?.toLowerCase() ?? 'mp3'
-    const path = `${Date.now()}-${asset.name}.${fileExt}`
+    const fileExt = asset.name.split('.').pop()?.toLowerCase() ?? 'mp3'
+    const baseName = asset.name.replace(/\.[^/.]+$/, '')
+    const safeName = baseName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+    const path = `${Date.now()}-${safeName || 'track'}.${fileExt}`
 
     const publicUrl = await uploadAudioFile(asset, 'music', path)
     if (!publicUrl) return null
 
-    const displayName = asset.name
-        .replace(/\.[^/.]+$/, '')
+    const displayName = baseName
         .replace(/[-_]/g, ' ')
         .replace(/\b\w/g, (c) => c.toUpperCase())
 

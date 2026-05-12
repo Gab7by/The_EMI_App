@@ -18,7 +18,6 @@ import {
 } from "@/components/podcast/livePodcastShared";
 import { Icon } from "@/components/ui/icon";
 import { Colors } from "@/constants/theme";
-import { useForegroundService } from "@/hooks/useForegroundService";
 import { useHostRooom } from "@/hooks/useHostRoom";
 import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useRoomChat } from "@/hooks/useRoomChat";
@@ -31,11 +30,11 @@ import { startRecording, stopRecording } from "@/lib/recording";
 import { pickAudioFile, pickImage, uploadPodcastBackground } from "@/lib/storage";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveKitStore } from "@/store/livekit-store";
+import { AudioPickerAsset } from "@/types/podcast-types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useIOSAudioManagement } from "@livekit/react-native";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronRight, Loader2, Mic, MicOff, Pause, Play, Power, Share2, Square, Upload, X } from "lucide-react-native";
+import { AlertCircle, CheckCircle2, ChevronRight, FileAudio, Loader2, Mic, MicOff, Music2, Power, Share2, SlidersHorizontal, Upload, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -48,13 +47,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { uploadMusicTrack } from "@/lib/music";
+import { useBackgoundMusicQuery } from "@/hooks/tanstack-query-hooks";
 
 type AdminSheet = "none" | "settings" | "music" | "speakers";
-
-const RoomAudioManager = ({ room }: { room: NonNullable<ReturnType<typeof useLiveKitStore.getState>["room"]> }) => {
-  useIOSAudioManagement(room);
-  return null;
-};
 
 const AdminLivePodcast = () => {
   const { id, title, playlist, hostId, hostName, hostPictureUrl, livekitRoomName, coverImageUrl } = useLocalSearchParams<{
@@ -91,6 +86,9 @@ const AdminLivePodcast = () => {
   const [hasRequestedRecording, setHasRequestedRecording] = useState(false)
   const [isRecordingActionLoading, setIsRecordingActionLoading] = useState(false)
   const [musicSliderWidth, setMusicSliderWidth] = useState(0)
+  const [musicVolume, setMusicVolume] = useState(0.7)
+  const [selectedMusicAsset, setSelectedMusicAsset] = useState<AudioPickerAsset | null>(null)
+  const [uploadedMusicName, setUploadedMusicName] = useState<string | null>(null)
   const [isUploadingMusic, setIsUploadingMusic] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
@@ -101,17 +99,22 @@ const AdminLivePodcast = () => {
   const connectionState = useLiveKitStore(state => state.connectionState)
 
   const profile = useAuthStore(state => state.profile)
+  const { data: musicTracks = [], isLoading: isLoadingMusicTracks } = useBackgoundMusicQuery()
 
   const isConnecting = connectionState !== 'connected'
 
   const clamp = (value: number) => Math.min(1, Math.max(0, value))
 
-  // const updateMusicVolume = (useCallback((locationX: number) => {
-  //     if (!musicSliderWidth) return
-  //     const newVolume = clamp(locationX / musicSliderWidth)
-  //     setMusicVolume(newVolume)
-  //   }
-  // , [musicSliderWidth, setMusicVolume]))
+  const updateMusicVolume = useCallback((locationX: number) => {
+    if (!musicSliderWidth) return
+    setMusicVolume(clamp(locationX / musicSliderWidth))
+  }, [musicSliderWidth])
+
+  const formatFileSize = (size: number) => {
+    if (!size) return "Unknown size"
+    if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`
+  }
 
   const musicSliderPanResponder = useMemo(
       () =>
@@ -121,14 +124,14 @@ const AdminLivePodcast = () => {
               onMoveShouldSetPanResponder: () => true,
 
               onPanResponderGrant: (event) => {
-                  // updateMusicVolume(event.nativeEvent.locationX)
+                  updateMusicVolume(event.nativeEvent.locationX)
               },
 
               onPanResponderMove: (event) => {
-                  // updateMusicVolume(event.nativeEvent.locationX)
+                  updateMusicVolume(event.nativeEvent.locationX)
               },
           }),
-      [/*updateMusicVolume*/]
+      [updateMusicVolume]
   )
 
   useFocusEffect(
@@ -142,8 +145,6 @@ const AdminLivePodcast = () => {
   );
   
   useHostRooom(livekitRoomName)
-  useForegroundService(connectionState === 'connected')
-
   const { participants: roomParticipants } = useLiveRoomSnapshot(room)
 
   const {raisedHands, dismissRaisedHand} = useRoomSignals(room, profile?.id ?? "")
@@ -384,19 +385,32 @@ const AdminLivePodcast = () => {
     }
   }
 
-  const handleMusicUpload = async () => {
+  const handleMusicPick = async () => {
     setUploadError(null)
+    setUploadedMusicName(null)
 
     const asset = await pickAudioFile()
     if (!asset) return
 
+    setSelectedMusicAsset(asset)
+  }
+
+  const handleMusicUpload = async () => {
+    if (!selectedMusicAsset) {
+      setUploadError("Choose an audio file first.")
+      return
+    }
+
+    setUploadError(null)
     setIsUploadingMusic(true)
 
-    const track = await uploadMusicTrack(asset)
+    const track = await uploadMusicTrack(selectedMusicAsset)
 
     setIsUploadingMusic(false)
 
     if (track) {
+      setUploadedMusicName(track.name)
+      setSelectedMusicAsset(null)
       queryClient.invalidateQueries({ queryKey: ["music-tracks"] })
     } else {
       setUploadError("Failed to upload track. Please try again.")
@@ -407,7 +421,6 @@ const AdminLivePodcast = () => {
     <PodcastBackground coverUrl={coverUrl}
     >
       <SafeAreaView className="flex-1">
-        {room ? <RoomAudioManager room={room} /> : null}
         <View className="flex-1 px-4 pt-3">
           <PodcastHeader
             playlist={playlist}
@@ -603,163 +616,176 @@ const AdminLivePodcast = () => {
               <View className="h-[4px] w-[112px] rounded-full bg-[#D7FF00]" />
           </View>
 
-          <View className="flex-row items-center justify-between mt-4 mb-5">
-              {/* <View>
-                  <Text className="text-[18px] font-bold text-[#D7FF00]">
-                      Background Music
-                  </Text>
-                  {currentTrack && (
-                      <Text className="text-[12px] text-[#B7C0BC] mt-0.5">
-                          Playing: {currentTrack.name}
-                      </Text>
-                  )}
-              </View> */}
-
-              <Pressable
-                  onPress={handleMusicUpload}
-                  disabled={isUploadingMusic}
-                  className={`flex-row items-center gap-2 px-4 py-2.5 rounded-full ${
-                      isUploadingMusic
-                          ? 'bg-[#184832] opacity-60'
-                          : 'bg-[#D7FF00]'
-                  }`}
-              >
-                  {isUploadingMusic ? (
-                      <>
-                          <ActivityIndicator
-                              size="small"
-                              color="#143703"
-                          />
-                          <Text className="text-[13px] font-semibold text-[#143703]">
-                              Uploading...
-                          </Text>
-                      </>
-                  ) : (
-                      <>
-                          <Upload size={15} color="#143703" />
-                          <Text className="text-[13px] font-semibold text-[#143703]">
-                              Upload
-                          </Text>
-                      </>
-                  )}
-              </Pressable>
+          <View className="mt-5 flex-row items-center">
+            <View className="h-[44px] w-[44px] items-center justify-center rounded-[14px] bg-[#D7FF00]/15">
+              <Music2 size={22} color="#D7FF00" strokeWidth={2.2} />
+            </View>
+            <View className="ml-3 flex-1">
+              <Text className="text-[18px] font-bold text-[#F2F5EE]">
+                Music Library
+              </Text>
+              <Text className="mt-1 text-[12px] text-[#B7C0BC]">
+                Upload audio files for this live podcast workspace.
+              </Text>
+            </View>
           </View>
 
-          {uploadError && (
-              <Text className="text-[12px] text-red-400 mb-3 -mt-2">
-                  {uploadError}
-              </Text>
-          )}
+          <Pressable
+            onPress={handleMusicPick}
+            disabled={isUploadingMusic}
+            className="mt-6 items-center rounded-[22px] border border-dashed border-[#D7FF00]/45 bg-[#143703]/85 px-5 py-6"
+          >
+            <View className="h-[54px] w-[54px] items-center justify-center rounded-full bg-[#D7FF00]">
+              <FileAudio size={25} color="#143703" strokeWidth={2.3} />
+            </View>
+            <Text className="mt-4 text-center text-[15px] font-semibold text-[#F2F5EE]">
+              {selectedMusicAsset ? "Change selected audio" : "Choose audio document"}
+            </Text>
+            <Text className="mt-2 text-center text-[12px] leading-5 text-[#B7C0BC]">
+              Supports audio files from the device document picker.
+            </Text>
+          </Pressable>
 
-          {/* musicTracks.length === 0 ? (
-              <View className="items-center py-8">
-                  <Text className="text-[14px] text-[#B7C0BC] text-center">
-                      No tracks yet.{'\n'}Upload your first track above.
+          {selectedMusicAsset ? (
+            <View className="mt-4 rounded-[18px] bg-[#0F2A08] px-4 py-4">
+              <View className="flex-row items-center">
+                <View className="h-[38px] w-[38px] items-center justify-center rounded-[12px] bg-[#D7FF00]/15">
+                  <FileAudio size={18} color="#D7FF00" />
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="text-[14px] font-semibold text-[#F2F5EE]" numberOfLines={1}>
+                    {selectedMusicAsset.name}
                   </Text>
+                  <Text className="mt-1 text-[11px] text-[#B7C0BC]">
+                    {formatFileSize(selectedMusicAsset.size)} | {selectedMusicAsset.mimeType}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => setSelectedMusicAsset(null)}
+                  disabled={isUploadingMusic}
+                  hitSlop={10}
+                  className="ml-2 rounded-full bg-white/10 p-2"
+                >
+                  <X size={16} color="#F2F5EE" />
+                </Pressable>
               </View>
-          ) : (
-              <View className="gap-2 mb-4">
-                  {musicTracks.map((track) => {
-                      const isCurrentTrack = currentTrack?.id === track.id
-                      return (
-                          <Pressable
-                              key={track.id}
-                              onPress={() => playTrack(track)}
-                              className={`flex-row items-center px-4 py-3.5 rounded-2xl ${
-                                  isCurrentTrack ? 'bg-[#D7FF00]' : 'bg-[#184832]'
-                              }`}
-                          >
-                              <View className="w-7 items-center mr-3">
-                                  {isCurrentTrack && isPlaying ? (
-                                      <View className="w-2.5 h-2.5 rounded-full bg-[#143703]" />
-                                  ) : isCurrentTrack ? (
-                                      <View className="w-2.5 h-2.5 rounded-full bg-[#143703] opacity-50" />
-                                  ) : (
-                                      <View className="w-2.5 h-2.5 rounded-full bg-[#D7FF00] opacity-30" />
-                                  )}
-                              </View>
+            </View>
+          ) : null}
 
-                              <Text
-                                  className={`flex-1 text-[14px] ${
-                                      isCurrentTrack
-                                          ? 'text-[#143703] font-semibold'
-                                          : 'text-[#F2F5EE]'
-                                  }`}
-                                  numberOfLines={1}
-                              >
-                                  {track.name}
-                              </Text>
-                          </Pressable>
-                      )
-                  })}
-              </View>
-          )}
-
-          {currentTrack && (
+          <Pressable
+            onPress={handleMusicUpload}
+            disabled={isUploadingMusic || !selectedMusicAsset}
+            className={`mt-4 flex-row items-center justify-center rounded-[16px] px-4 py-4 ${
+              selectedMusicAsset && !isUploadingMusic ? "bg-[#D7FF00]" : "bg-[#184832]"
+            }`}
+          >
+            {isUploadingMusic ? (
               <>
-                  <View className="flex-row gap-3 mb-5">
-                      <Pressable
-                          onPress={isPlaying ? pauseMusic : resumeMusic}
-                          className="flex-1 flex-row items-center justify-center gap-2 py-3 rounded-2xl bg-[#D7FF00]"
-                      >
-                          {isPlaying ? (
-                              <Pause size={16} color="#143703" />
-                          ) : (
-                              <Play size={16} color="#143703" />
-                          )}
-                          <Text className="font-semibold text-[14px] text-[#143703]">
-                              {isPlaying ? 'Pause' : 'Resume'}
-                          </Text>
-                      </Pressable>  
-
-                      <Pressable
-                          onPress={stopMusic}
-                          className="flex-1 flex-row items-center justify-center gap-2 py-3 rounded-2xl bg-[#184832]"
-                      >
-                          <Square size={16} color="#D7FF00" />
-                          <Text className="font-semibold text-[14px] text-[#D7FF00]">
-                              Stop
-                          </Text>
-                      </Pressable>
-                  </View>
-
-                  <View>
-                      <View className="flex-row justify-between mb-2">
-                          <Text className="text-[13px] text-[#B7C0BC]">
-                              Volume
-                          </Text>
-                          <Text className="text-[13px] text-[#D7FF00] font-semibold">
-                              {Math.round(volume * 100)}%
-                          </Text>
-                      </View>
-
-                      <View
-                          className="justify-center py-3"
-                          onLayout={(e) =>
-                              setMusicSliderWidth(e.nativeEvent.layout.width)
-                          }
-                          {...musicSliderPanResponder.panHandlers}
-                      >
-                          <View className="h-[6px] rounded-full bg-[#184832]" />
-
-                          <View
-                              className="absolute h-[6px] rounded-full bg-[#D7FF00]"
-                              style={{ width: `${volume * 100}%` }}
-                          />
-
-                          <View
-                              className="absolute w-[22px] h-[22px] rounded-full bg-[#D7FF00] -translate-y-[8px]"
-                              style={{ left: `${volume * 100}%`, marginLeft: -11 }}
-                          />
-                      </View>
-
-                      <View className="flex-row justify-between mt-1">
-                          <Text className="text-[11px] text-[#B7C0BC]">0%</Text>
-                          <Text className="text-[11px] text-[#B7C0BC]">100%</Text>
-                      </View>
-                  </View>
+                <ActivityIndicator size="small" color="#143703" />
+                <Text className="ml-2 text-[14px] font-semibold text-[#143703]">
+                  Uploading to Supabase...
+                </Text>
               </>
-          )*/ }
+            ) : (
+              <>
+                <Upload size={17} color={selectedMusicAsset ? "#143703" : "#8A9A90"} />
+                <Text
+                  className={`ml-2 text-[14px] font-semibold ${
+                    selectedMusicAsset ? "text-[#143703]" : "text-[#8A9A90]"
+                  }`}
+                >
+                  Upload Track
+                </Text>
+              </>
+            )}
+          </Pressable>
+
+          {uploadedMusicName ? (
+            <View className="mt-4 flex-row items-center rounded-[16px] bg-[#D7FF00]/12 px-4 py-3">
+              <CheckCircle2 size={18} color="#D7FF00" />
+              <Text className="ml-2 flex-1 text-[12px] text-[#D7FF00]" numberOfLines={1}>
+                Uploaded {uploadedMusicName}
+              </Text>
+            </View>
+          ) : null}
+
+          {uploadError ? (
+            <View className="mt-4 flex-row items-center rounded-[16px] bg-[#F3523C]/12 px-4 py-3">
+              <AlertCircle size={18} color="#FF8A7A" />
+              <Text className="ml-2 flex-1 text-[12px] text-[#FF8A7A]">
+                {uploadError}
+              </Text>
+            </View>
+          ) : null}
+
+          <View className="mt-7">
+            <View className="mb-2 flex-row items-center justify-between">
+              <View className="flex-row items-center">
+                <SlidersHorizontal size={17} color="#B7C0BC" />
+                <Text className="ml-2 text-[13px] font-semibold text-[#B7C0BC]">
+                  Volume
+                </Text>
+              </View>
+              <Text className="text-[13px] font-semibold text-[#D7FF00]">
+                {Math.round(musicVolume * 100)}%
+              </Text>
+            </View>
+
+            <View
+              className="justify-center py-4"
+              onLayout={(e) => setMusicSliderWidth(e.nativeEvent.layout.width)}
+              {...musicSliderPanResponder.panHandlers}
+            >
+              <View className="h-[7px] rounded-full bg-[#184832]" />
+              <View
+                className="absolute h-[7px] rounded-full bg-[#D7FF00]"
+                style={{ width: `${musicVolume * 100}%` }}
+              />
+              <View
+                className="absolute h-[24px] w-[24px] rounded-full border-[3px] border-[#143703] bg-[#D7FF00]"
+                style={{ left: `${musicVolume * 100}%`, marginLeft: -12 }}
+              />
+            </View>
+          </View>
+
+          <View className="mt-6">
+            <View className="mb-3 flex-row items-center justify-between">
+              <Text className="text-[13px] font-semibold uppercase tracking-[1px] text-[#B7C0BC]">
+                Uploaded Tracks
+              </Text>
+              <Text className="text-[12px] text-[#D7FF00]">
+                {musicTracks.length}
+              </Text>
+            </View>
+
+            {isLoadingMusicTracks ? (
+              <View className="items-center rounded-[18px] bg-[#143703] px-4 py-5">
+                <ActivityIndicator size="small" color="#D7FF00" />
+              </View>
+            ) : musicTracks.length ? (
+              <View className="gap-2">
+                {musicTracks.slice(0, 4).map((track) => (
+                  <View
+                    key={track.id}
+                    className="flex-row items-center rounded-[16px] bg-[#143703] px-4 py-3"
+                  >
+                    <View className="h-[30px] w-[30px] items-center justify-center rounded-[10px] bg-[#D7FF00]/15">
+                      <Music2 size={15} color="#D7FF00" />
+                    </View>
+                    <Text className="ml-3 flex-1 text-[13px] font-medium text-[#F2F5EE]" numberOfLines={1}>
+                      {track.name}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View className="rounded-[18px] bg-[#143703] px-4 py-5">
+                <Text className="text-center text-[13px] text-[#B7C0BC]">
+                  No music tracks uploaded yet.
+                </Text>
+              </View>
+            )}
+          </View>
       </PodcastBottomSheet>
 
       <PodcastBottomSheet

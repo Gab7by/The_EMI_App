@@ -1,9 +1,9 @@
 import { registerGlobals } from "@livekit/react-native";
-import ReactNativeForegroundService from "@supersami/rn-foreground-service"
+import { registerForegroundService } from "./lib/foreground-service"
 
 registerGlobals()
 
-ReactNativeForegroundService.register({
+registerForegroundService({
   config: {
     alert: false,
     onServiceErrorCallBack: () => {},

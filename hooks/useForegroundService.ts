@@ -1,13 +1,20 @@
 import { useEffect } from "react"
 import { Platform } from "react-native"
-import ReactNativeForegroundService from "@supersami/rn-foreground-service"
+import {
+    ForegroundServiceType,
+    startForegroundService,
+    stopForegroundService
+} from "@/lib/foreground-service"
 
-export const useForegroundService = (isActive: boolean) => {
+export const useForegroundService = (
+    isActive: boolean,
+    serviceType: ForegroundServiceType = "mediaPlayback"
+) => {
     useEffect(() => {
         if (Platform.OS != "android") return
 
         if (isActive) {
-            startService()
+            startService(serviceType)
         } else {
             stopService()
         }
@@ -15,16 +22,17 @@ export const useForegroundService = (isActive: boolean) => {
         return () => {
             stopService()
         }
-    }, [isActive])
+    }, [isActive, serviceType])
 }
 
-const startService = async () => {
+const startService = async (serviceType: ForegroundServiceType) => {
 
     try {
-        ReactNativeForegroundService.start({
+        await startForegroundService({
             id: 1001,
             title: "The Menorah - Live",
             message: "Session is active",
+            ServiceType: serviceType,
             visibility: "public",
             icon: 'ic_launcher',
             importance: "low",
@@ -36,9 +44,9 @@ const startService = async () => {
     }
 }
 
-const stopService = () => {
+const stopService = async () => {
     try {
-        ReactNativeForegroundService.stop()
+        await stopForegroundService()
     } catch(error) {
         console.error("Error stopping foreground service:", error)
     }

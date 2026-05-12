@@ -74,6 +74,7 @@ const MemberLivePodcast = () => {
   const connectionState = useLiveKitStore(state => state.connectionState)
   const isMuted = useLiveKitStore(state => state.isMuted)
   const setIsMuted = useLiveKitStore(state => state.setIsMuted)
+  const setForegroundServiceType = useLiveKitStore(state => state.setForegroundServiceType)
   const profile = useAuthStore(state => state.profile)
   const {isApprovedToSpeak, sessionEnded, isSpeakerRevoked, backgroundUrl} = useRoomSignals(room, profile?.id ?? "")
   const [hasRaisedHand, setHasRaisedHand] = useState<boolean>(false)
@@ -101,7 +102,6 @@ const MemberLivePodcast = () => {
   );
 
   useAudienceRoom(livekitRoomName)
-
   useFocusEffect(
     useCallback(() => {
       setShouldShowConnectingOverlay(true)
@@ -152,13 +152,14 @@ const MemberLivePodcast = () => {
       })
       .then(() => {
         setIsMuted(false)
+        setForegroundServiceType("microphone")
         setHasRaisedHand(false)
         queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
       })
       .catch((error) => {
         console.error("Failed to enable speaker microphone", error)
       })
-  }, [isApprovedToSpeak, room, setIsMuted])
+  }, [id, isApprovedToSpeak, room, setForegroundServiceType, setIsMuted])
 
   useEffect(() => {
     if (!isSpeakerRevoked || !room) return
@@ -167,13 +168,14 @@ const MemberLivePodcast = () => {
       .setMicrophoneEnabled(false)
       .then(() => {
         setIsMuted(true)
+        setForegroundServiceType("mediaPlayback")
         setHasRaisedHand(false)
         queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
       })
       .catch((error) => {
         console.error("Failed to disable revoked speaker microphone", error)
       })
-  }, [isSpeakerRevoked, room, setIsMuted, id])
+  }, [isSpeakerRevoked, room, setForegroundServiceType, setIsMuted, id])
 
   useEffect(() => {
     if (connectionState !== "connected" || !profile?.id) return
@@ -192,17 +194,6 @@ const MemberLivePodcast = () => {
     clearRoom()
     router.replace("/(tabs)/podcast")
   }, [sessionEnded, profile?.id, id])
-
-  useEffect(() => {
-    return () => {
-      if (profile?.id) {
-        leaveLivePodcastParticipant(id, profile.id).then(() => {
-          queryClient.invalidateQueries({ queryKey: ["live-podcast-participants", id, hostId] })
-          queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
-        })
-      }
-    }
-  }, [profile?.id, id, hostId])
 
   const handleRaiseHand = async () => {
     if (!room || !profile) return
@@ -319,8 +310,12 @@ const MemberLivePodcast = () => {
                 onPress={() => {
                   setIsExitPromptVisible(false);
                   if (profile?.id) {
-                    leaveLivePodcastParticipant(id, profile.id)
+                    leaveLivePodcastParticipant(id, profile.id).then(() => {
+                      queryClient.invalidateQueries({ queryKey: ["live-podcast-participants", id, hostId] })
+                      queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+                    })
                   }
+                  clearRoom()
                   router.replace("/(tabs)/podcast");
                 }}
                 className="flex-1 items-center justify-center bg-[#D7FF00] px-4 py-4"

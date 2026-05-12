@@ -9,10 +9,34 @@ import { supabase } from "@/lib/supabase";
 import ForgotPasswordModal from "@/components/auth/forgot-password-modal";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query";
-import {AudioSession}  from "@livekit/react-native"
+import { AudioSession, useIOSAudioManagement }  from "@livekit/react-native"
 import * as SplashScreen from "expo-splash-screen"
+import { useForegroundService } from "@/hooks/useForegroundService";
+import { useLiveKitStore } from "@/store/livekit-store";
+import type { Room } from "livekit-client";
 
 SplashScreen.preventAutoHideAsync()
+
+const LiveKitForegroundService = () => {
+  const connectionState = useLiveKitStore(state => state.connectionState)
+  const foregroundServiceType = useLiveKitStore(state => state.foregroundServiceType)
+
+  useForegroundService(connectionState === "connected", foregroundServiceType)
+
+  return null
+}
+
+const IOSRoomAudioManager = ({ room }: { room: Room }) => {
+  useIOSAudioManagement(room)
+
+  return null
+}
+
+const LiveKitAudioManager = () => {
+  const room = useLiveKitStore(state => state.room)
+
+  return room ? <IOSRoomAudioManager room={room} /> : null
+}
 
 export default function RootLayout() {
 
@@ -112,6 +136,8 @@ export default function RootLayout() {
             />
           </Stack.Protected>
        </Stack>
+       <LiveKitAudioManager />
+       <LiveKitForegroundService />
        <PortalHost />
        <ForgotPasswordModal />
       </SafeAreaProvider>

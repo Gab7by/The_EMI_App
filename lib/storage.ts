@@ -126,7 +126,7 @@ export const pickAudioFile = async (): Promise<AudioPickerAsset | null> => {
 
     const result = await DocumentPicker.getDocumentAsync({
         type: 'audio/*',
-        copyToCacheDirectory: false
+        copyToCacheDirectory: true
     })
 
     if (result.canceled) return null

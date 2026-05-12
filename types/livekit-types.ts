@@ -1,12 +1,19 @@
 import type { ConnectionState, Room } from "livekit-client"
+import type { ForegroundServiceType } from "@/lib/foreground-service"
+
+export type LiveKitRoomRole = "host" | "audience"
 
 export type LiveKitStore = {
     room : Room | null
+    roomName: string | null
+    roomRole: LiveKitRoomRole | null
     connectionState: ConnectionState
     isMuted: boolean
-    setRoom: (room: Room) => void
+    foregroundServiceType: ForegroundServiceType
+    connectRoom: (roomName: string, role: LiveKitRoomRole) => Promise<void>
     setConnectionState: (state: ConnectionState) => void
     setIsMuted: (muted: boolean) => void
+    setForegroundServiceType: (type: ForegroundServiceType) => void
     clearRoom: () => void
 }
 
