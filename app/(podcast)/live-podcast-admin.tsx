@@ -261,6 +261,8 @@ const AdminLivePodcast = () => {
     setIsMuted(newMutedState)
   }
 
+  const hostSnapshot = roomParticipants.find((participant) => participant.id === hostId)
+
   const speakerRows = [
     {
       id: hostId,
@@ -268,6 +270,8 @@ const AdminLivePodcast = () => {
       avatarUrl: hostPictureUrl ?? null,
       isMuted,
       isHost: true,
+      isSpeaking: hostSnapshot?.isSpeaking ?? false,
+      audioLevel: hostSnapshot?.audioLevel ?? 0,
     },
     ...roomParticipants
       .filter((participant) => participant.id !== hostId && participant.canPublish)
@@ -277,6 +281,8 @@ const AdminLivePodcast = () => {
         avatarUrl: participant.isLocal ? profile?.avatar_url ?? null : null,
         isMuted: !participant.isMicrophoneEnabled,
         isHost: false,
+        isSpeaking: participant.isSpeaking,
+        audioLevel: participant.audioLevel,
       }))
   ]
 
@@ -284,6 +290,8 @@ const AdminLivePodcast = () => {
     id: speaker.id,
     name: speaker.name,
     pictureUrl: speaker.avatarUrl,
+    isSpeaking: speaker.isSpeaking,
+    audioLevel: speaker.audioLevel,
   }))
 
   const handleApproveRaisedHand = async (participantId: string) => {

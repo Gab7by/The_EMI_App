@@ -208,6 +208,8 @@ type PodcastParticipantsGridProps = {
     id: string;
     name: string;
     pictureUrl?: string | null;
+    isSpeaking?: boolean;
+    audioLevel?: number;
   }[];
 };
 
@@ -222,30 +224,72 @@ export const PodcastParticipantsGrid = ({
 
   return (
     <View className={containerStyle}>
-      {participants.map((participant) => (
-        <View
-          key={participant.id}
-          className={isFewParticipants ? "mb-4 items-center" : "mb-1 w-[20%] items-center"}
-        >
+      {participants.map((participant) => {
+        const isSpeaking = !!participant.isSpeaking;
+        const glowOpacity = Math.min(0.75, 0.28 + (participant.audioLevel ?? 0) * 1.4);
+        const glowScale = 1.08 + Math.min(0.12, (participant.audioLevel ?? 0) * 0.2);
+
+        return (
           <View
-            className="items-center justify-center rounded-full border border-white/40 bg-[#C8D2BC]"
-            style={{ height: avatarSize, width: avatarSize }}
+            key={participant.id}
+            className={isFewParticipants ? "mb-4 items-center" : "mb-1 w-[20%] items-center"}
           >
-            <HostAvatar
-              hostName={participant.name}
-              hostPictureUrl={participant.pictureUrl}
-              size={avatarSize - 4}
-              textClassName="text-2xl font-bold text-menorah-primary"
-            />
+            <View
+              className="items-center justify-center rounded-full"
+              style={{ height: avatarSize + 10, width: avatarSize + 10 }}
+            >
+              {isSpeaking ? (
+                <>
+                  <View
+                    pointerEvents="none"
+                    className="absolute rounded-full bg-[#D7FF00]"
+                    style={{
+                      height: avatarSize + 10,
+                      width: avatarSize + 10,
+                      opacity: glowOpacity,
+                      transform: [{ scale: glowScale }],
+                    }}
+                  />
+                  <View
+                    pointerEvents="none"
+                    className="absolute rounded-full border-2 border-[#D7FF00]"
+                    style={{
+                      height: avatarSize + 8,
+                      width: avatarSize + 8,
+                      shadowColor: "#D7FF00",
+                      shadowOpacity: 0.9,
+                      shadowRadius: 14,
+                      shadowOffset: { width: 0, height: 0 },
+                      elevation: 10,
+                    }}
+                  />
+                </>
+              ) : null}
+              <View
+                className={`items-center justify-center rounded-full border bg-[#C8D2BC] ${
+                  isSpeaking ? "border-[#D7FF00]" : "border-white/40"
+                }`}
+                style={{ height: avatarSize, width: avatarSize }}
+              >
+                <HostAvatar
+                  hostName={participant.name}
+                  hostPictureUrl={participant.pictureUrl}
+                  size={avatarSize - 4}
+                  textClassName="text-2xl font-bold text-menorah-primary"
+                />
+              </View>
+            </View>
+            <Text
+              className={`mt-1 text-center text-[10px] ${
+                isSpeaking ? "font-semibold text-[#D7FF00]" : "text-menorah-whiteSoft/85"
+              }`}
+              numberOfLines={1}
+            >
+              {participant.name}
+            </Text>
           </View>
-          <Text
-            className="mt-2 text-center text-[10px] text-menorah-whiteSoft/85"
-            numberOfLines={1}
-          >
-            {participant.name}
-          </Text>
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 };

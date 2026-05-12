@@ -82,6 +82,7 @@ const MemberLivePodcast = () => {
   const participantCount = roomParticipants.filter((participant) => participant.id !== hostId).length
 
   const activeCoverUrl = backgroundUrl ?? coverImageUrl ?? null
+  const hostSnapshot = roomParticipants.find((participant) => participant.id === hostId)
 
   const speakerGridParticipants = useMemo(
     () => [
@@ -89,6 +90,8 @@ const MemberLivePodcast = () => {
         id: hostId,
         name: hostName,
         pictureUrl: hostPictureUrl ?? null,
+        isSpeaking: hostSnapshot?.isSpeaking ?? false,
+        audioLevel: hostSnapshot?.audioLevel ?? 0,
       },
       ...roomParticipants
         .filter((participant) => participant.id !== hostId && participant.canPublish)
@@ -96,9 +99,11 @@ const MemberLivePodcast = () => {
           id: participant.id,
           name: participant.isLocal ? profile?.full_name ?? participant.name : participant.name,
           pictureUrl: participant.isLocal ? profile?.avatar_url ?? null : null,
+          isSpeaking: participant.isSpeaking,
+          audioLevel: participant.audioLevel,
         })),
     ],
-    [roomParticipants, hostId, hostName, hostPictureUrl, profile?.full_name, profile?.avatar_url]
+    [roomParticipants, hostId, hostName, hostPictureUrl, hostSnapshot?.isSpeaking, hostSnapshot?.audioLevel, profile?.full_name, profile?.avatar_url]
   );
 
   useAudienceRoom(livekitRoomName)

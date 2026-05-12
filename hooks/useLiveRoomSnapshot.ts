@@ -1,4 +1,4 @@
-import type { Room } from "livekit-client";
+import { RoomEvent, type Room } from "livekit-client";
 import { useEffect, useState } from "react";
 
 export type LiveRoomParticipantSnapshot = {
@@ -7,6 +7,8 @@ export type LiveRoomParticipantSnapshot = {
   isLocal: boolean;
   canPublish: boolean;
   isMicrophoneEnabled: boolean;
+  isSpeaking: boolean;
+  audioLevel: number;
 };
 
 export const useLiveRoomSnapshot = (room: Room | null) => {
@@ -27,6 +29,8 @@ export const useLiveRoomSnapshot = (room: Room | null) => {
               isLocal: true,
               canPublish: room.localParticipant.permissions?.canPublish ?? false,
               isMicrophoneEnabled: room.localParticipant.isMicrophoneEnabled,
+              isSpeaking: room.localParticipant.isSpeaking,
+              audioLevel: room.localParticipant.audioLevel,
             },
           ]
         : [];
@@ -38,6 +42,8 @@ export const useLiveRoomSnapshot = (room: Room | null) => {
           isLocal: false,
           canPublish: participant.permissions?.canPublish ?? false,
           isMicrophoneEnabled: participant.isMicrophoneEnabled,
+          isSpeaking: participant.isSpeaking,
+          audioLevel: participant.audioLevel,
         })
       );
 
@@ -45,9 +51,19 @@ export const useLiveRoomSnapshot = (room: Room | null) => {
     };
 
     syncParticipants();
-    const interval = setInterval(syncParticipants, 1000);
+    room.on(RoomEvent.ActiveSpeakersChanged, syncParticipants);
+    room.on(RoomEvent.ParticipantConnected, syncParticipants);
+    room.on(RoomEvent.ParticipantDisconnected, syncParticipants);
+    room.on(RoomEvent.TrackMuted, syncParticipants);
+    room.on(RoomEvent.TrackUnmuted, syncParticipants);
 
-    return () => clearInterval(interval);
+    return () => {
+      room.off(RoomEvent.ActiveSpeakersChanged, syncParticipants);
+      room.off(RoomEvent.ParticipantConnected, syncParticipants);
+      room.off(RoomEvent.ParticipantDisconnected, syncParticipants);
+      room.off(RoomEvent.TrackMuted, syncParticipants);
+      room.off(RoomEvent.TrackUnmuted, syncParticipants);
+    };
   }, [room]);
 
   return { participants };
