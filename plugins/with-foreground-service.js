@@ -10,8 +10,8 @@ const permissions = [
   "android.permission.WAKE_LOCK",
 ]
 
-const ensurePermission = (manifest, permission) => {
-  AndroidConfig.Permissions.addPermission(manifest, permission)
+const ensurePermission = (androidManifest, permission) => {
+  AndroidConfig.Permissions.ensurePermission(androidManifest, permission)
 }
 
 const upsertService = (application, service) => {
@@ -34,10 +34,9 @@ const upsertService = (application, service) => {
 
 module.exports = function withForegroundService(config) {
   return withAndroidManifest(config, (config) => {
-    const manifest = config.modResults.manifest
     const application = AndroidConfig.Manifest.getMainApplicationOrThrow(config.modResults)
 
-    permissions.forEach((permission) => ensurePermission(manifest, permission))
+    permissions.forEach((permission) => ensurePermission(config.modResults, permission))
 
     upsertService(application, {
       $: {
