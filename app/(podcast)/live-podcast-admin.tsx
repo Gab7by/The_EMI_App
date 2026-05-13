@@ -438,7 +438,7 @@ const AdminLivePodcast = () => {
             participantCount={participantCount}
             actions={
               <> 
-                <View className="ml-7">
+                <View className="ml-3 flex-row items-center gap-2">
                   {isRecording && (
                   <View className="w-3 h-3 rounded-full bg-red-500" />
               )}

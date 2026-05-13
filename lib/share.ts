@@ -8,18 +8,23 @@ export const shareLivePodcast = async (params: {
     playlist: string
 }) => {
 
-    const deepLink = Linking.createURL(
-        '(podcast)/join', {
-            queryParams: {
-                id: params.podcastId
-            }
-        }
-    )
+    const shareUrl = `${process.env.EXPO_PUBLIC_SHARE_BASE_URL}?id=${params.podcastId}`
+    
+    const isLive = true
+
+    // const deepLink = Linking.createURL(
+    //     '(podcast)/join', {
+    //         queryParams: {
+    //             id: params.podcastId
+    //         }
+    //     }
+    // )
+    console.log("Generated share URL:", shareUrl)
 
     try {
         await Share.share({
-            message: `Join me in listening to ${params.title} by ${params.hostName} on The Menorah! Click the link to join the live podcast: ${deepLink}`,
-            title: `Join ${params.title} on The Menorah!`
+            message: `${isLive ? '🔴 Live Now · ' : ''}${params.title}\n${params.playlist} · The Menorah\n\n${shareUrl}`,
+            title: params.title,
         })
     } catch (error) {
         console.error("Error sharing:", error)

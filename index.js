@@ -1,3 +1,4 @@
+import "./lib/reanimatedConfig"
 import { registerGlobals } from "@livekit/react-native";
 import { registerForegroundService } from "./lib/foreground-service"
 
