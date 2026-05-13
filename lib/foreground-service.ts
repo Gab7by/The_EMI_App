@@ -1,4 +1,4 @@
-import { AppRegistry, DeviceEventEmitter, NativeModules, Platform } from "react-native"
+import { AppRegistry, DeviceEventEmitter, NativeModules, PermissionsAndroid, Platform } from "react-native"
 
 export type ForegroundServiceType = "mediaPlayback" | "microphone" | "phoneCall" | "location"
 
@@ -35,6 +35,17 @@ const ensureAndroidModule = () => {
   return ForegroundServiceModule
 }
 
+const ensureNotificationPermission = async () => {
+  if (Platform.OS !== "android" || Platform.Version < 33) return true
+
+  const permission = PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+  const currentStatus = await PermissionsAndroid.check(permission)
+  if (currentStatus) return true
+
+  const result = await PermissionsAndroid.request(permission)
+  return result === PermissionsAndroid.RESULTS.GRANTED
+}
+
 export const registerForegroundService = ({ config }: RegisterConfig = {}) => {
   const module = ensureAndroidModule()
   if (!module || isRegistered) return
@@ -57,6 +68,8 @@ export const startForegroundService = async (config: ForegroundServiceConfig) =>
   }
 
   try {
+    await ensureNotificationPermission()
+
     await module.startService({
       vibration: false,
       largeIcon: "ic_launcher",

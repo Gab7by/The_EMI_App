@@ -40,6 +40,7 @@ import {
   ActivityIndicator,
   Keyboard,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -723,10 +724,16 @@ const AdminLivePodcast = () => {
             Music
           </Text>
 
+          <ScrollView
+            className="mt-5"
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 12 }}
+          >
           <Pressable
             onPress={handleMusicPick}
             disabled={isUploadingMusic}
-            className="mt-6 flex-row items-center rounded-[18px] border border-dashed border-[#D7FF00]/45 bg-[#143703] px-4 py-4"
+            className="flex-row items-center rounded-[18px] border border-dashed border-[#D7FF00]/45 bg-[#143703] px-4 py-4"
           >
             <View className="h-[42px] w-[42px] items-center justify-center rounded-full bg-[#D7FF00]">
               <FileAudio size={20} color="#143703" strokeWidth={2.3} />
@@ -955,6 +962,7 @@ const AdminLivePodcast = () => {
               Check Playback
             </Text>
           </Pressable> */}
+          </ScrollView>
       </PodcastBottomSheet>
 
       <PodcastBottomSheet

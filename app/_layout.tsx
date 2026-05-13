@@ -18,10 +18,11 @@ import type { Room } from "livekit-client";
 SplashScreen.preventAutoHideAsync()
 
 const LiveKitForegroundService = () => {
+  const room = useLiveKitStore(state => state.room)
   const connectionState = useLiveKitStore(state => state.connectionState)
   const foregroundServiceType = useLiveKitStore(state => state.foregroundServiceType)
 
-  useForegroundService(connectionState === "connected", foregroundServiceType)
+  useForegroundService(!!room && connectionState !== "disconnected", foregroundServiceType)
 
   return null
 }

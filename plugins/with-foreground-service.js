@@ -8,6 +8,7 @@ const permissions = [
   "android.permission.FOREGROUND_SERVICE_MICROPHONE",
   "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
   "android.permission.WAKE_LOCK",
+  "android.permission.POST_NOTIFICATIONS",
 ]
 
 const ensurePermission = (androidManifest, permission) => {

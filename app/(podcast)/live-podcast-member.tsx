@@ -34,7 +34,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, ChevronDown, ChevronRight, Power, Share2, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, Pressable, Text, TextInput, View } from "react-native";
+import { Animated, Easing, Keyboard, Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const MemberLivePodcast = () => {
@@ -62,6 +62,7 @@ const MemberLivePodcast = () => {
   const [message, setMessage] = useState<string>('')
   const [shouldShowConnectingOverlay, setShouldShowConnectingOverlay] = useState(true)
   const [localLoveBursts, setLocalLoveBursts] = useState<LoveBurst[]>([])
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
 
   const selectedCurrency = useMemo(
     () =>
@@ -118,6 +119,22 @@ const MemberLivePodcast = () => {
   }, [localLoveBursts, loveBursts])
 
   useAudienceRoom(livekitRoomName)
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
+      setKeyboardHeight(event.endCoordinates.height)
+    })
+
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardHeight(0)
+    })
+
+    return () => {
+      showSubscription.remove()
+      hideSubscription.remove()
+    }
+  }, [])
+
   useFocusEffect(
     useCallback(() => {
       setShouldShowConnectingOverlay(true)
@@ -286,7 +303,7 @@ const MemberLivePodcast = () => {
         </View>
 
         <PodcastBottomDock
-          bottom={footerBottom}
+          bottom={keyboardHeight > 0 ? keyboardHeight + 8 : footerBottom}
           paddingBottom={footerPaddingBottom}
           onLayout={handleFooterLayout}
         >

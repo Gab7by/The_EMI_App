@@ -7,7 +7,7 @@ import { BlurView } from "expo-blur"
 import { useRouter } from "expo-router"
 import { Loader2 } from "lucide-react-native"
 import { useState } from "react"
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native"
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native"
 import { Icon } from "../ui/icon"
 
 const ForgotPasswordModal = () => {
@@ -86,7 +86,8 @@ const ForgotPasswordModal = () => {
                 onTouchEnd={() => closeModal()}
             />
 
-            <View
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
                 className="bg-menorah-darkGreen"
                 style={{flex: 1}}
             >
@@ -124,7 +125,7 @@ const ForgotPasswordModal = () => {
                         </Pressable>
                     </View>
                 </ScrollView>
-            </View>
+            </KeyboardAvoidingView>
         </Modal>
     )
 }

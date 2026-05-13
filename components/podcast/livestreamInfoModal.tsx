@@ -16,7 +16,7 @@ import type { TriggerRef } from '@rn-primitives/select'
 import { BlurView } from "expo-blur"
 import { ArrowLeft, Loader2 } from "lucide-react-native"
 import * as React from 'react'
-import { Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native"
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native"
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Icon } from "../ui/icon"
 
@@ -59,7 +59,8 @@ const LiveStreamInfoModal = ({playlist, setPlaylist, setTitle, title, isCreating
                 onTouchEnd={() => setModalOpen(false)}
             />
 
-            <View
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
                 className="bg-menorah-darkGreen"
                 style={{flex: 2}}
             >
@@ -141,7 +142,7 @@ const LiveStreamInfoModal = ({playlist, setPlaylist, setTitle, title, isCreating
                         </Pressable>
                     </View>
                 </ScrollView>
-            </View>
+            </KeyboardAvoidingView>
             <PortalHost name="modal-portal" />
         </Modal>
     )

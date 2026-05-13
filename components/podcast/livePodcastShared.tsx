@@ -463,20 +463,33 @@ export const PodcastBottomSheet = ({
   visible,
   onClose,
   children,
-}: PodcastBottomSheetProps) => (
-  <Modal
-    visible={visible}
-    transparent
-    animationType="fade"
-    onRequestClose={onClose}
-    statusBarTranslucent
-  >
-    <View className="flex-1 justify-end">
-      <Pressable onPress={onClose} className="absolute inset-0 bg-black/35" />
-      <View className="rounded-t-[24px] bg-menorah-bg px-6 pb-10 pt-3">{children}</View>
-    </View>
-  </Modal>
-);
+}: PodcastBottomSheetProps) => {
+  const { height } = useWindowDimensions()
+  const insets = useSafeAreaInsets()
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <View className="flex-1 justify-end">
+        <Pressable onPress={onClose} className="absolute inset-0 bg-black/35" />
+        <View
+          className="rounded-t-[24px] bg-menorah-bg px-6 pt-3"
+          style={{
+            maxHeight: height * 0.82,
+            paddingBottom: Math.max(insets.bottom, 16) + 16,
+          }}
+        >
+          {children}
+        </View>
+      </View>
+    </Modal>
+  )
+};
 
 type PodcastDialogProps = {
   visible: boolean;
