@@ -11,6 +11,21 @@ export type LiveRoomParticipantSnapshot = {
   audioLevel: number;
 };
 
+const isMusicBotParticipant = (identity: string, name?: string) => {
+  const normalizedIdentity = identity.toLowerCase();
+  const normalizedName = (name ?? "").toLowerCase();
+
+  return (
+    normalizedIdentity.includes("music-bot") ||
+    normalizedIdentity.includes("music_bot") ||
+    normalizedIdentity.includes("musicbot") ||
+    normalizedName.includes("music bot") ||
+    normalizedName.includes("music-bot") ||
+    normalizedName.includes("music_bot") ||
+    normalizedName.includes("musicbot")
+  );
+};
+
 export const useLiveRoomSnapshot = (room: Room | null) => {
   const [participants, setParticipants] = useState<LiveRoomParticipantSnapshot[]>([]);
 
@@ -35,8 +50,9 @@ export const useLiveRoomSnapshot = (room: Room | null) => {
           ]
         : [];
 
-      const remoteParticipants = Array.from(room.remoteParticipants.values()).map(
-        (participant) => ({
+      const remoteParticipants = Array.from(room.remoteParticipants.values())
+        .filter((participant) => !isMusicBotParticipant(participant.identity, participant.name))
+        .map((participant) => ({
           id: participant.identity,
           name: participant.name || "Guest",
           isLocal: false,
