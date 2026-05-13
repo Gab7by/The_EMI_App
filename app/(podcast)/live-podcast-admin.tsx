@@ -48,6 +48,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { uploadMusicTrack } from "@/lib/music";
 import { useBackgoundMusicQuery } from "@/hooks/tanstack-query-hooks";
+import { shareLivePodcast } from "@/lib/share";
 
 type AdminSheet = "none" | "settings" | "music" | "speakers";
 
@@ -436,16 +437,27 @@ const AdminLivePodcast = () => {
             hostPictureUrl={hostPictureUrl}
             participantCount={participantCount}
             actions={
-              <>
-                {isRecording && (
+              <> 
+                <View className="ml-7">
+                  {isRecording && (
                   <View className="w-3 h-3 rounded-full bg-red-500" />
               )}
-                <View className="ml-7">
                   <Pressable onPress={() => { hapticMedium(); setIsNotesVisible(true) }} hitSlop={10}>
                     <HugeIcon width={30} height={30} />
                   </Pressable>
                 </View>
-                <Share2 size={25} color="#F3F6E7" strokeWidth={1.2} />
+                <Pressable
+                  onPress={() => {hapticMedium(); shareLivePodcast({
+                    hostName, title, podcastId: id, playlist
+                  })}}
+                  hitSlop={10}
+                >
+                  <Share2  
+                  size={25} 
+                  color="#F3F6E7" 
+                  strokeWidth={1.2}
+                  />
+                </Pressable>
                 <Pressable
                   onPress={() => { hapticMedium(); setIsExitPromptVisible(true) }}
                   className="rounded-full bg-[#F3523C]/20 p-2"
