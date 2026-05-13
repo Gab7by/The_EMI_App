@@ -16,7 +16,7 @@ import type { TriggerRef } from '@rn-primitives/select'
 import { BlurView } from "expo-blur"
 import { ArrowLeft, Loader2 } from "lucide-react-native"
 import * as React from 'react'
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native"
+import { Keyboard, Modal, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native"
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Icon } from "../ui/icon"
 
@@ -29,12 +29,38 @@ const LiveStreamInfoModal = ({playlist, setPlaylist, setTitle, title, isCreating
  
     const ref = React.useRef<TriggerRef>(null);
     const insets = useSafeAreaInsets();
+    const { height } = useWindowDimensions()
+    const [keyboardHeight, setKeyboardHeight] = React.useState(0)
+    const bottomOffset = keyboardHeight > 0 ? Math.max(0, keyboardHeight - insets.bottom) : 0
+    const sheetMaxHeight = keyboardHeight > 0
+        ? Math.max(340, height - bottomOffset - insets.top - 16)
+        : Math.min(520, height * 0.68)
     const contentInsets = {
         top: insets.top,
         bottom: Platform.select({ ios: insets.bottom, android: insets.bottom + 24 }),
         left: 12,
         right: 12,
     }
+
+    React.useEffect(() => {
+        if (!isModalOpen) {
+            setKeyboardHeight(0)
+            return
+        }
+
+        const showSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
+            setKeyboardHeight(event.endCoordinates.height)
+        })
+
+        const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+            setKeyboardHeight(0)
+        })
+
+        return () => {
+            showSubscription.remove()
+            hideSubscription.remove()
+        }
+    }, [isModalOpen])
 
     const goBackToDialogModal = () => {
         hapticMedium()
@@ -55,19 +81,28 @@ const LiveStreamInfoModal = ({playlist, setPlaylist, setTitle, title, isCreating
             <BlurView
                 intensity={20}
                 tint="dark"
-                style={{ flex:  1}}
+                style={{ position: "absolute", inset: 0 }}
                 onTouchEnd={() => setModalOpen(false)}
             />
 
-            <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : undefined}
+            <View
+                className="flex-1 justify-end"
+                pointerEvents="box-none"
+            >
+            <View
                 className="bg-menorah-darkGreen"
-                style={{flex: 2}}
+                style={{
+                    maxHeight: sheetMaxHeight,
+                    marginBottom: bottomOffset,
+                    paddingBottom: Math.max(insets.bottom, 16),
+                }}
             >
                 <ScrollView
                     contentContainerClassName="px-5 gap-7"
+                    contentContainerStyle={{ paddingBottom: keyboardHeight > 0 ? 24 : 0 }}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="interactive"
                     >
                     <View className="h-[3px] self-center bg-menorah-primary mt-4 w-[80px]" />
                     <View className="flex-1 gap-7">
@@ -142,7 +177,8 @@ const LiveStreamInfoModal = ({playlist, setPlaylist, setTitle, title, isCreating
                         </Pressable>
                     </View>
                 </ScrollView>
-            </KeyboardAvoidingView>
+            </View>
+            </View>
             <PortalHost name="modal-portal" />
         </Modal>
     )
