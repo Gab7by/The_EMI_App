@@ -47,7 +47,7 @@ serve(async (req) => {
       })
     }
 
-    const { action = 'play', roomName, trackUrl, trackName } = await req.json()
+    const { action = 'play', roomName, trackUrl, trackName, volume } = await req.json()
 
     if (!roomName) {
       return new Response(JSON.stringify({ error: 'roomName is required' }), {
@@ -70,7 +70,7 @@ serve(async (req) => {
       })
     }
 
-    if (action !== 'play' && action !== 'status') {
+    if (!['play', 'status', 'pause', 'resume', 'volume'].includes(action)) {
       return new Response(JSON.stringify({ error: 'Invalid action' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -95,6 +95,7 @@ serve(async (req) => {
         roomName,
         trackUrl,
         trackName,
+        volume,
       }),
     })
 

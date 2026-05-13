@@ -29,6 +29,18 @@ export type MusicBotStatus = {
     samplesSent: number
     lastFrameAt: string | null
     error: string | null
+    volume: number | null
+    paused: boolean
+}
+
+type MusicBotFunctionResponse<T> = {
+    ok?: boolean
+    bot?: T
+} & T
+
+const unwrapBotResponse = <T>(data: MusicBotFunctionResponse<T> | null): T | null => {
+    if (!data) return null
+    return (data.bot ?? data) as T
 }
 
 export const getMusicTracks = async (): Promise<MusicTrack[]> => {
@@ -82,13 +94,15 @@ export const uploadMusicTrack = async (
 
 export const playMusicTrack = async (
     roomName: string,
-    track: Pick<MusicTrack, 'name' | 'url'>
+    track: Pick<MusicTrack, 'name' | 'url'>,
+    volume = 0.35
 ): Promise<boolean> => {
     const {error} = await supabase.functions.invoke('music-bot-play', {
         body: {
             roomName,
             trackUrl: track.url,
             trackName: track.name,
+            volume,
         },
     })
 
@@ -115,6 +129,43 @@ export const stopMusicTrack = async (roomName: string): Promise<boolean> => {
     return true
 }
 
+export const pauseMusicTrack = async (roomName: string): Promise<boolean> => {
+    return controlMusicBot(roomName, 'pause')
+}
+
+export const resumeMusicTrack = async (roomName: string): Promise<boolean> => {
+    return controlMusicBot(roomName, 'resume')
+}
+
+export const setMusicTrackVolume = async (
+    roomName: string,
+    volume: number
+): Promise<boolean> => {
+    return controlMusicBot(roomName, 'volume', { volume })
+}
+
+const controlMusicBot = async (
+    roomName: string,
+    action: 'pause' | 'resume' | 'volume',
+    extraBody: Record<string, unknown> = {}
+): Promise<boolean> => {
+    const {error} = await supabase.functions.invoke('music-bot-play', {
+        body: {
+            action,
+            roomName,
+            ...extraBody,
+        },
+    })
+
+    if (error) {
+        const detail = await getFunctionErrorDetail(error)
+        console.error(`Error sending music bot ${action}:`, error, detail)
+        return false
+    }
+
+    return true
+}
+
 export const getMusicBotStatus = async (roomName: string): Promise<MusicBotStatus | null> => {
     const {data, error} = await supabase.functions.invoke('music-bot-play', {
         body: {
@@ -129,5 +180,5 @@ export const getMusicBotStatus = async (roomName: string): Promise<MusicBotStatu
         return null
     }
 
-    return data as MusicBotStatus
+    return unwrapBotResponse(data as MusicBotFunctionResponse<MusicBotStatus>)
 }

@@ -24,10 +24,19 @@ export type SignalType =
   | 'SPEAKER_REVOKED'
   | 'SESSION_ENDED'
   | 'BACKGROUND_CHANGED'
+  | 'LOVE'
 
 export type RoomSignal = {
     type: SignalType
     fromId: string
     fromName: string
     toId?: string
+    id?: string
+}
+
+export type LoveBurst = {
+    id: string
+    fromId: string
+    fromName: string
+    createdAt: number
 }

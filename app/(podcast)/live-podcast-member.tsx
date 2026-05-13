@@ -24,16 +24,17 @@ import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { hapticMedium } from "@/lib/haptics";
-import { lowerHand, raiseHand } from "@/lib/livekit-signals";
+import { lowerHand, raiseHand, sendLoveSignal } from "@/lib/livekit-signals";
 import { getLivePodcastStatus, joinLivePodcastParticipant, leaveLivePodcastParticipant } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveKitStore } from "@/store/livekit-store";
+import type { LoveBurst } from "@/types/livekit-types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, ChevronDown, ChevronRight, Power, Share2, X } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Easing, Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const MemberLivePodcast = () => {
@@ -60,6 +61,7 @@ const MemberLivePodcast = () => {
     useState<PodcastCurrencyOption["id"]>("usd");
   const [message, setMessage] = useState<string>('')
   const [shouldShowConnectingOverlay, setShouldShowConnectingOverlay] = useState(true)
+  const [localLoveBursts, setLocalLoveBursts] = useState<LoveBurst[]>([])
 
   const selectedCurrency = useMemo(
     () =>
@@ -76,7 +78,7 @@ const MemberLivePodcast = () => {
   const setIsMuted = useLiveKitStore(state => state.setIsMuted)
   const setForegroundServiceType = useLiveKitStore(state => state.setForegroundServiceType)
   const profile = useAuthStore(state => state.profile)
-  const {isApprovedToSpeak, sessionEnded, isSpeakerRevoked, backgroundUrl} = useRoomSignals(room, profile?.id ?? "")
+  const {isApprovedToSpeak, sessionEnded, isSpeakerRevoked, backgroundUrl, loveBursts, dismissLoveBurst} = useRoomSignals(room, profile?.id ?? "")
   const [hasRaisedHand, setHasRaisedHand] = useState<boolean>(false)
   const isConnecting = connectionState !== "connected"
   const participantCount = roomParticipants.filter((participant) => participant.id !== hostId).length
@@ -105,6 +107,15 @@ const MemberLivePodcast = () => {
     ],
     [roomParticipants, hostId, hostName, hostPictureUrl, hostSnapshot?.isSpeaking, hostSnapshot?.audioLevel, profile?.full_name, profile?.avatar_url]
   );
+
+  const visibleLoveBursts = useMemo(() => {
+    const byId = new Map<string, LoveBurst>()
+
+    loveBursts.forEach((love) => byId.set(love.id, love))
+    localLoveBursts.forEach((love) => byId.set(love.id, love))
+
+    return Array.from(byId.values()).sort((a, b) => a.createdAt - b.createdAt)
+  }, [localLoveBursts, loveBursts])
 
   useAudienceRoom(livekitRoomName)
   useFocusEffect(
@@ -219,6 +230,27 @@ const MemberLivePodcast = () => {
     }
   }
 
+  const handleSendLove = async () => {
+    if (!room || !profile) return
+
+    hapticMedium()
+    const loveId = await sendLoveSignal(room, profile.id, profile.full_name ?? "Listener")
+    setLocalLoveBursts(prev => [
+      ...prev.slice(-4),
+      {
+        id: loveId,
+        fromId: profile.id,
+        fromName: profile.full_name ?? "Listener",
+        createdAt: Date.now(),
+      },
+    ])
+  }
+
+  const dismissVisibleLoveBurst = useCallback((loveId: string) => {
+    dismissLoveBurst(loveId)
+    setLocalLoveBursts(prev => prev.filter(love => love.id !== loveId))
+  }, [dismissLoveBurst])
+
   return (
     <PodcastBackground coverUrl={activeCoverUrl}>
       <SafeAreaView className="flex-1">
@@ -274,7 +306,9 @@ const MemberLivePodcast = () => {
             </View>
 
             <View className="flex-row items-center gap-3">
-              <MaterialCommunityIcons name="heart" size={22} color="#FF4B1F" />
+              <Pressable onPress={handleSendLove} hitSlop={10}>
+                <MaterialCommunityIcons name="heart" size={22} color="#FF4B1F" />
+              </Pressable>
               <Pressable onPress={() => { hapticMedium(); handleRaiseHand() }} hitSlop={8} className="items-center">
                 <Call width={22} height={22} />
                 <Text className="mt-0.5 text-[8px] font-medium text-[#F3F6E7]">
@@ -484,9 +518,76 @@ const MemberLivePodcast = () => {
             </View>
           </View>
         ) : null}
+
+        <View pointerEvents="none" className="absolute bottom-24 right-8 h-[220px] w-[96px] overflow-visible">
+          {visibleLoveBursts.map((love, index) => (
+            <FloatingLove
+              key={love.id}
+              burstId={love.id}
+              index={index}
+              onDone={dismissVisibleLoveBurst}
+            />
+          ))}
+        </View>
       </SafeAreaView>
     </PodcastBackground>
   );
 };
+
+const FloatingLove = ({
+  burstId,
+  index,
+  onDone,
+}: {
+  burstId: string
+  index: number
+  onDone: (burstId: string) => void
+}) => {
+  const progress = useRef(new Animated.Value(0)).current
+  const drift = useMemo(() => ((index % 5) - 2) * 9, [index])
+
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 1500,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => onDone(burstId))
+  }, [burstId, onDone, progress])
+
+  return (
+    <Animated.View
+      className="absolute bottom-0 right-3"
+      style={{
+        opacity: progress.interpolate({
+          inputRange: [0, 0.2, 0.78, 1],
+          outputRange: [0, 1, 1, 0],
+        }),
+        transform: [
+          {
+            translateY: progress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, -176],
+            }),
+          },
+          {
+            translateX: progress.interpolate({
+              inputRange: [0, 0.5, 1],
+              outputRange: [0, drift, drift * -0.3],
+            }),
+          },
+          {
+            scale: progress.interpolate({
+              inputRange: [0, 0.35, 1],
+              outputRange: [0.55, 1.18, 1.55],
+            }),
+          },
+        ],
+      }}
+    >
+      <MaterialCommunityIcons name="heart" size={30} color="#FF4B1F" />
+    </Animated.View>
+  )
+}
 
 export default MemberLivePodcast;

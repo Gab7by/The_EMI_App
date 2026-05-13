@@ -1,7 +1,7 @@
 import { queryClient } from "@/lib/query"
-import { RoomSignal } from "@/types/livekit-types"
+import { LoveBurst, RoomSignal } from "@/types/livekit-types"
 import type {Room} from "livekit-client"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 export const useRoomSignals = (
     room: Room | null,
@@ -12,6 +12,7 @@ export const useRoomSignals = (
     const [sessionEnded, setSessionEnded] = useState<boolean>(false)
     const [isSpeakerRevoked, setIsSpeakerRevoked] = useState<boolean>(false)
     const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null)
+    const [loveBursts, setLoveBursts] = useState<LoveBurst[]>([])
 
     useEffect(() => {
         if (!room) return
@@ -64,6 +65,18 @@ export const useRoomSignals = (
                     setBackgroundUrl(signal.fromName)
                     queryClient.invalidateQueries({ queryKey: ['live-podcast-sessions'] })
                 }
+
+                if (signal.type === 'LOVE') {
+                    setLoveBursts(prev => [
+                        ...prev.slice(-14),
+                        {
+                            id: signal.id ?? `${signal.fromId}-${Date.now()}`,
+                            fromId: signal.fromId,
+                            fromName: signal.fromName,
+                            createdAt: Date.now(),
+                        },
+                    ])
+                }
             } catch {
 
             }
@@ -80,9 +93,22 @@ export const useRoomSignals = (
         }
     }, [room, currentUserId])
 
-    const dismissRaisedHand = (participantId: string) => {
+    const dismissRaisedHand = useCallback((participantId: string) => {
         setRaisedHands(prev => prev.filter(signal => signal.fromId !== participantId))
-    }
+    }, [])
 
-    return {raisedHands, isApprovedToSpeak, sessionEnded, isSpeakerRevoked, backgroundUrl, dismissRaisedHand}
+    const dismissLoveBurst = useCallback((loveId: string) => {
+        setLoveBursts(prev => prev.filter(love => love.id !== loveId))
+    }, [])
+
+    return {
+        raisedHands,
+        isApprovedToSpeak,
+        sessionEnded,
+        isSpeakerRevoked,
+        backgroundUrl,
+        loveBursts,
+        dismissRaisedHand,
+        dismissLoveBurst,
+    }
 }

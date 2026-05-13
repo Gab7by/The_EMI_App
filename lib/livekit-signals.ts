@@ -254,3 +254,20 @@ export const sendBackgroundChangedSignal = async (
         fromName: coverUrl
     })
 }
+
+export const sendLoveSignal = async (
+    room: Room,
+    userId: string,
+    userName: string
+) => {
+    const id = `${userId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
+    await sendSignal(room, {
+        type: 'LOVE',
+        id,
+        fromId: userId,
+        fromName: userName,
+    })
+
+    return id
+}

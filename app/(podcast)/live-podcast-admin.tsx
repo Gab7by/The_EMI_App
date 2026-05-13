@@ -34,7 +34,7 @@ import { AudioPickerAsset, MusicTrack } from "@/types/podcast-types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { AlertCircle, CheckCircle2, ChevronRight, FileAudio, Loader2, Mic, MicOff, Music2, Play, Power, Share2, Square, Upload, X } from "lucide-react-native";
+import { AlertCircle, CheckCircle2, ChevronRight, FileAudio, Loader2, Mic, MicOff, Minus, Music2, Pause, Play, Plus, Power, Share2, Square, Upload, X } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -45,7 +45,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getMusicBotStatus, playMusicTrack, stopMusicTrack, uploadMusicTrack } from "@/lib/music";
+import { getMusicBotStatus, pauseMusicTrack, playMusicTrack, resumeMusicTrack, setMusicTrackVolume, stopMusicTrack, uploadMusicTrack } from "@/lib/music";
 import { useBackgoundMusicQuery } from "@/hooks/tanstack-query-hooks";
 import { shareLivePodcast } from "@/lib/share";
 
@@ -93,6 +93,8 @@ const AdminLivePodcast = () => {
   const [isMusicActionLoading, setIsMusicActionLoading] = useState(false)
   const [isMusicStatusLoading, setIsMusicStatusLoading] = useState(false)
   const [musicStatusMessage, setMusicStatusMessage] = useState<string | null>(null)
+  const [musicVolume, setMusicVolume] = useState(0.35)
+  const [isMusicPaused, setIsMusicPaused] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
   const room = useLiveKitStore(state => state.room)
@@ -405,12 +407,13 @@ const AdminLivePodcast = () => {
     setMusicStatusMessage(null)
     setIsMusicActionLoading(true)
 
-    const success = await playMusicTrack(livekitRoomName, selectedMusicTrack)
+    const success = await playMusicTrack(livekitRoomName, selectedMusicTrack, musicVolume)
 
     setIsMusicActionLoading(false)
 
     if (success) {
       setPlayingMusicTrack(selectedMusicTrack)
+      setIsMusicPaused(false)
     } else {
       setUploadError("Could not start music.")
     }
@@ -429,8 +432,50 @@ const AdminLivePodcast = () => {
 
     if (success) {
       setPlayingMusicTrack(null)
+      setIsMusicPaused(false)
     } else {
       setUploadError("Could not stop music.")
+    }
+  }
+
+  const handleToggleMusicPaused = async () => {
+    if (!playingMusicTrack || isMusicActionLoading) return
+
+    setUploadError(null)
+    setMusicStatusMessage(null)
+    setIsMusicActionLoading(true)
+
+    const success = isMusicPaused
+      ? await resumeMusicTrack(livekitRoomName)
+      : await pauseMusicTrack(livekitRoomName)
+
+    setIsMusicActionLoading(false)
+
+    if (success) {
+      setIsMusicPaused(!isMusicPaused)
+    } else {
+      setUploadError(isMusicPaused ? "Could not resume music." : "Could not pause music.")
+    }
+  }
+
+  const handleAdjustMusicVolume = async (delta: number) => {
+    if (isMusicActionLoading) return
+
+    const nextVolume = Math.max(0.05, Math.min(1, Math.round((musicVolume + delta) * 100) / 100))
+    if (nextVolume === musicVolume) return
+
+    setMusicVolume(nextVolume)
+    setUploadError(null)
+    setMusicStatusMessage(`Music volume ${Math.round(nextVolume * 100)}%.`)
+
+    if (!playingMusicTrack) return
+
+    setIsMusicActionLoading(true)
+    const success = await setMusicTrackVolume(livekitRoomName, nextVolume)
+    setIsMusicActionLoading(false)
+
+    if (!success) {
+      setUploadError("Could not update music volume.")
     }
   }
 
@@ -449,8 +494,10 @@ const AdminLivePodcast = () => {
       return
     }
 
-    if (status.status === "playing" && status.framesSent > 0 && status.lastFrameAt) {
-      setMusicStatusMessage(`Playing ${status.trackName ?? "track"} - ${status.framesSent} frames sent.`)
+    if ((status.status === "playing" || status.status === "paused") && status.framesSent > 0 && status.lastFrameAt) {
+      setMusicStatusMessage(`${status.paused ? "Paused" : "Playing"} ${status.trackName ?? "track"} at ${Math.round((status.volume ?? musicVolume) * 100)}%.`)
+      setIsMusicPaused(status.paused)
+      if (typeof status.volume === "number") setMusicVolume(status.volume)
       return
     }
 
@@ -840,6 +887,60 @@ const AdminLivePodcast = () => {
               </Text>
             </Pressable>
           </View>
+          <View className="mt-3 rounded-[16px] bg-[#143703] px-4 py-4">
+            <View className="flex-row items-center justify-between">
+              <Text className="text-[13px] font-semibold text-[#F2F5EE]">
+                Music volume
+              </Text>
+              <Text className="text-[13px] font-semibold text-[#D7FF00]">
+                {Math.round(musicVolume * 100)}%
+              </Text>
+            </View>
+            <View className="mt-4 flex-row items-center gap-3">
+              <Pressable
+                onPress={() => handleAdjustMusicVolume(-0.1)}
+                disabled={isMusicActionLoading || musicVolume <= 0.05}
+                className={`h-11 w-11 items-center justify-center rounded-[14px] ${
+                  isMusicActionLoading || musicVolume <= 0.05 ? "bg-white/5" : "bg-white/10"
+                }`}
+              >
+                <Minus size={18} color={musicVolume <= 0.05 ? "#6F7C73" : "#D7FF00"} />
+              </Pressable>
+              <View className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                <View
+                  className="h-full rounded-full bg-[#D7FF00]"
+                  style={{ width: `${Math.round(musicVolume * 100)}%` }}
+                />
+              </View>
+              <Pressable
+                onPress={() => handleAdjustMusicVolume(0.1)}
+                disabled={isMusicActionLoading || musicVolume >= 1}
+                className={`h-11 w-11 items-center justify-center rounded-[14px] ${
+                  isMusicActionLoading || musicVolume >= 1 ? "bg-white/5" : "bg-white/10"
+                }`}
+              >
+                <Plus size={18} color={musicVolume >= 1 ? "#6F7C73" : "#D7FF00"} />
+              </Pressable>
+            </View>
+          </View>
+          <Pressable
+            onPress={handleToggleMusicPaused}
+            disabled={!playingMusicTrack || isMusicActionLoading}
+            className={`mt-3 flex-row items-center justify-center rounded-[16px] px-4 py-4 ${
+              playingMusicTrack && !isMusicActionLoading ? "bg-[#143703]" : "bg-[#184832]"
+            }`}
+          >
+            {isMusicPaused ? (
+              <Play size={17} color={playingMusicTrack ? "#D7FF00" : "#8A9A90"} />
+            ) : (
+              <Pause size={17} color={playingMusicTrack ? "#D7FF00" : "#8A9A90"} />
+            )}
+            <Text className={`ml-2 text-[14px] font-semibold ${
+              playingMusicTrack && !isMusicActionLoading ? "text-[#D7FF00]" : "text-[#8A9A90]"
+            }`}>
+              {isMusicPaused ? "Resume" : "Pause"}
+            </Text>
+          </Pressable>
           {/* <Pressable
             onPress={handleCheckMusicStatus}
             disabled={isMusicStatusLoading}
