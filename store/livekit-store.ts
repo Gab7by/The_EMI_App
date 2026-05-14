@@ -1,4 +1,5 @@
 import { getLiveKitToken } from "@/lib/livekit";
+import { PODCAST_MIC_CAPTURE_OPTIONS, PODCAST_ROOM_AUDIO_CAPTURE_DEFAULTS } from "@/lib/livekit-audio";
 import type { LiveKitRoomRole, LiveKitStore } from "@/types/livekit-types";
 import type { ConnectionState } from "livekit-client";
 import { create } from "zustand";
@@ -44,11 +45,7 @@ export const useLiveKitStore = create<LiveKitStore>(
                 const room = new Room({
                     adaptiveStream: true,
                     dynacast: true,
-                    audioCaptureDefaults: {
-                        echoCancellation: true,
-                        noiseSuppression: false,
-                        autoGainControl: false
-                    }
+                    audioCaptureDefaults: PODCAST_ROOM_AUDIO_CAPTURE_DEFAULTS,
                 })
 
                 room.on(RoomEvent.ConnectionStateChanged, (state) => {
@@ -73,14 +70,7 @@ export const useLiveKitStore = create<LiveKitStore>(
                 })
 
                 if (role === "host") {
-                    await room.localParticipant.setMicrophoneEnabled(true, {
-                        echoCancellation: true,
-                        noiseSuppression: false,
-                        autoGainControl: false,
-                        voiceIsolation: false,
-                        channelCount: 1,
-                        latency: 0
-                    })
+                    await room.localParticipant.setMicrophoneEnabled(true, PODCAST_MIC_CAPTURE_OPTIONS)
                     set({ isMuted: false })
                 }
             })().finally(() => {

@@ -23,6 +23,7 @@ import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { hapticMedium } from "@/lib/haptics";
+import { PODCAST_MIC_CAPTURE_OPTIONS } from "@/lib/livekit-audio";
 import { approveSpeaker, revokeSpeaker, sendBackgroundChangedSignal, sendSessionEnded } from "@/lib/livekit-signals";
 import { endLiveSession, updateParticipantCalledIn } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
@@ -101,6 +102,7 @@ const AdminLivePodcast = () => {
   const room = useLiveKitStore(state => state.room)
   const isMuted = useLiveKitStore(state => state.isMuted)
   const setIsMuted = useLiveKitStore(state => state.setIsMuted)
+  const setForegroundServiceType = useLiveKitStore(state => state.setForegroundServiceType)
   const clearRoom = useLiveKitStore(state => state.clearRoom)
   const connectionState = useLiveKitStore(state => state.connectionState)
 
@@ -205,7 +207,6 @@ const AdminLivePodcast = () => {
           await stopRecording(egressId, id)
         }
 
-        // await stopMusic()
         const success = await endLiveSession(id)
         if (!success) {
             console.error('Failed to end live session in backend')
@@ -231,9 +232,13 @@ const AdminLivePodcast = () => {
 
     const newMutedState = !isMuted
 
-    await room.localParticipant.setMicrophoneEnabled(!newMutedState)
+    await room.localParticipant.setMicrophoneEnabled(
+      !newMutedState,
+      !newMutedState ? PODCAST_MIC_CAPTURE_OPTIONS : undefined
+    )
 
     setIsMuted(newMutedState)
+    setForegroundServiceType(newMutedState ? "mediaPlayback" : "microphone")
   }
 
   const hostSnapshot = roomParticipants.find((participant) => participant.id === hostId)

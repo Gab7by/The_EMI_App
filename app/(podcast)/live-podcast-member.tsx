@@ -24,6 +24,7 @@ import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { hapticMedium } from "@/lib/haptics";
+import { PODCAST_MIC_CAPTURE_OPTIONS } from "@/lib/livekit-audio";
 import { lowerHand, raiseHand, sendLoveSignal } from "@/lib/livekit-signals";
 import { getLivePodcastStatus, joinLivePodcastParticipant, leaveLivePodcastParticipant } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
@@ -175,14 +176,7 @@ const MemberLivePodcast = () => {
     if (!isApprovedToSpeak || !room) return
     
     room.localParticipant
-      .setMicrophoneEnabled(true, {
-        echoCancellation: true,
-        noiseSuppression: false,
-        autoGainControl: false,
-        voiceIsolation: false,
-        channelCount: 1,
-        latency: 0
-      })
+      .setMicrophoneEnabled(true, PODCAST_MIC_CAPTURE_OPTIONS)
       .then(() => {
         setIsMuted(false)
         setForegroundServiceType("microphone")
@@ -233,8 +227,12 @@ const MemberLivePodcast = () => {
 
     if (isApprovedToSpeak) {
       const nextMutedState = !isMuted
-      await room.localParticipant.setMicrophoneEnabled(!nextMutedState)
+      await room.localParticipant.setMicrophoneEnabled(
+        !nextMutedState,
+        !nextMutedState ? PODCAST_MIC_CAPTURE_OPTIONS : undefined
+      )
       setIsMuted(nextMutedState)
+      setForegroundServiceType(nextMutedState ? "mediaPlayback" : "microphone")
       return
     }
 

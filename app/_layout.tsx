@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 import ForgotPasswordModal from "@/components/auth/forgot-password-modal";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query";
-import { AndroidAudioTypePresets, AudioSession, useIOSAudioManagement }  from "@livekit/react-native"
+import { AudioSession, useIOSAudioManagement }  from "@livekit/react-native"
 import * as SplashScreen from "expo-splash-screen"
 import { useForegroundService } from "@/hooks/useForegroundService";
 import { useLiveKitStore } from "@/store/livekit-store";
@@ -51,7 +51,14 @@ export default function RootLayout() {
       await AudioSession.configureAudio({
         android: {
           preferredOutputList: ['bluetooth', 'speaker', 'earpiece'],
-          audioTypeOptions: AndroidAudioTypePresets.communication
+          audioTypeOptions: {
+            manageAudioFocus: true,
+            audioMode: 'normal',
+            audioFocusMode: 'gain',
+            audioStreamType: 'music',
+            audioAttributesUsageType: 'media',
+            audioAttributesContentType: 'unknown'
+          }
         }, 
         ios: {
           defaultOutput: 'speaker'
