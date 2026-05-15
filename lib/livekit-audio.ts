@@ -1,7 +1,7 @@
 export const PODCAST_MIC_CAPTURE_OPTIONS = {
   echoCancellation: true,
-  noiseSuppression: false,
-  autoGainControl: false,
+  noiseSuppression: true,
+  autoGainControl: true,
   voiceIsolation: false,
   channelCount: 1,
   latency: 0,

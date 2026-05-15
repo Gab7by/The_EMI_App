@@ -5,11 +5,12 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { PortalHost } from "@rn-primitives/portal";
 import { useAuthStore } from "@/store/authStore";
 import { useEffect, useRef } from "react";
+import { PermissionsAndroid, Platform } from "react-native";
 import { supabase } from "@/lib/supabase";
 import ForgotPasswordModal from "@/components/auth/forgot-password-modal";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query";
-import { AudioSession, useIOSAudioManagement }  from "@livekit/react-native"
+import { AndroidAudioTypePresets, AudioSession, useIOSAudioManagement }  from "@livekit/react-native"
 import * as SplashScreen from "expo-splash-screen"
 import { useForegroundService } from "@/hooks/useForegroundService";
 import { useLiveKitStore } from "@/store/livekit-store";
@@ -39,6 +40,35 @@ const LiveKitAudioManager = () => {
   return room ? <IOSRoomAudioManager room={room} /> : null
 }
 
+const requestAndroidBluetoothAudioPermission = async () => {
+  if (Platform.OS !== "android" || Number(Platform.Version) < 31) return
+
+  try {
+    const permission = PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT
+    const hasPermission = await PermissionsAndroid.check(permission)
+
+    if (!hasPermission) {
+      await PermissionsAndroid.request(permission)
+    }
+  } catch (error) {
+    console.error("Failed to request Bluetooth audio permission:", error)
+  }
+}
+
+const preferAndroidBluetoothOutput = async () => {
+  if (Platform.OS !== "android") return
+
+  try {
+    const outputs = await AudioSession.getAudioOutputs()
+
+    if (outputs.includes("bluetooth")) {
+      await AudioSession.selectAudioOutput("bluetooth")
+    }
+  } catch (error) {
+    console.error("Failed to select Bluetooth audio output:", error)
+  }
+}
+
 export default function RootLayout() {
 
   const session = useAuthStore(state => state.session)
@@ -48,16 +78,14 @@ export default function RootLayout() {
 
   useEffect(() => {
     const startAudio = async () => {
+      await requestAndroidBluetoothAudioPermission()
+
       await AudioSession.configureAudio({
         android: {
-          preferredOutputList: ['bluetooth', 'speaker', 'earpiece'],
+          preferredOutputList: ['bluetooth', 'headset', 'speaker', 'earpiece'],
           audioTypeOptions: {
-            manageAudioFocus: true,
-            audioMode: 'normal',
-            audioFocusMode: 'gain',
-            audioStreamType: 'music',
-            audioAttributesUsageType: 'media',
-            audioAttributesContentType: 'unknown'
+            ...AndroidAudioTypePresets.communication,
+            forceHandleAudioRouting: true
           }
         }, 
         ios: {
@@ -66,9 +94,12 @@ export default function RootLayout() {
       })
 
       await AudioSession.startAudioSession()
+      await preferAndroidBluetoothOutput()
     }
 
-    startAudio()
+    startAudio().catch((error) => {
+      console.error("Failed to start LiveKit audio session:", error)
+    })
 
     return () => {
       AudioSession.stopAudioSession()
