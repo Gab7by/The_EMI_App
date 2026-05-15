@@ -34,3 +34,33 @@ export const updateProfilePicture = async (
     
     return result.url
 }
+
+export const updateProfileName = async (
+    userId: string,
+    fullName: string
+): Promise<boolean> => {
+    const trimmedName = fullName.trim()
+
+    if (!trimmedName) return false
+
+    const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ full_name: trimmedName })
+        .eq('id', userId)
+
+    if (profileError) {
+        console.error('Profile name update error: ', profileError.message)
+        return false
+    }
+
+    const { error: authError } = await supabase.auth.updateUser({
+        data: { full_name: trimmedName },
+    })
+
+    if (authError) {
+        console.error('Auth profile name update error: ', authError.message)
+        return false
+    }
+
+    return true
+}

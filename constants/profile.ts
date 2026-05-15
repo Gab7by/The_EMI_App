@@ -6,6 +6,10 @@ import { Colors } from "./theme";
 import { router } from "expo-router";
 import { useAuthStore } from "@/store/authStore";
 
+const goToAccountDetails = () => {
+    router.push("/(profile)/account")
+}
+
 const logoutUser = () => {
     useAuthStore.getState().clearAuth()
     router.replace("/(auth)")
@@ -27,7 +31,8 @@ export const ProfileManagementCategories: profileManagementCategory[] = [
         key: "account",
         categoryName: "My Account",
         icon: User,
-        categoryDescription: "Profile Personalisation and more"
+        categoryDescription: "Update your account details",
+        onPressFunction: goToAccountDetails
     },
     {
         key: "share",

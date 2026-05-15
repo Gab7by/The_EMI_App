@@ -15,7 +15,7 @@ const ProfileEntryScreen = () => {
 
     const router = useRouter()
 
-    const name = useAuthStore(state => state.session?.user.user_metadata.full_name)
+    const name = useAuthStore(state => state.profile?.full_name ?? state.session?.user.user_metadata.full_name)
     const email = useAuthStore(state => state.session?.user.email)
     const profile = useAuthStore(state => state.profile)
 

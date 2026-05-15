@@ -6,7 +6,7 @@ import { Colors } from "@/constants/theme"
 const ProfileModalIcon = ({borderColor}:{borderColor: string}) => {
     
     const profileImageUrl = useAuthStore(state => state.profile?.avatar_url)
-    const name: string = useAuthStore(state => state.session?.user.user_metadata.full_name)
+    const name = useAuthStore(state => state.profile?.full_name ?? state.session?.user.user_metadata.full_name ?? "User")
 
     return (
         <Pressable
