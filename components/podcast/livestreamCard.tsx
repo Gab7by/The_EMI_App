@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/authStore"
 import { LiveStreamCardType } from "@/types/podcast-types"
 import { Image } from "expo-image"
 import { useRouter } from "expo-router"
+import { memo, useCallback } from "react"
 import { Pressable, Text, View } from "react-native"
 import HostIcon from "./hostIcon"
 
@@ -23,7 +24,7 @@ const LiveStreamCard = ({
 
     const router = useRouter()
 
-    const goToLiveStream = () => {
+    const goToLiveStream = useCallback(() => {
         hapticMedium()
         if(isAdmin) router.push(
             {
@@ -55,7 +56,7 @@ const LiveStreamCard = ({
                 }
             }
         )
-    }
+    }, [coverImageUrl, hostId, hostName, hostPictureUrl, id, isAdmin, livekitRoomName, playlist, router, title])
 
     return (
         <Pressable onPress={goToLiveStream}>
@@ -81,4 +82,4 @@ const LiveStreamCard = ({
     )
 }
 
-export default LiveStreamCard
+export default memo(LiveStreamCard)

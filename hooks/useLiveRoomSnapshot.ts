@@ -26,6 +26,27 @@ const isMusicBotParticipant = (identity: string, name?: string) => {
   );
 };
 
+const areSnapshotsEqual = (
+  previous: LiveRoomParticipantSnapshot[],
+  next: LiveRoomParticipantSnapshot[]
+) => {
+  if (previous.length !== next.length) return false;
+
+  return previous.every((participant, index) => {
+    const nextParticipant = next[index];
+
+    return (
+      participant.id === nextParticipant.id &&
+      participant.name === nextParticipant.name &&
+      participant.isLocal === nextParticipant.isLocal &&
+      participant.canPublish === nextParticipant.canPublish &&
+      participant.isMicrophoneEnabled === nextParticipant.isMicrophoneEnabled &&
+      participant.isSpeaking === nextParticipant.isSpeaking &&
+      participant.audioLevel === nextParticipant.audioLevel
+    );
+  });
+};
+
 export const useLiveRoomSnapshot = (room: Room | null) => {
   const [participants, setParticipants] = useState<LiveRoomParticipantSnapshot[]>([]);
 
@@ -63,7 +84,10 @@ export const useLiveRoomSnapshot = (room: Room | null) => {
         })
       );
 
-      setParticipants([...localParticipants, ...remoteParticipants]);
+      const nextParticipants = [...localParticipants, ...remoteParticipants];
+      setParticipants((previous) => (
+        areSnapshotsEqual(previous, nextParticipants) ? previous : nextParticipants
+      ));
     };
 
     syncParticipants();

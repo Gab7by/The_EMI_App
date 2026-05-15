@@ -5,7 +5,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
     ActivityIndicator,
     Keyboard,
@@ -131,7 +131,7 @@ type HostAvatarProps = {
   textClassName: string;
 };
 
-export const HostAvatar = ({
+export const HostAvatar = memo(({
   hostName,
   hostPictureUrl,
   size,
@@ -157,7 +157,8 @@ export const HostAvatar = ({
       <Text className={textClassName}>{initial}</Text>
     </View>
   );
-};
+});
+HostAvatar.displayName = "HostAvatar";
 
 type PodcastHeaderProps = {
   playlist: string;
@@ -213,17 +214,23 @@ type PodcastParticipantsGridProps = {
   }[];
 };
 
-export const PodcastParticipantsGrid = ({
+export const PodcastParticipantsGrid = memo(({
   participants,
 }: PodcastParticipantsGridProps) => {
-  const isFewParticipants = participants.length <= 2;
-  const avatarSize = isFewParticipants ? 80 : 62;
-  const containerStyle = isFewParticipants
-    ? "mb-6 flex-row flex-wrap items-center justify-center gap-x-4 gap-y-4"
-    : "mb-6 flex-row flex-wrap gap-y-4 gap-x-3";
+  const layout = useMemo(() => {
+    const isFew = participants.length <= 2;
+
+    return {
+      isFewParticipants: isFew,
+      avatarSize: isFew ? 80 : 62,
+      containerStyle: isFew
+        ? "mb-6 flex-row flex-wrap items-center justify-center gap-x-4 gap-y-4"
+        : "mb-6 flex-row flex-wrap gap-y-4 gap-x-3",
+    };
+  }, [participants.length]);
 
   return (
-    <View className={containerStyle}>
+    <View className={layout.containerStyle}>
       {participants.map((participant) => {
         const isSpeaking = !!participant.isSpeaking;
         const glowOpacity = Math.min(0.75, 0.28 + (participant.audioLevel ?? 0) * 1.4);
@@ -232,11 +239,11 @@ export const PodcastParticipantsGrid = ({
         return (
           <View
             key={participant.id}
-            className={isFewParticipants ? "mb-4 items-center" : "mb-1 w-[20%] items-center"}
+            className={layout.isFewParticipants ? "mb-4 items-center" : "mb-1 w-[20%] items-center"}
           >
             <View
               className="items-center justify-center rounded-full"
-              style={{ height: avatarSize + 10, width: avatarSize + 10 }}
+              style={{ height: layout.avatarSize + 10, width: layout.avatarSize + 10 }}
             >
               {isSpeaking ? (
                 <>
@@ -244,8 +251,8 @@ export const PodcastParticipantsGrid = ({
                     pointerEvents="none"
                     className="absolute rounded-full bg-[#D7FF00]"
                     style={{
-                      height: avatarSize + 10,
-                      width: avatarSize + 10,
+                      height: layout.avatarSize + 10,
+                      width: layout.avatarSize + 10,
                       opacity: glowOpacity,
                       transform: [{ scale: glowScale }],
                     }}
@@ -254,8 +261,8 @@ export const PodcastParticipantsGrid = ({
                     pointerEvents="none"
                     className="absolute rounded-full border-2 border-[#D7FF00]"
                     style={{
-                      height: avatarSize + 8,
-                      width: avatarSize + 8,
+                      height: layout.avatarSize + 8,
+                      width: layout.avatarSize + 8,
                       shadowColor: "#D7FF00",
                       shadowOpacity: 0.9,
                       shadowRadius: 14,
@@ -269,12 +276,12 @@ export const PodcastParticipantsGrid = ({
                 className={`items-center justify-center rounded-full border bg-[#C8D2BC] ${
                   isSpeaking ? "border-[#D7FF00]" : "border-white/40"
                 }`}
-                style={{ height: avatarSize, width: avatarSize }}
+                style={{ height: layout.avatarSize, width: layout.avatarSize }}
               >
                 <HostAvatar
                   hostName={participant.name}
                   hostPictureUrl={participant.pictureUrl}
-                  size={avatarSize - 4}
+                  size={layout.avatarSize - 4}
                   textClassName="text-2xl font-bold text-menorah-primary"
                 />
               </View>
@@ -292,107 +299,110 @@ export const PodcastParticipantsGrid = ({
       })}
     </View>
   );
-};
+});
+PodcastParticipantsGrid.displayName = "PodcastParticipantsGrid";
 
 type PodcastCommentsProps = {
   footerPadding: number;
   messages: LiveMessage[]
 };
 
-export const PodcastComments = ({ footerPadding, messages }: PodcastCommentsProps) => {
+export const PodcastComments = memo(({ footerPadding, messages }: PodcastCommentsProps) => {
   const { width } = useWindowDimensions()
   const imageWidth = Math.min(width * 0.68, 220)
   const imageHeight = imageWidth * 0.72
+  const listHeader = useMemo(() => (
+    <View className="mb-7 rounded-[22px] bg-menorah-bg px-4 py-4">
+      <Text className="text-[12px] leading-5 text-[#FFD700]">
+        Please keep comments respectful and uplifting. &quot;Let your words edify and
+        bring grace to those who hear.&quot; - Ephesians 4:29.
+      </Text>
+    </View>  
+  ), [])
+  const listEmpty = useMemo(() => (
+    <View className="mx-2 mt-8 items-center rounded-[24px] border border-white/10 bg-[#0F2A08]/80 px-6 py-8">
+      <View className="h-[58px] w-[58px] items-center justify-center rounded-full bg-[#D7FF00]/15">
+        <MaterialCommunityIcons
+          name="message-text-outline"
+          size={26}
+          color="#D7FF00"
+        />
+      </View>
+      <Text className="mt-4 text-[16px] font-semibold text-[#F4F5F0]">
+        No messages yet
+      </Text>
+      <Text className="mt-2 text-center text-[12px] leading-5 text-[#B7C0BC]">
+        Start the conversation with an encouraging message for everyone in the room.
+      </Text>
+    </View>
+  ), [])
+  const renderMessage = useCallback(({item}: { item: LiveMessage }) => (
+    <View
+      className={`mb-5 flex-row ${item.isLocal ? "justify-end" : "items-start"}`}
+    >
+      {!item.isLocal && (
+        item.sender_avartar_url ? (
+          <Image
+            source={{uri: item.sender_avartar_url}}
+            style={{ width: 34, height: 34, borderRadius: 17 }}
+            contentFit="cover"
+          />
+        ) : (
+          <View
+            style={{width: 34, height: 34, borderRadius: 17}}
+            className="items-center justify-center bg-menorah-primary"
+          >
+            <Text className="text-lg font-bold text-menorah-bg">
+              {item.sender_name.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+        )
+      )}
+      <View className={`${item.isLocal ? "items-end" : "ml-3"}`} style={{ maxWidth: width * 0.74, alignSelf: item.isLocal ? 'flex-end' : 'flex-start' }}>
+        {!item.isLocal && (
+          <Text className="mb-2 text-[11px] font-medium text-menorah-whiteSoft">
+            {item.sender_name}
+          </Text>
+        )}
+        {
+          item.message_type === 'image' ? (
+            <View style={{ width: imageWidth, height: imageHeight, borderRadius: 18, overflow: 'hidden', backgroundColor: '#152b1d' }}>
+              <Image
+                source={{uri: item.content}}
+                style={{width: '100%', height: '100%'}}
+                contentFit="cover"
+              />
+            </View>
+          ) : (
+            <View
+              className={`rounded-2xl px-4 py-3 ${
+                item.isLocal ? "bg-[#D7FF00]" : "self-start bg-white/20"
+              }`}
+              style={{ maxWidth: width * 0.68 }}
+            >
+              <Text className={`text-[12px] font-semibold leading-5 ${item.isLocal ? 'text-[#143703]' : 'text-menorah-whiteSoft'}`}>
+                {item.content}
+              </Text>
+            </View>
+          )
+        }
+      </View>
+    </View>
+  ), [imageHeight, imageWidth, width])
 
   return (
     <FlashList
       data={messages}
       showsVerticalScrollIndicator={false}
-      ListEmptyComponent={() => (
-      <View className="mx-2 mt-8 items-center rounded-[24px] border border-white/10 bg-[#0F2A08]/80 px-6 py-8">
-        <View className="h-[58px] w-[58px] items-center justify-center rounded-full bg-[#D7FF00]/15">
-          <MaterialCommunityIcons
-            name="message-text-outline"
-            size={26}
-            color="#D7FF00"
-          />
-        </View>
-        <Text className="mt-4 text-[16px] font-semibold text-[#F4F5F0]">
-          No messages yet
-        </Text>
-        <Text className="mt-2 text-center text-[12px] leading-5 text-[#B7C0BC]">
-          Start the conversation with an encouraging message for everyone in the room.
-        </Text>
-      </View>
-    )}
+      ListEmptyComponent={listEmpty}
     keyExtractor={(item) => item.id}
     contentContainerStyle={{ paddingBottom: footerPadding }}
-    ListHeaderComponent={
-      () => (
-        <View className="mb-7 rounded-[22px] bg-menorah-bg px-4 py-4">
-          <Text className="text-[12px] leading-5 text-[#FFD700]">
-            Please keep comments respectful and uplifting. &quot;Let your words edify and
-            bring grace to those who hear.&quot; - Ephesians 4:29.
-          </Text>
-        </View>  
-      )
-    }
-    renderItem={({item}) => (
-      <View
-        className={`mb-5 flex-row ${item.isLocal ? "justify-end" : "items-start"}`}
-      >
-        {!item.isLocal && (
-          item.sender_avartar_url ? (
-            <Image
-              source={{uri: item.sender_avartar_url}}
-              style={{ width: 34, height: 34, borderRadius: 17 }}
-              contentFit="cover"
-            />
-          ) : (
-            <View
-              style={{width: 34, height: 34, borderRadius: 17}}
-              className="items-center justify-center bg-menorah-primary"
-            >
-              <Text className="text-lg font-bold text-menorah-bg">
-                {item.sender_name.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )
-        )}
-        <View className={`${item.isLocal ? "items-end" : "ml-3"}`} style={{ maxWidth: width * 0.74, alignSelf: item.isLocal ? 'flex-end' : 'flex-start' }}>
-          {!item.isLocal && (
-            <Text className="mb-2 text-[11px] font-medium text-menorah-whiteSoft">
-              {item.sender_name}
-            </Text>
-          )}
-          {
-            item.message_type === 'image' ? (
-              <View style={{ width: imageWidth, height: imageHeight, borderRadius: 18, overflow: 'hidden', backgroundColor: '#152b1d' }}>
-                <Image
-                  source={{uri: item.content}}
-                  style={{width: '100%', height: '100%'}}
-                  contentFit="cover"
-                />
-              </View>
-            ) : (
-              <View
-                className={`rounded-2xl px-4 py-3 ${
-                  item.isLocal ? "bg-[#D7FF00]" : "self-start bg-white/20"
-                }`}
-                style={{ maxWidth: width * 0.68 }}
-              >
-                <Text className={`text-[12px] font-semibold leading-5 ${item.isLocal ? 'text-[#143703]' : 'text-menorah-whiteSoft'}`}>
-                  {item.content}
-                </Text>
-              </View>
-            )
-          }
-        </View>
-      </View>
-    )}
+    ListHeaderComponent={listHeader}
+    renderItem={renderMessage}
   />
 )
-};
+});
+PodcastComments.displayName = "PodcastComments";
 
 export const usePodcastFooterLayout = () => {
   const insets = useSafeAreaInsets();
@@ -416,12 +426,18 @@ export const usePodcastFooterLayout = () => {
     };
   }, []);
 
-  const footerBottom = keyboardHeight > 0 ? Math.max(0, keyboardHeight - insets.bottom) : 0;
-  const scrollPaddingBottom = footerHeight + footerBottom + 24;
+  const footerBottom = useMemo(
+    () => keyboardHeight > 0 ? Math.max(0, keyboardHeight - insets.bottom) : 0,
+    [insets.bottom, keyboardHeight]
+  );
+  const scrollPaddingBottom = useMemo(
+    () => footerHeight + footerBottom + 24,
+    [footerBottom, footerHeight]
+  );
 
-  const handleFooterLayout = (event: LayoutChangeEvent) => {
+  const handleFooterLayout = useCallback((event: LayoutChangeEvent) => {
     setFooterHeight(event.nativeEvent.layout.height);
-  };
+  }, []);
 
   return {
     footerBottom,

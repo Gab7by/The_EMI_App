@@ -19,7 +19,7 @@ import { Playlist, PLAYLIST_OPTIONS, PlaylistOption } from "@/types/podcast-type
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { Plus } from "lucide-react-native";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { RefreshControl, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -45,13 +45,13 @@ const PodcastScreen = () => {
   const profile = useAuthStore((state) => state.profile);
   const isAdmin = profile?.role === "admin";
 
-  const openLiveStreamStartModal = () => {
+  const openLiveStreamStartModal = useCallback(() => {
     setOpenLiveStreamStartModal(true);
-  };
+  }, [setOpenLiveStreamStartModal]);
 
   const { data, isLoading, isRefetching, refetch } = useLivePodcastSessions();
 
-  const startLiveStream = (closeModal: () => void) => {
+  const startLiveStream = useCallback((closeModal: () => void) => {
     if(title.length < 1) {
         setErrorStartingLivePodcast("Podcast title is required")
         setTimeout(() => {
@@ -95,7 +95,28 @@ const PodcastScreen = () => {
         )
       }, 100);
     });
-  };
+  }, [isPublic, isunlisted, playlist.value, router, title]);
+
+  const listHeader = useMemo(() => (
+    <Text className="text-xl font-bold text-menorah-goldDark mb-4">
+      Livestreams
+    </Text>
+  ), [])
+
+  const renderLivePodcast = useCallback(({ item }: { item: NonNullable<typeof data>[number] }) => (
+    <LiveStreamCard
+      livekitRoomName={item.livekit_room_name}
+      playlist={item.playlist}
+      hostId={item.host.id}
+      id={item.id}
+      hostName={item.host.full_name!}
+      title={item.title}
+      hostPictureUrl={item.host.avatar_url}
+      coverImageUrl={item.cover_image_url}
+    />
+  ), [])
+
+  const itemSeparator = useCallback(() => <View style={{ height: 20 }} />, [])
 
   return (
     <SafeAreaView className="flex-1 bg-menorah-bg py-8 px-4 gap-4 relative">
@@ -108,26 +129,11 @@ const PodcastScreen = () => {
             ListEmptyComponent={<NoLiveStreamCard />}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{paddingBottom: insets.bottom + 120}}
-            ListHeaderComponent={
-                <Text className="text-xl font-bold text-menorah-goldDark mb-4">
-                    Livestreams
-                </Text>
-            }
+            ListHeaderComponent={listHeader}
             data={data}
-            renderItem={({ item }) => (
-                <LiveStreamCard
-                    livekitRoomName={item.livekit_room_name}
-                    playlist={item.playlist}
-                    hostId={item.host.id}
-                    id={item.id}
-                    hostName={item.host.full_name!}
-                    title={item.title}
-                    hostPictureUrl={item.host.avatar_url}
-                    coverImageUrl={item.cover_image_url}
-                />
-            )}
+            renderItem={renderLivePodcast}
             keyExtractor={(item) => item.id}
-            ItemSeparatorComponent={() => <View style={{ height: 20 }} />}
+            ItemSeparatorComponent={itemSeparator}
             refreshControl={
                 <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
             }

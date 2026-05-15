@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native"
 import { Icon } from "../ui/icon"
 import { ChevronRight } from "lucide-react-native"
 import { Colors } from "@/constants/theme"
+import { memo } from "react"
 
 const ProfileCategory = ({onPressFunction, icon, categoryName, categoryDescription, categoryIconColor}:profileManagementCategory) => {
     return (
@@ -23,4 +24,4 @@ const ProfileCategory = ({onPressFunction, icon, categoryName, categoryDescripti
     )
 }
 
-export default ProfileCategory
+export default memo(ProfileCategory)

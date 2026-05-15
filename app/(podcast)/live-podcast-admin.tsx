@@ -36,7 +36,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { AlertCircle, CheckCircle2, ChevronRight, FileAudio, Loader2, Mic, MicOff, Minus, Music2, Pause, Play, Plus, Power, Share2, Square, Trash2, Upload, X } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
@@ -247,9 +247,12 @@ const AdminLivePodcast = () => {
     setForegroundServiceType(newMutedState ? "mediaPlayback" : "microphone")
   }
 
-  const hostSnapshot = roomParticipants.find((participant) => participant.id === hostId)
+  const hostSnapshot = useMemo(
+    () => roomParticipants.find((participant) => participant.id === hostId),
+    [hostId, roomParticipants]
+  )
 
-  const speakerRows = [
+  const speakerRows = useMemo(() => [
     {
       id: hostId,
       name: hostName,
@@ -270,15 +273,25 @@ const AdminLivePodcast = () => {
         isSpeaking: participant.isSpeaking,
         audioLevel: participant.audioLevel,
       }))
-  ]
+  ], [
+    hostId,
+    hostName,
+    hostPictureUrl,
+    hostSnapshot?.audioLevel,
+    hostSnapshot?.isSpeaking,
+    isMuted,
+    profile?.avatar_url,
+    profile?.full_name,
+    roomParticipants,
+  ])
 
-  const speakerGridParticipants = speakerRows.map((speaker) => ({
+  const speakerGridParticipants = useMemo(() => speakerRows.map((speaker) => ({
     id: speaker.id,
     name: speaker.name,
     pictureUrl: speaker.avatarUrl,
     isSpeaking: speaker.isSpeaking,
     audioLevel: speaker.audioLevel,
-  }))
+  })), [speakerRows])
 
   const handleApproveRaisedHand = async (participantId: string) => {
     if (!room || !profile || approvingRequests.has(participantId)) return
