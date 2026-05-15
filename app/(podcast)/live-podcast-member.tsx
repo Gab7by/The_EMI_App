@@ -281,9 +281,9 @@ const MemberLivePodcast = () => {
             participantCount={participantCount}
             actions={
               <>
-                <View className="ml-7">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-white/10">
                   <Pressable onPress={() => { hapticMedium(); setIsNotesVisible(true) }} hitSlop={10}>
-                    <HugeIcon width={30} height={30} />
+                    <HugeIcon width={24} height={24} />
                   </Pressable>
                 </View>
                 <Pressable
@@ -292,14 +292,15 @@ const MemberLivePodcast = () => {
                     shareLivePodcast({ hostName, title, podcastId: id, playlist })
                   }}
                   hitSlop={10}
+                  className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
                 >
-                  <Share2 size={25} color="#F3F6E7" strokeWidth={1.2} />
+                  <Share2 size={22} color="#F3F6E7" strokeWidth={1.2} />
                 </Pressable>
                 <Pressable
                   onPress={() => { hapticMedium(); setIsExitPromptVisible(true) }}
-                  className="rounded-full bg-[#F3523C]/20 p-2"
+                  className="h-10 w-10 items-center justify-center rounded-full bg-[#F3523C]/20"
                 >
-                  <Power size={23} color="#FF5A45" strokeWidth={2} />
+                  <Power size={21} color="#FF5A45" strokeWidth={2} />
                 </Pressable>
               </>
             }
@@ -318,7 +319,7 @@ const MemberLivePodcast = () => {
           onLayout={handleFooterLayout}
         >
           <View className="mb-1 flex-row items-center">
-            <View className="mr-2 flex-1 flex-row items-center rounded-[8px] border border-white/80 bg-[#143703] px-2 py-1">
+            <View className="mr-2 h-[44px] flex-1 flex-row items-center rounded-[14px] border border-white/55 bg-[#143703] px-3">
               <TextInput
                 placeholder="Input your message"
                 value={message}
@@ -337,27 +338,27 @@ const MemberLivePodcast = () => {
                 }}
                 disabled={!canSendMessage}
                 hitSlop={8}
-                className="ml-2 h-8 w-8 items-center justify-center"
+                className="ml-2 h-8 w-8 items-center justify-center rounded-full"
               >
                 <MaterialCommunityIcons
                   name="send"
-                  size={20}
+                  size={21}
                   color={canSendMessage ? "#D7FF00" : "#7E8C83"}
                 />
               </Pressable>
             </View>
 
-            <View className="flex-row items-center gap-3">
-              <Pressable onPress={handleSendLove} hitSlop={10}>
+            <View className="flex-row items-center gap-2">
+              <Pressable onPress={handleSendLove} hitSlop={10} className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
                 <MaterialCommunityIcons name="heart" size={22} color="#FF4B1F" />
               </Pressable>
-              <Pressable onPress={() => { hapticMedium(); handleRaiseHand() }} hitSlop={8} className="items-center">
+              <Pressable onPress={() => { hapticMedium(); handleRaiseHand() }} hitSlop={8} className="h-10 min-w-[48px] items-center justify-center rounded-[12px] bg-white/10 px-1">
                 <Call width={22} height={22} />
                 <Text className="mt-0.5 text-[8px] font-medium text-[#F3F6E7]">
                   {isApprovedToSpeak ? (isMuted ? "Unmute" : "Mute") : hasRaisedHand ? "Pending" : "Call in"}
                 </Text>
               </Pressable>
-              <Pressable onPress={() => { hapticMedium(); setIsPaymentMethodsVisible(true) }} hitSlop={8}>
+              <Pressable onPress={() => { hapticMedium(); setIsPaymentMethodsVisible(true) }} hitSlop={8} className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
                 <MoneyIcon width={22} height={22} />
               </Pressable>
             </View>

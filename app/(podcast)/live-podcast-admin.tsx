@@ -622,12 +622,9 @@ const AdminLivePodcast = () => {
             participantCount={participantCount}
             actions={
               <> 
-                <View className="ml-3 flex-row items-center gap-2">
-                  {isRecording && (
-                  <View className="w-3 h-3 rounded-full bg-red-500" />
-              )}
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-white/10">
                   <Pressable onPress={() => { hapticMedium(); setIsNotesVisible(true) }} hitSlop={10}>
-                    <HugeIcon width={30} height={30} />
+                    <HugeIcon width={24} height={24} />
                   </Pressable>
                 </View>
                 <Pressable
@@ -635,22 +632,32 @@ const AdminLivePodcast = () => {
                     hostName, title, podcastId: id, playlist
                   })}}
                   hitSlop={10}
+                  className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
                 >
                   <Share2  
-                  size={25} 
+                  size={22} 
                   color="#F3F6E7" 
                   strokeWidth={1.2}
                   />
                 </Pressable>
                 <Pressable
                   onPress={() => { hapticMedium(); setIsExitPromptVisible(true) }}
-                  className="rounded-full bg-[#F3523C]/20 p-2"
+                  className="h-10 w-10 items-center justify-center rounded-full bg-[#F3523C]/20"
                 >
-                  <Power size={23} color="#FF5A45" strokeWidth={2} />
+                  <Power size={21} color="#FF5A45" strokeWidth={2} />
                 </Pressable>
               </>
             }
           />
+
+          {isRecording ? (
+            <View className="absolute right-4 top-[72px] z-10 h-7 flex-row items-center rounded-full bg-[#F3523C]/20 px-2.5">
+              <View className="h-2 w-2 rounded-full bg-red-500" />
+              <Text className="ml-1.5 text-[9px] font-semibold uppercase text-[#FF8A7A]">
+                Rec
+              </Text>
+            </View>
+          ) : null}
 
           {latestRaisedHand ? (
             <Pressable

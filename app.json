@@ -89,8 +89,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "02d6cec9-ff74-423d-843c-8f43cc6f91b3"
+        "projectId": "9b1d09bd-22b8-466c-89d6-02223ca1e415"
       }
-    }
+    },
+    "owner": "snrroko"
   }
 }

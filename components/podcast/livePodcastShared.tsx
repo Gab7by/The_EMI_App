@@ -175,8 +175,8 @@ export const PodcastHeader = ({
   participantCount,
   actions,
 }: PodcastHeaderProps) => (
-  <View className="mb-10 flex-row items-center justify-between">
-    <View className="mr-3 flex-1 flex-row items-center rounded-full bg-menorah-bg px-3 py-3">
+  <View className="mb-7 flex-row items-center justify-between">
+    <View className="mr-3 min-w-0 flex-1 flex-row items-center rounded-full border border-white/10 bg-menorah-bg/95 px-3 py-3">
       <HostAvatar
         hostName={hostName}
         hostPictureUrl={hostPictureUrl}
@@ -200,7 +200,7 @@ export const PodcastHeader = ({
         </View>
       </View>
     </View>
-    <View className="flex-row items-center gap-3">{actions}</View>
+    <View className="flex-row items-center gap-2">{actions}</View>
   </View>
 );
 
@@ -239,7 +239,7 @@ export const PodcastParticipantsGrid = memo(({
         return (
           <View
             key={participant.id}
-            className={layout.isFewParticipants ? "mb-4 items-center" : "mb-1 w-[20%] items-center"}
+            className={layout.isFewParticipants ? "mb-4 items-center" : "mb-1 w-[76px] items-center"}
           >
             <View
               className="items-center justify-center rounded-full"
