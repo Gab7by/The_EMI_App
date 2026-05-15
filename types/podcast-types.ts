@@ -135,6 +135,7 @@ export type MusicTrack = {
   id: string
   name: string
   url: string
+  path?: string | null
   duration_seconds: number | null
 }
 

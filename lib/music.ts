@@ -68,8 +68,8 @@ export const uploadMusicTrack = async (
         .replace(/(^-|-$)/g, '')
     const path = `${Date.now()}-${safeName || 'track'}.${fileExt}`
 
-    const publicUrl = await uploadAudioFile(asset, 'music', path)
-    if (!publicUrl) return null
+    const uploadResult = await uploadAudioFile(asset, 'music', path)
+    if (!uploadResult) return null
 
     const displayName = baseName
         .replace(/[-_]/g, ' ')
@@ -78,7 +78,8 @@ export const uploadMusicTrack = async (
     const {data, error} = await supabase.from("music_tracks")
         .insert({
             name: displayName,
-            url: publicUrl,
+            url: uploadResult.url,
+            path: uploadResult.path
         })
         .select("*")
         .single()
@@ -88,8 +89,45 @@ export const uploadMusicTrack = async (
         return null
     }
 
-    return data as MusicTrack
+    return {
+        ...(data as MusicTrack),
+        path: uploadResult.path,
+    }
 
+}
+
+const getMusicStoragePath = (url: string) => {
+    return url.split('/storage/v1/object/public/music/')[1]?.split('?')[0] ?? null
+}
+
+export const deleteMusicTrack = async (
+    track: Pick<MusicTrack, 'id' | 'url' | 'path'>
+): Promise<boolean> => {
+
+    const storagePath = track.path ?? getMusicStoragePath(track.url)
+
+    if (storagePath) {
+        const { error: storageError } = await supabase.storage
+            .from('music')
+            .remove([storagePath])
+
+        if (storageError) {
+            console.error('Storage delete error:', storageError.message)
+            return false
+        }
+    }
+
+    const { error: dbError } = await supabase
+        .from('music_tracks')
+        .delete()
+        .eq('id', track.id)
+
+    if (dbError) {
+        console.error('Database delete error:', dbError.message)
+        return false
+    }
+
+    return true
 }
 
 export const playMusicTrack = async (

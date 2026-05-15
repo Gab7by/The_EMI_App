@@ -51,7 +51,12 @@ export const useLiveKitStore = create<LiveKitStore>(
                 room.on(RoomEvent.ConnectionStateChanged, (state) => {
                     const latest = get()
                     if (latest.room === room) {
-                        set({ connectionState: state })
+                        set({
+                            connectionState: state,
+                            foregroundServiceType: state === "disconnected"
+                                ? "mediaPlayback"
+                                : latest.foregroundServiceType,
+                        })
                     }
                 })
 
@@ -86,6 +91,9 @@ export const useLiveKitStore = create<LiveKitStore>(
         clearRoom: () => {
             const {room} = get()
             if (room) {
+                room.localParticipant.setMicrophoneEnabled(false).catch((error) => {
+                    console.error("Failed to disable microphone before disconnect:", error)
+                })
                 room.disconnect()
             }
 

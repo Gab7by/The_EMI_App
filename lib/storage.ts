@@ -145,7 +145,7 @@ export const uploadAudioFile = async (
     asset: AudioPickerAsset,
     bucket: string,
     path: string
-): Promise<string | null> => {
+): Promise<UploadResult | null> => {
 
     const response = await fetch(asset.uri)
     const arrayBuffer = await response.arrayBuffer()
@@ -166,5 +166,5 @@ export const uploadAudioFile = async (
         .from(bucket)
         .getPublicUrl(path)
 
-    return publicUrl
+    return { url: publicUrl, path }
 }

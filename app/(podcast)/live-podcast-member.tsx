@@ -147,6 +147,7 @@ const MemberLivePodcast = () => {
           if (profile?.id) {
             await leaveLivePodcastParticipant(id, profile.id)
           }
+          await room?.localParticipant.setMicrophoneEnabled(false)
           clearRoom()
           router.replace("/(tabs)/podcast")
         }
@@ -218,6 +219,7 @@ const MemberLivePodcast = () => {
     if (profile?.id) {
       leaveLivePodcastParticipant(id, profile.id)
     }
+    room?.localParticipant.setMicrophoneEnabled(false)
     clearRoom()
     router.replace("/(tabs)/podcast")
   }, [sessionEnded, profile?.id, id])
@@ -369,6 +371,7 @@ const MemberLivePodcast = () => {
                       queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
                     })
                   }
+                  room?.localParticipant.setMicrophoneEnabled(false)
                   clearRoom()
                   router.replace("/(tabs)/podcast");
                 }}
