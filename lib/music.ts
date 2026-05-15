@@ -25,6 +25,7 @@ export type MusicBotStatus = {
     frameMs: number | null
     pcmSamples: number | null
     durationSeconds: number | null
+    maxBitrate: number | null
     framesSent: number
     samplesSent: number
     lastFrameAt: string | null
