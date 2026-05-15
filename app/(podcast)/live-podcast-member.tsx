@@ -28,6 +28,7 @@ import { PODCAST_MIC_CAPTURE_OPTIONS } from "@/lib/livekit-audio";
 import { lowerHand, raiseHand, sendLoveSignal } from "@/lib/livekit-signals";
 import { getLivePodcastStatus, joinLivePodcastParticipant, leaveLivePodcastParticipant } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
+import { shareLivePodcast } from "@/lib/share";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveKitStore } from "@/store/livekit-store";
 import type { LoveBurst } from "@/types/livekit-types";
@@ -172,6 +173,7 @@ const MemberLivePodcast = () => {
     await sendMessage(message, profile?.full_name ?? "User", profile?.avatar_url ?? null)
     setMessage('')
   }
+  const canSendMessage = message.trim().length > 0
 
   useEffect(() => {
     if (!isApprovedToSpeak || !room) return
@@ -284,7 +286,15 @@ const MemberLivePodcast = () => {
                     <HugeIcon width={30} height={30} />
                   </Pressable>
                 </View>
-                <Share2 size={25} color="#F3F6E7" strokeWidth={1.2} />
+                <Pressable
+                  onPress={() => {
+                    hapticMedium()
+                    shareLivePodcast({ hostName, title, podcastId: id, playlist })
+                  }}
+                  hitSlop={10}
+                >
+                  <Share2 size={25} color="#F3F6E7" strokeWidth={1.2} />
+                </Pressable>
                 <Pressable
                   onPress={() => { hapticMedium(); setIsExitPromptVisible(true) }}
                   className="rounded-full bg-[#F3523C]/20 p-2"
@@ -320,6 +330,21 @@ const MemberLivePodcast = () => {
                   handleSendMessage()
                 }}
               />
+              <Pressable
+                onPress={() => {
+                  hapticMedium()
+                  handleSendMessage()
+                }}
+                disabled={!canSendMessage}
+                hitSlop={8}
+                className="ml-2 h-8 w-8 items-center justify-center"
+              >
+                <MaterialCommunityIcons
+                  name="send"
+                  size={20}
+                  color={canSendMessage ? "#D7FF00" : "#7E8C83"}
+                />
+              </Pressable>
             </View>
 
             <View className="flex-row items-center gap-3">

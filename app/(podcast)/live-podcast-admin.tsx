@@ -159,6 +159,7 @@ const AdminLivePodcast = () => {
     await sendMessage(message, profile?.full_name ?? "User", profile?.avatar_url ?? null)
     setMessage('')
   }
+  const canSendMessage = message.trim().length > 0
 
   useEffect(() => {
   let focusTimeout: NodeJS.Timeout;
@@ -712,11 +713,20 @@ const AdminLivePodcast = () => {
                 />
               </Pressable>
 
-              <Pressable hitSlop={10}>
+              <Pressable
+                hitSlop={10}
+                disabled={!canSendMessage}
+                onPress={() => {
+                  hapticMedium()
+                  handleSendMessage()
+                  Keyboard.dismiss()
+                  setIsMessageComposerVisible(false)
+                }}
+              >
                 <MaterialCommunityIcons
-                  name="emoticon-happy-outline"
+                  name="send"
                   size={30}
-                  color="#F5F2F2"
+                  color={canSendMessage ? "#D7FF00" : "#7E8C83"}
                 />
               </Pressable>
             </View>
