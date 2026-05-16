@@ -32,6 +32,37 @@ serve(async (req) => {
 
     const { egressId, podcastId } = await req.json()
 
+    if (!podcastId && !egressId) {
+      return new Response(JSON.stringify({ error: 'podcastId or egressId is required' }), { status: 400 })
+    }
+
+    let recordingEgressId = egressId
+
+    if (!recordingEgressId && podcastId) {
+      const { data: activeRecording, error: activeRecordingError } = await supabase
+        .from('podcast_recordings')
+        .select('egress_id')
+        .eq('podcast_id', podcastId)
+        .eq('status', 'recording')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (activeRecordingError) {
+        console.error('active recording lookup error:', activeRecordingError.message)
+        return new Response(JSON.stringify({ error: 'Could not check active recording' }), { status: 500 })
+      }
+
+      recordingEgressId = activeRecording?.egress_id ?? null
+    }
+
+    if (!recordingEgressId) {
+      return new Response(
+        JSON.stringify({ success: true, stopped: false, reason: 'No active recording' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
     const egressClient = new EgressClient(
       Deno.env.get('LIVEKIT_URL')!,
       Deno.env.get('LIVEKIT_API_KEY')!,
@@ -39,19 +70,25 @@ serve(async (req) => {
     )
 
     // Stop the recording
-    await egressClient.stopEgress(egressId)
+    await egressClient.stopEgress(recordingEgressId)
 
     // Update database record
-    await supabase
+    let updateQuery = supabase
       .from('podcast_recordings')
       .update({
         status: 'completed',
         ended_at: new Date().toISOString(),
       })
-      .eq('egress_id', egressId)
+      .eq('egress_id', recordingEgressId)
+
+    if (podcastId) {
+      updateQuery = updateQuery.eq('podcast_id', podcastId)
+    }
+
+    await updateQuery
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, stopped: true, egressId: recordingEgressId }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     )
 

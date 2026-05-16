@@ -17,7 +17,7 @@ export const startRecording = async (
     }
 
 export const stopRecording = async (
-    egressId: string,
+    egressId: string | null,
     podcastId: string
 ): Promise<boolean> => {
 

@@ -46,6 +46,30 @@ serve(async (req) => {
         }
 
         const { roomName, podcastId } = await req.json()
+        if (!roomName || !podcastId) {
+            return new Response(JSON.stringify({ error: 'roomName and podcastId are required' }), { status: 400 })
+        }
+
+        const { data: activeRecording, error: activeRecordingError } = await supabase
+            .from('podcast_recordings')
+            .select('egress_id')
+            .eq('podcast_id', podcastId)
+            .eq('status', 'recording')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+        if (activeRecordingError) {
+            console.error('active recording lookup error:', activeRecordingError.message)
+            return new Response(JSON.stringify({ error: 'Could not check active recording' }), { status: 500 })
+        }
+
+        if (activeRecording?.egress_id) {
+            return new Response(
+                JSON.stringify({ egressId: activeRecording.egress_id, alreadyRecording: true }),
+                { status: 200, headers: { 'Content-Type': 'application/json' } }
+            )
+        }
 
         const egressClient = new EgressClient(
             Deno.env.get('LIVEKIT_URL')!,

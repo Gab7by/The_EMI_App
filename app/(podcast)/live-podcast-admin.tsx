@@ -205,9 +205,7 @@ const AdminLivePodcast = () => {
           await sendSessionEnded(room, profile.id, profile.full_name ?? 'Host')
         }
 
-        if (isRecording && egressId) {
-          await stopRecording(egressId, id)
-        }
+        await stopRecording(egressId, id)
 
         const success = await endLiveSession(id)
         if (!success) {
@@ -374,7 +372,7 @@ const AdminLivePodcast = () => {
   const handleToggleRecording = async () => {
     setIsRecordingActionLoading(true)
     try {
-      if (isRecording && egressId) {
+      if (isRecording) {
         const success = await stopRecording(egressId, id)
         if (success) {
           setIsRecording(false)
