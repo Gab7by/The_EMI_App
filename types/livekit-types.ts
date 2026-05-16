@@ -10,7 +10,7 @@ export type LiveKitStore = {
     connectionState: ConnectionState
     isMuted: boolean
     foregroundServiceType: ForegroundServiceType
-    connectRoom: (roomName: string, role: LiveKitRoomRole) => Promise<void>
+    connectRoom: (roomName: string, role: LiveKitRoomRole, podcastId?: string) => Promise<void>
     setConnectionState: (state: ConnectionState) => void
     setIsMuted: (muted: boolean) => void
     setForegroundServiceType: (type: ForegroundServiceType) => void

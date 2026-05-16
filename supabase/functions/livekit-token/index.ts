@@ -50,7 +50,7 @@ serve(async (req) => {
     }
 
     // Step 2 — get the request body
-    const { roomName, isHost } = await req.json()
+    const { roomName, isHost, podcastId } = await req.json()
 
     if (!roomName) {
       return new Response(
@@ -61,6 +61,38 @@ serve(async (req) => {
 
     // Step 3 — fetch the user's profile to get their display name
     // This shows correctly in LiveKit's participant list
+    let podcastQuery = supabase
+      .from('live_podcasts')
+      .select('id, host_id, status, livekit_room_name')
+      .eq('livekit_room_name', roomName)
+
+    if (podcastId) {
+      podcastQuery = podcastQuery.eq('id', podcastId)
+    }
+
+    const { data: podcast, error: podcastError } = await podcastQuery.maybeSingle()
+
+    if (podcastError) {
+      return new Response(
+        JSON.stringify({ error: 'Podcast lookup failed', details: podcastError.message }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (!podcast || podcast.status !== 'live') {
+      return new Response(
+        JSON.stringify({ error: 'Live podcast room not found' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (isHost && podcast.host_id !== user.id) {
+      return new Response(
+        JSON.stringify({ error: 'Only the podcast host can join as host' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('full_name')

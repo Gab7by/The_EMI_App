@@ -120,7 +120,7 @@ const MemberLivePodcast = () => {
     return Array.from(byId.values()).sort((a, b) => a.createdAt - b.createdAt)
   }, [localLoveBursts, loveBursts])
 
-  useAudienceRoom(livekitRoomName)
+  useAudienceRoom(livekitRoomName, id)
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
@@ -281,9 +281,9 @@ const MemberLivePodcast = () => {
             participantCount={participantCount}
             actions={
               <>
-                <View className="h-10 w-10 items-center justify-center rounded-full bg-white/10">
+                <View className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
                   <Pressable onPress={() => { hapticMedium(); setIsNotesVisible(true) }} hitSlop={10}>
-                    <HugeIcon width={24} height={24} />
+                    <HugeIcon width={21} height={21} />
                   </Pressable>
                 </View>
                 <Pressable
@@ -292,15 +292,15 @@ const MemberLivePodcast = () => {
                     shareLivePodcast({ hostName, title, podcastId: id, playlist })
                   }}
                   hitSlop={10}
-                  className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
+                  className="h-9 w-9 items-center justify-center rounded-full bg-white/10"
                 >
-                  <Share2 size={22} color="#F3F6E7" strokeWidth={1.2} />
+                  <Share2 size={20} color="#F3F6E7" strokeWidth={1.2} />
                 </Pressable>
                 <Pressable
                   onPress={() => { hapticMedium(); setIsExitPromptVisible(true) }}
-                  className="h-10 w-10 items-center justify-center rounded-full bg-[#F3523C]/20"
+                  className="h-9 w-9 items-center justify-center rounded-full bg-[#F3523C]/20"
                 >
-                  <Power size={21} color="#FF5A45" strokeWidth={2} />
+                  <Power size={19} color="#FF5A45" strokeWidth={2} />
                 </Pressable>
               </>
             }

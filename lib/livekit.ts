@@ -1,10 +1,14 @@
 import { supabase } from "./supabase"
 
-export const getLiveKitToken = async (roomName: string, isHost: boolean): Promise<string | null> => {
+export const getLiveKitToken = async (
+    roomName: string,
+    isHost: boolean,
+    podcastId?: string
+): Promise<string | null> => {
 
     const {data, error} = await supabase.functions.invoke(
         "livekit-token", {
-            body: {roomName, isHost}
+            body: {roomName, isHost, podcastId}
         }
     )
         if (error) {

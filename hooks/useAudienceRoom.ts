@@ -2,14 +2,14 @@
 import { useLiveKitStore } from "@/store/livekit-store"
 import { useEffect } from "react"
 
-export const useAudienceRoom = (liveKitRoomName: string) => {
+export const useAudienceRoom = (liveKitRoomName: string, podcastId?: string) => {
     const connectRoom = useLiveKitStore(state => state.connectRoom)
 
     useEffect(() => {
         let cancelled = false
 
         const connect = () => {
-            connectRoom(liveKitRoomName, "audience").catch((error) => {
+            connectRoom(liveKitRoomName, "audience", podcastId).catch((error) => {
                 if (!cancelled) console.error("Failed to connect audience room", error)
             })
         }
@@ -19,5 +19,5 @@ export const useAudienceRoom = (liveKitRoomName: string) => {
         return () => {
             cancelled = true
         }
-    }, [connectRoom, liveKitRoomName])
+    }, [connectRoom, liveKitRoomName, podcastId])
 }

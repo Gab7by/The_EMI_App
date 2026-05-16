@@ -122,7 +122,7 @@ const AdminLivePodcast = () => {
     }, [])
   );
   
-  useHostRooom(livekitRoomName)
+  useHostRooom(livekitRoomName, id)
   const { participants: roomParticipants } = useLiveRoomSnapshot(room)
 
   const {raisedHands, dismissRaisedHand} = useRoomSignals(room, profile?.id ?? "")
@@ -620,9 +620,9 @@ const AdminLivePodcast = () => {
             participantCount={participantCount}
             actions={
               <> 
-                <View className="h-10 w-10 items-center justify-center rounded-full bg-white/10">
+                <View className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
                   <Pressable onPress={() => { hapticMedium(); setIsNotesVisible(true) }} hitSlop={10}>
-                    <HugeIcon width={24} height={24} />
+                    <HugeIcon width={21} height={21} />
                   </Pressable>
                 </View>
                 <Pressable
@@ -630,28 +630,28 @@ const AdminLivePodcast = () => {
                     hostName, title, podcastId: id, playlist
                   })}}
                   hitSlop={10}
-                  className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
+                  className="h-9 w-9 items-center justify-center rounded-full bg-white/10"
                 >
                   <Share2  
-                  size={22} 
+                  size={20} 
                   color="#F3F6E7" 
                   strokeWidth={1.2}
                   />
                 </Pressable>
                 <Pressable
                   onPress={() => { hapticMedium(); setIsExitPromptVisible(true) }}
-                  className="h-10 w-10 items-center justify-center rounded-full bg-[#F3523C]/20"
+                  className="h-9 w-9 items-center justify-center rounded-full bg-[#F3523C]/20"
                 >
-                  <Power size={21} color="#FF5A45" strokeWidth={2} />
+                  <Power size={19} color="#FF5A45" strokeWidth={2} />
                 </Pressable>
               </>
             }
           />
 
           {isRecording ? (
-            <View className="absolute right-4 top-[72px] z-10 h-7 flex-row items-center rounded-full bg-[#F3523C]/20 px-2.5">
-              <View className="h-2 w-2 rounded-full bg-red-500" />
-              <Text className="ml-1.5 text-[9px] font-semibold uppercase text-[#FF8A7A]">
+            <View className="absolute right-4 top-[66px] z-10 h-6 flex-row items-center rounded-full bg-[#F3523C]/20 px-2">
+              <View className="h-1.5 w-1.5 rounded-full bg-red-500" />
+              <Text className="ml-1 text-[8px] font-semibold uppercase text-[#FF8A7A]">
                 Rec
               </Text>
             </View>

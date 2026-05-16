@@ -47,7 +47,7 @@ serve(async (req) => {
 
     const { data: podcast, error: podcastError } = await supabase
       .from('live_podcasts')
-      .select('host_id')
+      .select('host_id, status, livekit_room_name')
       .eq('id', podcastId)
       .single()
 
@@ -62,6 +62,13 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Only the host can revoke speaker permissions' }),
         { status: 403 }
+      )
+    }
+
+    if (podcast.status !== 'live' || podcast.livekit_room_name !== roomName) {
+      return new Response(
+        JSON.stringify({ error: 'Room name does not match the active podcast' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
       )
     }
 

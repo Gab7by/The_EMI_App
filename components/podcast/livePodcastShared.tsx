@@ -175,16 +175,16 @@ export const PodcastHeader = ({
   participantCount,
   actions,
 }: PodcastHeaderProps) => (
-  <View className="mb-7 flex-row items-center justify-between">
-    <View className="mr-3 min-w-0 flex-1 flex-row items-center rounded-full border border-white/10 bg-menorah-bg/95 px-3 py-3">
+  <View className="mb-5 flex-row items-center justify-between">
+    <View className="mr-2 min-w-0 flex-1 flex-row items-center rounded-full border border-white/10 bg-menorah-bg/90 px-2.5 py-2.5">
       <HostAvatar
         hostName={hostName}
         hostPictureUrl={hostPictureUrl}
-        size={42}
-        textClassName="text-base font-bold text-menorah-primary"
+        size={38}
+        textClassName="text-sm font-bold text-menorah-primary"
       />
-      <View className="ml-3 flex-1 min-w-0">
-        <Text className="text-sm text-menorah-whiteSoft" numberOfLines={1} ellipsizeMode="tail">
+      <View className="ml-2.5 flex-1 min-w-0">
+        <Text className="text-[13px] text-menorah-whiteSoft" numberOfLines={1} ellipsizeMode="tail">
           {playlist}
         </Text>
         <View className="mt-1 flex-row items-center">
@@ -200,7 +200,7 @@ export const PodcastHeader = ({
         </View>
       </View>
     </View>
-    <View className="flex-row items-center gap-2">{actions}</View>
+    <View className="flex-row items-center gap-1.5">{actions}</View>
   </View>
 );
 
@@ -312,8 +312,8 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
   const imageWidth = Math.min(width * 0.68, 220)
   const imageHeight = imageWidth * 0.72
   const listHeader = useMemo(() => (
-    <View className="mb-7 rounded-[22px] bg-menorah-bg px-4 py-4">
-      <Text className="text-[12px] leading-5 text-[#FFD700]">
+    <View className="mb-5 rounded-2xl bg-menorah-bg/90 px-3.5 py-3">
+      <Text className="text-[11px] leading-4 text-[#FFD700]">
         Please keep comments respectful and uplifting. &quot;Let your words edify and
         bring grace to those who hear.&quot; - Ephesians 4:29.
       </Text>
@@ -328,7 +328,7 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
           color="#D7FF00"
         />
       </View>
-      <Text className="mt-4 text-[16px] font-semibold text-[#F4F5F0]">
+      <Text className="mt-4 text-[15px] font-semibold text-[#F4F5F0]">
         No messages yet
       </Text>
       <Text className="mt-2 text-center text-[12px] leading-5 text-[#B7C0BC]">
@@ -338,21 +338,21 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
   ), [])
   const renderMessage = useCallback(({item}: { item: LiveMessage }) => (
     <View
-      className={`mb-5 flex-row ${item.isLocal ? "justify-end" : "items-start"}`}
+      className={`mb-3.5 flex-row ${item.isLocal ? "justify-end" : "items-start"}`}
     >
       {!item.isLocal && (
         item.sender_avartar_url ? (
           <Image
             source={{uri: item.sender_avartar_url}}
-            style={{ width: 34, height: 34, borderRadius: 17 }}
+            style={{ width: 30, height: 30, borderRadius: 15 }}
             contentFit="cover"
           />
         ) : (
           <View
-            style={{width: 34, height: 34, borderRadius: 17}}
+            style={{width: 30, height: 30, borderRadius: 15}}
             className="items-center justify-center bg-menorah-primary"
           >
-            <Text className="text-lg font-bold text-menorah-bg">
+            <Text className="text-base font-bold text-menorah-bg">
               {item.sender_name.charAt(0).toUpperCase()}
             </Text>
           </View>
@@ -360,7 +360,7 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
       )}
       <View className={`${item.isLocal ? "items-end" : "ml-3"}`} style={{ maxWidth: width * 0.74, alignSelf: item.isLocal ? 'flex-end' : 'flex-start' }}>
         {!item.isLocal && (
-          <Text className="mb-2 text-[11px] font-medium text-menorah-whiteSoft">
+          <Text className="mb-1.5 text-[10px] font-medium text-menorah-whiteSoft/90">
             {item.sender_name}
           </Text>
         )}
@@ -375,12 +375,12 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
             </View>
           ) : (
             <View
-              className={`rounded-2xl px-4 py-3 ${
+              className={`rounded-2xl px-3.5 py-2.5 ${
                 item.isLocal ? "bg-[#D7FF00]" : "self-start bg-white/20"
               }`}
               style={{ maxWidth: width * 0.68 }}
             >
-              <Text className={`text-[12px] font-semibold leading-5 ${item.isLocal ? 'text-[#143703]' : 'text-menorah-whiteSoft'}`}>
+              <Text className={`text-[11px] font-semibold leading-4 ${item.isLocal ? 'text-[#143703]' : 'text-menorah-whiteSoft'}`}>
                 {item.content}
               </Text>
             </View>
@@ -634,7 +634,7 @@ export const PodcastBackground = ({
 }: PodcastBackgroundProps) => (
   <View className="flex-1">
     <LinearGradient
-          colors={["#143703", "#4a7108", "#143703"]}
+          colors={["#0B1F0E", "#31560A", "#0B1F0E"]}
           start={{ x: 0.1, y: 0 }}
           end={{ x: 0.9, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -651,7 +651,7 @@ export const PodcastBackground = ({
       {coverUrl && (
         <View 
           style={[StyleSheet.absoluteFill, 
-            { backgroundColor: "rgba(0, 0, 0, 0.45)" }]}
+            { backgroundColor: "rgba(0, 0, 0, 0.42)" }]}
         />)}
       {children}
   </View>

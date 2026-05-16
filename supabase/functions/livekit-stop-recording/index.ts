@@ -39,20 +39,19 @@ serve(async (req) => {
     let recordingEgressId = egressId
 
     if (!recordingEgressId && podcastId) {
-      const { data: activeRecording, error: activeRecordingError } = await supabase
+      const { data: activeRecordings, error: activeRecordingError } = await supabase
         .from('podcast_recordings')
         .select('egress_id')
         .eq('podcast_id', podcastId)
         .eq('status', 'recording')
-        .order('created_at', { ascending: false })
         .limit(1)
-        .maybeSingle()
 
       if (activeRecordingError) {
         console.error('active recording lookup error:', activeRecordingError.message)
         return new Response(JSON.stringify({ error: 'Could not check active recording' }), { status: 500 })
       }
 
+      const activeRecording = activeRecordings?.[0]
       recordingEgressId = activeRecording?.egress_id ?? null
     }
 
