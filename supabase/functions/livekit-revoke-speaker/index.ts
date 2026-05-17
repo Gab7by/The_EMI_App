@@ -58,9 +58,12 @@ serve(async (req) => {
       )
     }
 
-    if (!podcast || podcast.host_id !== user.id) {
+    const isHost = podcast?.host_id === user.id
+    const isSelfRevoke = participantIdentity === user.id
+
+    if (!podcast || (!isHost && !isSelfRevoke)) {
       return new Response(
-        JSON.stringify({ error: 'Only the host can revoke speaker permissions' }),
+        JSON.stringify({ error: 'Only the host or the speaker can revoke speaker permissions' }),
         { status: 403 }
       )
     }

@@ -179,6 +179,80 @@ export const revokeSpeaker = async (
     return true
 }
 
+export const muteSpeaker = async (
+    participantId: string,
+    roomName: string,
+    podcastId: string,
+    trackSid: string,
+    muted = true
+) => {
+    const {data, error} = await supabase.functions.invoke(
+        "livekit-mute-speaker",
+        {
+            body: {
+                roomName,
+                participantIdentity: participantId,
+                podcastId,
+                trackSid,
+                muted,
+            }
+        }
+    )
+
+    if (error) {
+        console.error("Failed to mute speaker:", error.message, {
+            roomName,
+            participantIdentity: participantId,
+            podcastId,
+            trackSid,
+            muted,
+        })
+        await logFunctionErrorResponse("Mute speaker response body", error)
+        return false
+    }
+
+    console.log("muteSpeaker response", data)
+    return true
+}
+
+export const revokeOwnSpeaker = async (
+    room: Room,
+    userId: string,
+    userName: string,
+    roomName: string,
+    podcastId: string
+) => {
+    const {error} = await supabase.functions.invoke(
+        "livekit-revoke-speaker",
+        {
+            body: {
+                roomName,
+                participantIdentity: userId,
+                podcastId
+            }
+        }
+    )
+
+    if (error) {
+        console.error("Failed to revoke own speaker permission:", error.message, {
+            roomName,
+            participantIdentity: userId,
+            podcastId,
+        })
+        await logFunctionErrorResponse("Self revoke speaker response body", error)
+        return false
+    }
+
+    await sendSignal(room, {
+        type: 'SPEAKER_REVOKED',
+        fromId: userId,
+        fromName: userName,
+        toId: userId
+    })
+
+    return true
+}
+
 export const testGrantSpeaker = async (
     roomName: string,
     participantIdentity: string,

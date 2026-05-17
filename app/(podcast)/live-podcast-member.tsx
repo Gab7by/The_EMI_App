@@ -25,8 +25,8 @@ import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { hapticMedium } from "@/lib/haptics";
 import { PODCAST_MIC_CAPTURE_OPTIONS } from "@/lib/livekit-audio";
-import { lowerHand, raiseHand, sendLoveSignal } from "@/lib/livekit-signals";
-import { getLivePodcastStatus, joinLivePodcastParticipant, leaveLivePodcastParticipant } from "@/lib/podcast";
+import { lowerHand, raiseHand, revokeOwnSpeaker, sendLoveSignal } from "@/lib/livekit-signals";
+import { getLivePodcastStatus, joinLivePodcastParticipant, leaveLivePodcastParticipant, updateParticipantCalledIn } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { shareLivePodcast } from "@/lib/share";
 import { useAuthStore } from "@/store/authStore";
@@ -36,7 +36,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, ChevronDown, ChevronRight, Power, Share2, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, Keyboard, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Animated, Easing, Keyboard, Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const MemberLivePodcast = () => {
@@ -65,6 +65,8 @@ const MemberLivePodcast = () => {
   const [shouldShowConnectingOverlay, setShouldShowConnectingOverlay] = useState(true)
   const [localLoveBursts, setLocalLoveBursts] = useState<LoveBurst[]>([])
   const [keyboardHeight, setKeyboardHeight] = useState(0)
+  const [isCallActionLoading, setIsCallActionLoading] = useState(false)
+  const [hasHungUpSpeaker, setHasHungUpSpeaker] = useState(false)
 
   const selectedCurrency = useMemo(
     () =>
@@ -83,6 +85,7 @@ const MemberLivePodcast = () => {
   const profile = useAuthStore(state => state.profile)
   const {isApprovedToSpeak, sessionEnded, isSpeakerRevoked, backgroundUrl, loveBursts, dismissLoveBurst} = useRoomSignals(room, profile?.id ?? "")
   const [hasRaisedHand, setHasRaisedHand] = useState<boolean>(false)
+  const canSpeak = isApprovedToSpeak && !hasHungUpSpeaker
   const isConnecting = connectionState !== "connected"
   const participantCount = roomParticipants.filter((participant) => participant.id !== hostId).length
 
@@ -176,7 +179,7 @@ const MemberLivePodcast = () => {
   const canSendMessage = message.trim().length > 0
 
   useEffect(() => {
-    if (!isApprovedToSpeak || !room) return
+    if (!isApprovedToSpeak || !room || hasHungUpSpeaker) return
     
     room.localParticipant
       .setMicrophoneEnabled(true, PODCAST_MIC_CAPTURE_OPTIONS)
@@ -184,12 +187,13 @@ const MemberLivePodcast = () => {
         setIsMuted(false)
         setForegroundServiceType("microphone")
         setHasRaisedHand(false)
+        setHasHungUpSpeaker(false)
         queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
       })
       .catch((error) => {
         console.error("Failed to enable speaker microphone", error)
       })
-  }, [id, isApprovedToSpeak, room, setForegroundServiceType, setIsMuted])
+  }, [hasHungUpSpeaker, id, isApprovedToSpeak, room, setForegroundServiceType, setIsMuted])
 
   useEffect(() => {
     if (!isSpeakerRevoked || !room) return
@@ -200,6 +204,7 @@ const MemberLivePodcast = () => {
         setIsMuted(true)
         setForegroundServiceType("mediaPlayback")
         setHasRaisedHand(false)
+        setHasHungUpSpeaker(false)
         queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
       })
       .catch((error) => {
@@ -227,25 +232,62 @@ const MemberLivePodcast = () => {
   }, [sessionEnded, profile?.id, id])
 
   const handleRaiseHand = async () => {
-    if (!room || !profile) return
+    if (!room || !profile || isCallActionLoading) return
+    setIsCallActionLoading(true)
 
-    if (isApprovedToSpeak) {
-      const nextMutedState = !isMuted
-      await room.localParticipant.setMicrophoneEnabled(
-        !nextMutedState,
-        !nextMutedState ? PODCAST_MIC_CAPTURE_OPTIONS : undefined
-      )
-      setIsMuted(nextMutedState)
-      setForegroundServiceType(nextMutedState ? "mediaPlayback" : "microphone")
-      return
+    try {
+      if (canSpeak) {
+        const nextMutedState = !isMuted
+        await room.localParticipant.setMicrophoneEnabled(
+          !nextMutedState,
+          !nextMutedState ? PODCAST_MIC_CAPTURE_OPTIONS : undefined
+        )
+        setIsMuted(nextMutedState)
+        setForegroundServiceType(nextMutedState ? "mediaPlayback" : "microphone")
+        return
+      }
+
+      if (hasRaisedHand) {
+        await lowerHand(room, profile.id, profile.full_name ?? "Listener")
+        setHasRaisedHand(false)
+      } else {
+        await raiseHand(room, profile.id, profile.full_name ?? "Listener")
+        setHasRaisedHand(true)
+        setHasHungUpSpeaker(false)
+      }
+    } finally {
+      setIsCallActionLoading(false)
     }
+  }
 
-    if (hasRaisedHand) {
-      await lowerHand(room, profile.id, profile.full_name ?? "Listener")
+  const handleHangUpSpeaker = async () => {
+    if (!room || !profile || isCallActionLoading) return
+
+    hapticMedium()
+    setIsCallActionLoading(true)
+
+    try {
+      const revoked = await revokeOwnSpeaker(
+        room,
+        profile.id,
+        profile.full_name ?? "Listener",
+        livekitRoomName,
+        id
+      )
+
+      if (!revoked) return
+
+      await room.localParticipant.setMicrophoneEnabled(false)
+      setIsMuted(true)
+      setForegroundServiceType("mediaPlayback")
       setHasRaisedHand(false)
-    } else {
-      await raiseHand(room, profile.id, profile.full_name ?? "Listener")
-      setHasRaisedHand(true)
+      setHasHungUpSpeaker(true)
+      await updateParticipantCalledIn(id, profile.id, false)
+      queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+    } catch (error) {
+      console.error("Failed to hang up speaker:", error)
+    } finally {
+      setIsCallActionLoading(false)
     }
   }
 
@@ -352,12 +394,35 @@ const MemberLivePodcast = () => {
               <Pressable onPress={handleSendLove} hitSlop={10} className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
                 <MaterialCommunityIcons name="heart" size={22} color="#FF4B1F" />
               </Pressable>
-              <Pressable onPress={() => { hapticMedium(); handleRaiseHand() }} hitSlop={8} className="h-10 min-w-[48px] items-center justify-center rounded-[12px] bg-white/10 px-1">
-                <Call width={22} height={22} />
-                <Text className="mt-0.5 text-[8px] font-medium text-[#F3F6E7]">
-                  {isApprovedToSpeak ? (isMuted ? "Unmute" : "Mute") : hasRaisedHand ? "Pending" : "Call in"}
-                </Text>
+              <Pressable
+                onPress={() => { hapticMedium(); handleRaiseHand() }}
+                disabled={isCallActionLoading}
+                hitSlop={8}
+                className="h-10 min-w-[48px] items-center justify-center rounded-[12px] bg-white/10 px-1"
+              >
+                {isCallActionLoading ? (
+                  <ActivityIndicator size="small" color="#D7FF00" />
+                ) : (
+                  <>
+                    <Call width={22} height={22} />
+                    <Text className="mt-0.5 text-[8px] font-medium text-[#F3F6E7]">
+                      {canSpeak ? (isMuted ? "Unmute" : "Mute") : hasRaisedHand ? "Pending" : "Call in"}
+                    </Text>
+                  </>
+                )}
               </Pressable>
+              {canSpeak ? (
+                <Pressable
+                  onPress={handleHangUpSpeaker}
+                  disabled={isCallActionLoading}
+                  hitSlop={8}
+                  className="h-9 min-w-[48px] items-center justify-center rounded-[12px] bg-[#F3523C]/20 px-2"
+                >
+                  <Text className="text-[8px] font-semibold text-[#FF8A7A]">
+                    Hang up
+                  </Text>
+                </Pressable>
+              ) : null}
               <Pressable onPress={() => { hapticMedium(); setIsPaymentMethodsVisible(true) }} hitSlop={8} className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
                 <MoneyIcon width={22} height={22} />
               </Pressable>
@@ -542,7 +607,7 @@ const MemberLivePodcast = () => {
           visible={shouldShowConnectingOverlay && isConnecting}
         />
 
-        {hasRaisedHand && !isApprovedToSpeak ? (
+        {hasRaisedHand && !canSpeak ? (
           <View className="absolute left-4 right-4 top-[122px] rounded-[18px] border border-[#D7FF00]/20 bg-[#0F2A08]/90 px-4 py-3">
             <View className="flex-row items-center">
               <HostAvatar

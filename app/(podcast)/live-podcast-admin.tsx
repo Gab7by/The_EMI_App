@@ -23,8 +23,8 @@ import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { hapticMedium } from "@/lib/haptics";
-import { PODCAST_MIC_CAPTURE_OPTIONS } from "@/lib/livekit-audio";
-import { approveSpeaker, revokeSpeaker, sendBackgroundChangedSignal, sendSessionEnded } from "@/lib/livekit-signals";
+import { BACKGROUND_MUSIC_DEFAULT_VOLUME, BACKGROUND_MUSIC_VOLUME_STEP, PODCAST_MIC_CAPTURE_OPTIONS } from "@/lib/livekit-audio";
+import { approveSpeaker, muteSpeaker, revokeSpeaker, sendBackgroundChangedSignal, sendSessionEnded } from "@/lib/livekit-signals";
 import { endLiveSession, updateParticipantCalledIn } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { startRecording, stopRecording } from "@/lib/recording";
@@ -83,6 +83,8 @@ const AdminLivePodcast = () => {
   )
   const [uploadingBackground, setUploadingBackground] = useState(false)
   const [approvingRequests, setApprovingRequests] = useState<Set<string>>(new Set())
+  const [mutingSpeakers, setMutingSpeakers] = useState<Set<string>>(new Set())
+  const [removingSpeakers, setRemovingSpeakers] = useState<Set<string>>(new Set())
   const [egressId, setEgressId] = useState<string | null>(null)
   const [isRecording, setIsRecording] = useState<boolean>(false)
   const [hasRequestedRecording, setHasRequestedRecording] = useState(false)
@@ -95,7 +97,7 @@ const AdminLivePodcast = () => {
   const [isMusicActionLoading, setIsMusicActionLoading] = useState(false)
   const [isMusicStatusLoading, setIsMusicStatusLoading] = useState(false)
   const [musicStatusMessage, setMusicStatusMessage] = useState<string | null>(null)
-  const [musicVolume, setMusicVolume] = useState(0.35)
+  const [musicVolume, setMusicVolume] = useState(BACKGROUND_MUSIC_DEFAULT_VOLUME)
   const [isMusicPaused, setIsMusicPaused] = useState(false)
   const [deletingMusicTrackId, setDeletingMusicTrackId] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -259,6 +261,7 @@ const AdminLivePodcast = () => {
       isHost: true,
       isSpeaking: hostSnapshot?.isSpeaking ?? false,
       audioLevel: hostSnapshot?.audioLevel ?? 0,
+      audioTrackSid: hostSnapshot?.audioTrackSid ?? null,
     },
     ...roomParticipants
       .filter((participant) => participant.id !== hostId && participant.canPublish)
@@ -270,11 +273,13 @@ const AdminLivePodcast = () => {
         isHost: false,
         isSpeaking: participant.isSpeaking,
         audioLevel: participant.audioLevel,
+        audioTrackSid: participant.audioTrackSid,
       }))
   ], [
     hostId,
     hostName,
     hostPictureUrl,
+    hostSnapshot?.audioTrackSid,
     hostSnapshot?.audioLevel,
     hostSnapshot?.isSpeaking,
     isMuted,
@@ -331,19 +336,58 @@ const AdminLivePodcast = () => {
   }
 
   const handleRemoveSpeaker = async (participantId: string) => {
-    if (!room || !profile) return
+    if (!room || !profile || removingSpeakers.has(participantId)) return
 
-    const revoked = await revokeSpeaker(
-      room,
-      profile.id,
-      profile.full_name ?? "Host",
-      participantId,
-      livekitRoomName,
-      id
-    )
-    if (!revoked) return
-    await updateParticipantCalledIn(id, participantId, false)
-    queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    setRemovingSpeakers(prev => new Set(prev).add(participantId))
+
+    try {
+      const revoked = await revokeSpeaker(
+        room,
+        profile.id,
+        profile.full_name ?? "Host",
+        participantId,
+        livekitRoomName,
+        id
+      )
+      if (!revoked) return
+
+      await updateParticipantCalledIn(id, participantId, false)
+      queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      console.error("Failed to remove speaker:", error)
+    } finally {
+      setRemovingSpeakers(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(participantId)
+        return newSet
+      })
+    }
+  }
+
+  const handleMuteSpeaker = async (participantId: string, trackSid: string | null) => {
+    if (!trackSid || mutingSpeakers.has(participantId)) return
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    setMutingSpeakers(prev => new Set(prev).add(participantId))
+
+    try {
+      const muted = await muteSpeaker(participantId, livekitRoomName, id, trackSid, true)
+      if (muted) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      }
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      console.error("Failed to mute speaker:", error)
+    } finally {
+      setMutingSpeakers(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(participantId)
+        return newSet
+      })
+    }
   }
 
   const handleBackgroundUpload = async () => {
@@ -526,6 +570,12 @@ const AdminLivePodcast = () => {
 
     if (status.status === "error") {
       setUploadError(status.error ?? "Music bot reported an error.")
+      return
+    }
+
+    if (status.status === "starting") {
+      setMusicStatusMessage(`Starting ${status.trackName ?? "track"}...`)
+      if (typeof status.volume === "number") setMusicVolume(status.volume)
       return
     }
 
@@ -997,7 +1047,7 @@ const AdminLivePodcast = () => {
             </View>
             <View className="mt-3 flex-row items-center gap-3">
               <Pressable
-                onPress={() => handleAdjustMusicVolume(-0.1)}
+                onPress={() => handleAdjustMusicVolume(-BACKGROUND_MUSIC_VOLUME_STEP)}
                 disabled={isMusicActionLoading || musicVolume <= 0.05}
                 className={`h-9 w-9 items-center justify-center rounded-[12px] ${
                   isMusicActionLoading || musicVolume <= 0.05 ? "bg-white/5" : "bg-white/10"
@@ -1012,7 +1062,7 @@ const AdminLivePodcast = () => {
                 />
               </View>
               <Pressable
-                onPress={() => handleAdjustMusicVolume(0.1)}
+                onPress={() => handleAdjustMusicVolume(BACKGROUND_MUSIC_VOLUME_STEP)}
                 disabled={isMusicActionLoading || musicVolume >= 1}
                 className={`h-9 w-9 items-center justify-center rounded-[12px] ${
                   isMusicActionLoading || musicVolume >= 1 ? "bg-white/5" : "bg-white/10"
@@ -1114,6 +1164,11 @@ const AdminLivePodcast = () => {
 
           <View className="mt-4 gap-4">
             {speakerRows.map((speaker) => (
+              (() => {
+                const isRemovingSpeaker = removingSpeakers.has(speaker.id)
+                const isMutingSpeaker = mutingSpeakers.has(speaker.id)
+
+                return (
               <View
                 key={speaker.id}
                 className="flex-row items-center rounded-[22px] bg-[#143703] px-4 py-4"
@@ -1148,27 +1203,47 @@ const AdminLivePodcast = () => {
                   </Pressable>
                 ) : (
                   <View className="items-end gap-2">
-                    <View className="flex-row items-center rounded-full bg-white/10 px-3 py-2">
-                      {speaker.isMuted ? (
+                    <Pressable
+                      onPress={() => handleMuteSpeaker(speaker.id, speaker.audioTrackSid)}
+                      disabled={speaker.isMuted || isMutingSpeaker || !speaker.audioTrackSid}
+                      className={`flex-row items-center rounded-full px-3 py-2 ${
+                        speaker.isMuted || !speaker.audioTrackSid ? "bg-white/10" : "bg-[#D7FF00]/15"
+                      }`}
+                    >
+                      {isMutingSpeaker ? (
+                        <ActivityIndicator size="small" color="#D7FF00" />
+                      ) : speaker.isMuted ? (
                         <MicOff size={18} color="#F3F6E7" />
                       ) : (
                         <Mic size={18} color="#D7FF00" />
                       )}
                       <Text className="ml-2 text-[12px] font-semibold text-[#F4F5F0]">
-                        {speaker.isMuted ? "Muted" : "Live"}
+                        {isMutingSpeaker ? "Muting" : speaker.isMuted ? "Muted" : "Mute"}
                       </Text>
-                    </View>
+                    </Pressable>
                     <Pressable
                       onPress={() => handleRemoveSpeaker(speaker.id)}
+                      disabled={isRemovingSpeaker}
                       className="rounded-full bg-[#F3523C]/15 px-3 py-2"
                     >
-                      <Text className="text-[11px] font-semibold text-[#FF8A7A]">
-                        Remove
-                      </Text>
+                      {isRemovingSpeaker ? (
+                        <View className="flex-row items-center">
+                          <ActivityIndicator size="small" color="#FF8A7A" />
+                          <Text className="ml-2 text-[11px] font-semibold text-[#FF8A7A]">
+                            Removing
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text className="text-[11px] font-semibold text-[#FF8A7A]">
+                          Remove
+                        </Text>
+                      )}
                     </Pressable>
                   </View>
                 )}
               </View>
+                )
+              })()
             ))}
           </View>
         </PodcastBottomSheet>
