@@ -1,8 +1,10 @@
 import { Colors } from "@/constants/theme"
+import { deleteAccount } from "@/lib/account"
 import { updateProfileName } from "@/lib/profile"
+import { supabase } from "@/lib/supabase"
 import { useAuthStore } from "@/store/authStore"
 import { router } from "expo-router"
-import { ArrowLeft, Check, Lock, Mail, User } from "lucide-react-native"
+import { ArrowLeft, Check, Lock, Mail, Trash2, User } from "lucide-react-native"
 import { useMemo, useState } from "react"
 import {
   ActivityIndicator,
@@ -22,13 +24,14 @@ const AccountDetailsScreen = () => {
   const session = useAuthStore((state) => state.session)
   const [fullName, setFullName] = useState(profile?.full_name ?? session?.user.user_metadata.full_name ?? "")
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const currentName = profile?.full_name ?? session?.user.user_metadata.full_name ?? ""
   const email = session?.user.email ?? ""
   const trimmedName = fullName.trim()
   const canSave = useMemo(() => {
-    return trimmedName.length >= 2 && trimmedName !== currentName && !isSaving
-  }, [currentName, isSaving, trimmedName])
+    return trimmedName.length >= 2 && trimmedName !== currentName && !isSaving && !isDeleting
+  }, [currentName, isDeleting, isSaving, trimmedName])
 
   const handleSave = async () => {
     if (!profile || !canSave) return
@@ -45,6 +48,42 @@ const AccountDetailsScreen = () => {
     }
 
     setIsSaving(false)
+  }
+
+  const handleDeleteAccount = async () => {
+    if (isDeleting) return
+
+    setIsDeleting(true)
+
+    const result = await deleteAccount()
+
+    if (result.success) {
+      await supabase.auth.signOut().catch(() => null)
+      useAuthStore.getState().clearAuth()
+      router.replace("/(auth)")
+      return
+    }
+
+    setIsDeleting(false)
+    Alert.alert(
+      "Delete failed",
+      result.error ?? "We could not delete your account. Please try again."
+    )
+  }
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      "Delete account?",
+      "This permanently removes your account, profile, live podcast activity, hosted podcasts, messages, covers, and recordings. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: handleDeleteAccount,
+        },
+      ]
+    )
   }
 
   return (
@@ -114,6 +153,37 @@ const AccountDetailsScreen = () => {
                 </Pressable>
               </View>
             </View>
+          </View>
+
+          <View className="mt-5 rounded-xl border border-red-500/25 bg-red-500/10 p-4">
+            <View className="flex-row items-start gap-3">
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-red-500/15">
+                <Trash2 size={18} color="#FCA5A5" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-base font-bold text-white">Delete account</Text>
+                <Text className="mt-1 text-xs leading-5 text-menorah-muted">
+                  Permanently remove your account and the live podcast data tied to it.
+                </Text>
+              </View>
+            </View>
+
+            <Pressable
+              onPress={confirmDeleteAccount}
+              disabled={isDeleting || isSaving}
+              className={`mt-4 h-12 flex-row items-center justify-center gap-2 rounded-full ${
+                isDeleting || isSaving ? "bg-red-500/20" : "bg-red-500"
+              }`}
+            >
+              {isDeleting ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <>
+                  <Trash2 size={18} color="white" />
+                  <Text className="font-bold text-white">Delete Account</Text>
+                </>
+              )}
+            </Pressable>
           </View>
 
           <View className="mt-auto pt-8">

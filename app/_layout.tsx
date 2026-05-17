@@ -4,8 +4,8 @@ import 'react-native-reanimated';
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { PortalHost } from "@rn-primitives/portal";
 import { useAuthStore } from "@/store/authStore";
-import { useEffect, useRef } from "react";
-import { PermissionsAndroid, Platform } from "react-native";
+import { useEffect } from "react";
+import { AppState, PermissionsAndroid, Platform } from "react-native";
 import { supabase } from "@/lib/supabase";
 import ForgotPasswordModal from "@/components/auth/forgot-password-modal";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -36,6 +36,33 @@ const IOSRoomAudioManager = ({ room }: { room: Room }) => {
 
 const LiveKitAudioManager = () => {
   const room = useLiveKitStore(state => state.room)
+  const connectionState = useLiveKitStore(state => state.connectionState)
+
+  useEffect(() => {
+    if (!room || connectionState !== "connected" || Platform.OS !== "android") return
+
+    let cancelled = false
+
+    const selectPreferredOutput = async () => {
+      if (cancelled) return
+      await preferAndroidBluetoothOutput()
+    }
+
+    selectPreferredOutput()
+
+    const interval = setInterval(selectPreferredOutput, 3000)
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        selectPreferredOutput()
+      }
+    })
+
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+      subscription.remove()
+    }
+  }, [connectionState, room])
 
   return room ? <IOSRoomAudioManager room={room} /> : null
 }
@@ -95,6 +122,7 @@ export default function RootLayout() {
 
       await AudioSession.startAudioSession()
       await preferAndroidBluetoothOutput()
+      setTimeout(preferAndroidBluetoothOutput, 1000)
     }
 
     startAudio().catch((error) => {

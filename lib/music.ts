@@ -1,6 +1,7 @@
 import { AudioPickerAsset, MusicTrack } from "@/types/podcast-types"
 import { supabase } from "./supabase"
 import { uploadAudioFile } from "./storage"
+import { BACKGROUND_MUSIC_DEFAULT_VOLUME } from "./livekit-audio"
 
 const getFunctionErrorDetail = async (error: unknown) => {
     const context = (error as { context?: Response })?.context
@@ -27,10 +28,14 @@ export type MusicBotStatus = {
     durationSeconds: number | null
     maxBitrate: number | null
     framesSent: number
-    samplesSent: number
-    lastFrameAt: string | null
+    lastFrameAt: number | null
     error: string | null
     volume: number | null
+    gain?: number | null
+    effectiveGain?: number | null
+    ducked?: boolean
+    activeSpeakerCount?: number
+    lastActiveSpeakerAt?: number | null
     paused: boolean
 }
 
@@ -134,7 +139,7 @@ export const deleteMusicTrack = async (
 export const playMusicTrack = async (
     roomName: string,
     track: Pick<MusicTrack, 'name' | 'url'>,
-    volume = 0.35
+    volume = BACKGROUND_MUSIC_DEFAULT_VOLUME
 ): Promise<boolean> => {
     const {error} = await supabase.functions.invoke('music-bot-play', {
         body: {

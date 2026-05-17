@@ -1,4 +1,4 @@
-import { RoomEvent, type Room } from "livekit-client";
+import { RoomEvent, type Participant, type Room } from "livekit-client";
 import { useEffect, useState } from "react";
 
 export type LiveRoomParticipantSnapshot = {
@@ -7,6 +7,7 @@ export type LiveRoomParticipantSnapshot = {
   isLocal: boolean;
   canPublish: boolean;
   isMicrophoneEnabled: boolean;
+  audioTrackSid: string | null;
   isSpeaking: boolean;
   audioLevel: number;
 };
@@ -41,10 +42,16 @@ const areSnapshotsEqual = (
       participant.isLocal === nextParticipant.isLocal &&
       participant.canPublish === nextParticipant.canPublish &&
       participant.isMicrophoneEnabled === nextParticipant.isMicrophoneEnabled &&
+      participant.audioTrackSid === nextParticipant.audioTrackSid &&
       participant.isSpeaking === nextParticipant.isSpeaking &&
       participant.audioLevel === nextParticipant.audioLevel
     );
   });
+};
+
+const getAudioTrackSid = (participant: Participant) => {
+  const publication = Array.from(participant.audioTrackPublications.values())[0];
+  return publication?.trackSid ?? null;
 };
 
 export const useLiveRoomSnapshot = (room: Room | null) => {
@@ -65,6 +72,7 @@ export const useLiveRoomSnapshot = (room: Room | null) => {
               isLocal: true,
               canPublish: room.localParticipant.permissions?.canPublish ?? false,
               isMicrophoneEnabled: room.localParticipant.isMicrophoneEnabled,
+              audioTrackSid: getAudioTrackSid(room.localParticipant),
               isSpeaking: room.localParticipant.isSpeaking,
               audioLevel: room.localParticipant.audioLevel,
             },
@@ -79,6 +87,7 @@ export const useLiveRoomSnapshot = (room: Room | null) => {
           isLocal: false,
           canPublish: participant.permissions?.canPublish ?? false,
           isMicrophoneEnabled: participant.isMicrophoneEnabled,
+          audioTrackSid: getAudioTrackSid(participant),
           isSpeaking: participant.isSpeaking,
           audioLevel: participant.audioLevel,
         })
@@ -94,6 +103,9 @@ export const useLiveRoomSnapshot = (room: Room | null) => {
     room.on(RoomEvent.ActiveSpeakersChanged, syncParticipants);
     room.on(RoomEvent.ParticipantConnected, syncParticipants);
     room.on(RoomEvent.ParticipantDisconnected, syncParticipants);
+    room.on(RoomEvent.ParticipantPermissionsChanged, syncParticipants);
+    room.on(RoomEvent.TrackPublished, syncParticipants);
+    room.on(RoomEvent.TrackUnpublished, syncParticipants);
     room.on(RoomEvent.TrackMuted, syncParticipants);
     room.on(RoomEvent.TrackUnmuted, syncParticipants);
 
@@ -101,6 +113,9 @@ export const useLiveRoomSnapshot = (room: Room | null) => {
       room.off(RoomEvent.ActiveSpeakersChanged, syncParticipants);
       room.off(RoomEvent.ParticipantConnected, syncParticipants);
       room.off(RoomEvent.ParticipantDisconnected, syncParticipants);
+      room.off(RoomEvent.ParticipantPermissionsChanged, syncParticipants);
+      room.off(RoomEvent.TrackPublished, syncParticipants);
+      room.off(RoomEvent.TrackUnpublished, syncParticipants);
       room.off(RoomEvent.TrackMuted, syncParticipants);
       room.off(RoomEvent.TrackUnmuted, syncParticipants);
     };

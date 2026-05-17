@@ -5,22 +5,17 @@ export const getLiveKitToken = async (
     isHost: boolean,
     podcastId?: string
 ): Promise<string | null> => {
-
-    const {data, error} = await supabase.functions.invoke(
-        "livekit-token", {
-            body: {roomName, isHost, podcastId}
+    const { data, error } = await supabase.functions.invoke(
+        "livekit-token",
+        {
+            body: { roomName, isHost, podcastId },
         }
     )
-        if (error) {
-            console.error("Live Kit token generation error: ", error.message)
-            return null
-        }
 
-        return data.token
-}
+    if (error) {
+        console.error("LiveKit token generation error:", error.message)
+        return null
+    }
 
-export async function testToken() {
-  const token = await getLiveKitToken('test-room', true)
-  console.log('Token received:', token ? 'YES — token exists' : 'NO — null returned')
-  console.log(token)
+    return data.token
 }

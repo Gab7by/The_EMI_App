@@ -3,20 +3,37 @@ import { serve } from 'https://deno.land/std/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { EgressClient } from 'https://esm.sh/livekit-server-sdk@2'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+const json = (body: Record<string, unknown>, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+
+const isAlreadyStoppedError = (error: unknown) => {
+  const message = String((error as { message?: string })?.message ?? error).toLowerCase()
+  return (
+    message.includes('not found') ||
+    message.includes('not_found') ||
+    message.includes('ended') ||
+    message.includes('not active') ||
+    message.includes('does not exist')
+  )
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      }
-    })
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+      return json({ error: 'Unauthorized' }, 401)
     }
 
     const supabase = createClient(
@@ -27,16 +44,18 @@ serve(async (req) => {
 
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+      return json({ error: 'Unauthorized' }, 401)
     }
 
     const { egressId, podcastId } = await req.json()
 
     if (!podcastId && !egressId) {
-      return new Response(JSON.stringify({ error: 'podcastId or egressId is required' }), { status: 400 })
+      return json({ error: 'podcastId or egressId is required' }, 400)
     }
 
-    let recordingEgressId = egressId
+    let recordingEgressId = typeof egressId === 'string' && egressId.length > 0
+      ? egressId
+      : null
 
     if (!recordingEgressId && podcastId) {
       const { data: activeRecordings, error: activeRecordingError } = await supabase
@@ -48,18 +67,14 @@ serve(async (req) => {
 
       if (activeRecordingError) {
         console.error('active recording lookup error:', activeRecordingError.message)
-        return new Response(JSON.stringify({ error: 'Could not check active recording' }), { status: 500 })
+        return json({ error: 'Could not check active recording', details: activeRecordingError.message }, 500)
       }
 
-      const activeRecording = activeRecordings?.[0]
-      recordingEgressId = activeRecording?.egress_id ?? null
+      recordingEgressId = activeRecordings?.[0]?.egress_id ?? null
     }
 
     if (!recordingEgressId) {
-      return new Response(
-        JSON.stringify({ success: true, stopped: false, reason: 'No active recording' }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
+      return json({ success: true, stopped: false, reason: 'No active recording' })
     }
 
     const egressClient = new EgressClient(
@@ -68,10 +83,25 @@ serve(async (req) => {
       Deno.env.get('LIVEKIT_API_SECRET')!
     )
 
-    // Stop the recording
-    await egressClient.stopEgress(recordingEgressId)
+    let stoppedByLiveKit = true
+    let stopWarning: string | null = null
 
-    // Update database record
+    try {
+      await egressClient.stopEgress(recordingEgressId)
+    } catch (error) {
+      if (!isAlreadyStoppedError(error)) {
+        console.error('stop egress error:', error)
+        return json({
+          error: 'Could not stop LiveKit recording',
+          details: String((error as { message?: string })?.message ?? error),
+          egressId: recordingEgressId,
+        }, 502)
+      }
+
+      stoppedByLiveKit = false
+      stopWarning = String((error as { message?: string })?.message ?? error)
+    }
+
     let updateQuery = supabase
       .from('podcast_recordings')
       .update({
@@ -84,18 +114,56 @@ serve(async (req) => {
       updateQuery = updateQuery.eq('podcast_id', podcastId)
     }
 
-    await updateQuery
+    const { error: updateError } = await updateQuery
 
-    return new Response(
-      JSON.stringify({ success: true, stopped: true, egressId: recordingEgressId }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    )
+    if (updateError) {
+      const message = updateError.message.toLowerCase()
+      const shouldRetryWithoutEndedAt =
+        message.includes('ended_at') ||
+        message.includes('column') ||
+        message.includes('schema cache')
 
+      if (!shouldRetryWithoutEndedAt) {
+        console.error('recording update error:', updateError.message)
+        return json({
+          error: 'Recording stopped but database update failed',
+          details: updateError.message,
+          egressId: recordingEgressId,
+        }, 500)
+      }
+
+      let fallbackUpdate = supabase
+        .from('podcast_recordings')
+        .update({ status: 'completed' })
+        .eq('egress_id', recordingEgressId)
+
+      if (podcastId) {
+        fallbackUpdate = fallbackUpdate.eq('podcast_id', podcastId)
+      }
+
+      const { error: fallbackError } = await fallbackUpdate
+      if (fallbackError) {
+        console.error('recording fallback update error:', fallbackError.message)
+        return json({
+          error: 'Recording stopped but database update failed',
+          details: fallbackError.message,
+          egressId: recordingEgressId,
+        }, 500)
+      }
+    }
+
+    return json({
+      success: true,
+      stopped: true,
+      stoppedByLiveKit,
+      warning: stopWarning,
+      egressId: recordingEgressId,
+    })
   } catch (error) {
     console.error('livekit-stop-recording error:', error)
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500 }
-    )
+    return json({
+      error: 'Internal server error',
+      details: String((error as { message?: string })?.message ?? error),
+    }, 500)
   }
 })
