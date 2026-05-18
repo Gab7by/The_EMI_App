@@ -1,8 +1,8 @@
+import MenorahLogo from "@/assets/svgs/menorah-logo.svg"
+import { hapticMedium } from "@/lib/haptics"
+import { useRouter } from "expo-router"
 import { Pressable, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import MenorahLogo from "@/assets/svgs/menorah-logo.svg"
-import MenorahLogoIcon from "@/assets/svgs/menorah-logo-icon.svg"
-import { useRouter } from "expo-router"
 
 
 const WelcomeScreen = () => {
@@ -10,10 +10,12 @@ const WelcomeScreen = () => {
   const router = useRouter()
 
   const routeToLogin = () => {
+    hapticMedium()
     router.push("/(auth)/login")
   }
 
   const routeToSignUp = () => {
+    hapticMedium()
     router.push("/(auth)/signup")
   }
 
@@ -22,10 +24,6 @@ const WelcomeScreen = () => {
       <View className="flex-1">
         <View className="flex-1 items-center justify-center gap-8">
           <MenorahLogo />
-          {/* <MenorahLogoIcon />
-          <Text className="text-5xl font-bold text-menorah-gold">
-            The Menorah
-          </Text> */}
         </View>
 
         <View className="w-full max-w-sm self-center gap-4 pb-10">

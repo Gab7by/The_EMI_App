@@ -1,13 +1,15 @@
 import { Colors } from "@/constants/theme"
+import { hapticMedium } from "@/lib/haptics"
 import { supabase } from "@/lib/supabase"
 import { useForgotPasswordModalStore } from "@/store/authStore"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { BlurView } from "expo-blur"
 import { useRouter } from "expo-router"
-import { useState } from "react"
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native"
-import { Icon } from "../ui/icon"
 import { Loader2 } from "lucide-react-native"
+import { useEffect, useState } from "react"
+import { Keyboard, Modal, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { Icon } from "../ui/icon"
 
 const ForgotPasswordModal = () => {
 
@@ -17,10 +19,37 @@ const ForgotPasswordModal = () => {
     const setModalOpen = useForgotPasswordModalStore(state => state.setIsOpen)
     const [isSendingEmail, setIsSendingEmail] = useState<boolean>(false)
     const [errorSendingEmail, setErrorSendingEmail] = useState<string | null>(null)
-
     const [email, setEmail] = useState<string>("")
+    const [keyboardHeight, setKeyboardHeight] = useState(0)
+    const { height } = useWindowDimensions()
+    const insets = useSafeAreaInsets()
+    const bottomOffset = keyboardHeight > 0 ? Math.max(0, keyboardHeight - insets.bottom) : 0
+    const sheetMaxHeight = keyboardHeight > 0
+        ? Math.max(260, height - bottomOffset - insets.top - 16)
+        : Math.min(360, height * 0.48)
+
+    useEffect(() => {
+        if (!isModalOpen) {
+            setKeyboardHeight(0)
+            return
+        }
+
+        const showSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
+            setKeyboardHeight(event.endCoordinates.height)
+        })
+
+        const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+            setKeyboardHeight(0)
+        })
+
+        return () => {
+            showSubscription.remove()
+            hideSubscription.remove()
+        }
+    }, [isModalOpen])
 
     const closeModal = () => {
+        hapticMedium()
         setEmail("")
         setModalOpen(false)
     }
@@ -28,14 +57,14 @@ const ForgotPasswordModal = () => {
     const sendEmail = async () => {
         try{
             setIsSendingEmail(true)
-            if(email.length < 5 || !email.endsWith(".com")) {
+            if (!email || email.length < 5 || !email.endsWith(".com")) {
                 setErrorSendingEmail("Enter a valid email")
                 setTimeout(() => {
                     setErrorSendingEmail(null)
                 }, 2000)
 
                 return
-            } 
+            }
 
             const {error} = await supabase.auth.resetPasswordForEmail(email)
             if (error) {
@@ -80,17 +109,27 @@ const ForgotPasswordModal = () => {
             <BlurView
                 intensity={20}
                 tint="dark"
-                style={{ flex:  1}}
+                style={{ position: "absolute", inset: 0 }}
                 onTouchEnd={() => closeModal()}
             />
 
             <View
+                className="flex-1 justify-end"
+                pointerEvents="box-none"
+            >
+            <View
                 className="bg-menorah-darkGreen"
-                style={{flex: 1}}
+                style={{
+                    maxHeight: sheetMaxHeight,
+                    marginBottom: bottomOffset,
+                    paddingBottom: Math.max(insets.bottom, 16),
+                }}
             >
                 <ScrollView
                     contentContainerClassName="px-5 gap-7"
+                    contentContainerStyle={{ paddingBottom: keyboardHeight > 0 ? 24 : 0 }}
                     keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="interactive"
                     showsVerticalScrollIndicator={false}
                     >
                     <View className="h-[3px] self-center bg-menorah-primary mt-4 w-[80px]" />
@@ -113,7 +152,7 @@ const ForgotPasswordModal = () => {
                                     </View>
                                 )}
                         </View>
-                        <Pressable onPress={sendEmail}  className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
+                        <Pressable onPress={() => { hapticMedium(); sendEmail() }}  className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
                                 {isSendingEmail ?
                                 <View className="pointer-events-none animate-spin">
                                     <Icon as={Loader2} color={Colors.menorah.bg} />
@@ -122,6 +161,7 @@ const ForgotPasswordModal = () => {
                         </Pressable>
                     </View>
                 </ScrollView>
+            </View>
             </View>
         </Modal>
     )

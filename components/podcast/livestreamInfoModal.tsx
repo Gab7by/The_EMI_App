@@ -1,24 +1,24 @@
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native"
-import {BlurView} from "expo-blur"
-import { useLiveStreamInfoModalStore, useLiveStreamStartDialogModalStore, useLiveStreamStartModalStore } from "@/store/podcast-store"
-import { ArrowLeft, Loader2 } from "lucide-react-native"
-import { Colors } from "@/constants/theme"
-import { LiveStreamInfoType, PLAYLIST_OPTIONS, PLAYLISTS } from "@/types/podcast-types"
-import { Icon } from "../ui/icon"
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import type { TriggerRef } from '@rn-primitives/select';
-import * as React from 'react';
-import { Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectLabel,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import { Colors } from "@/constants/theme"
+import { hapticMedium } from "@/lib/haptics"
+import { useLiveStreamInfoModalStore, useLiveStreamStartDialogModalStore } from "@/store/podcast-store"
+import { LiveStreamInfoType, PLAYLIST_OPTIONS } from "@/types/podcast-types"
 import { PortalHost } from "@rn-primitives/portal"
+import type { TriggerRef } from '@rn-primitives/select'
+import { BlurView } from "expo-blur"
+import { ArrowLeft, Loader2 } from "lucide-react-native"
+import * as React from 'react'
+import { Keyboard, Modal, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native"
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Icon } from "../ui/icon"
 
 const LiveStreamInfoModal = ({playlist, setPlaylist, setTitle, title, isCreatingLivePodcast, startLiveStream, errorStartingLivePodcast}:LiveStreamInfoType) => {
 
@@ -29,6 +29,12 @@ const LiveStreamInfoModal = ({playlist, setPlaylist, setTitle, title, isCreating
  
     const ref = React.useRef<TriggerRef>(null);
     const insets = useSafeAreaInsets();
+    const { height } = useWindowDimensions()
+    const [keyboardHeight, setKeyboardHeight] = React.useState(0)
+    const bottomOffset = keyboardHeight > 0 ? Math.max(0, keyboardHeight - insets.bottom) : 0
+    const sheetMaxHeight = keyboardHeight > 0
+        ? Math.max(340, height - bottomOffset - insets.top - 16)
+        : Math.min(520, height * 0.68)
     const contentInsets = {
         top: insets.top,
         bottom: Platform.select({ ios: insets.bottom, android: insets.bottom + 24 }),
@@ -36,7 +42,28 @@ const LiveStreamInfoModal = ({playlist, setPlaylist, setTitle, title, isCreating
         right: 12,
     }
 
+    React.useEffect(() => {
+        if (!isModalOpen) {
+            setKeyboardHeight(0)
+            return
+        }
+
+        const showSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
+            setKeyboardHeight(event.endCoordinates.height)
+        })
+
+        const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+            setKeyboardHeight(0)
+        })
+
+        return () => {
+            showSubscription.remove()
+            hideSubscription.remove()
+        }
+    }, [isModalOpen])
+
     const goBackToDialogModal = () => {
+        hapticMedium()
         setModalOpen(false)
         setTimeout(() => {
             setDialogModalOpen(true)
@@ -54,17 +81,28 @@ const LiveStreamInfoModal = ({playlist, setPlaylist, setTitle, title, isCreating
             <BlurView
                 intensity={20}
                 tint="dark"
-                style={{ flex:  1}}
+                style={{ position: "absolute", inset: 0 }}
                 onTouchEnd={() => setModalOpen(false)}
             />
 
             <View
+                className="flex-1 justify-end"
+                pointerEvents="box-none"
+            >
+            <View
                 className="bg-menorah-darkGreen"
-                style={{flex: 2}}
+                style={{
+                    maxHeight: sheetMaxHeight,
+                    marginBottom: bottomOffset,
+                    paddingBottom: Math.max(insets.bottom, 16),
+                }}
             >
                 <ScrollView
                     contentContainerClassName="px-5 gap-7"
+                    contentContainerStyle={{ paddingBottom: keyboardHeight > 0 ? 24 : 0 }}
                     showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="interactive"
                     >
                     <View className="h-[3px] self-center bg-menorah-primary mt-4 w-[80px]" />
                     <View className="flex-1 gap-7">
@@ -128,7 +166,7 @@ const LiveStreamInfoModal = ({playlist, setPlaylist, setTitle, title, isCreating
                             />
                             {errorStartingLivePodcast && <Text className="text-menorah-error text-xs">{errorStartingLivePodcast}</Text>}
                         </View>
-                        <Pressable onPress={() => startLiveStream(() => setModalOpen(false))} className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
+                        <Pressable onPress={() => { hapticMedium(); startLiveStream(() => setModalOpen(false)) }} className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
                                 {
                                     isCreatingLivePodcast ?
                                     (<View className="pointer-events-none animate-spin">
@@ -139,6 +177,7 @@ const LiveStreamInfoModal = ({playlist, setPlaylist, setTitle, title, isCreating
                         </Pressable>
                     </View>
                 </ScrollView>
+            </View>
             </View>
             <PortalHost name="modal-portal" />
         </Modal>

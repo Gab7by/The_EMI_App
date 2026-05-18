@@ -1,4 +1,3 @@
-import { useProfileStore } from "@/store/profileStore"
 import { Pressable, Text, View } from "react-native"
 import {Image} from "expo-image"
 import { useAuthStore } from "@/store/authStore"
@@ -6,8 +5,8 @@ import { Colors } from "@/constants/theme"
 
 const ProfileModalIcon = ({borderColor}:{borderColor: string}) => {
     
-    const profileImageUrl = useProfileStore(state => state.profileImageUrl)
-    const name: string = useAuthStore(state => state.session?.user.user_metadata.full_name)
+    const profileImageUrl = useAuthStore(state => state.profile?.avatar_url)
+    const name = useAuthStore(state => state.profile?.full_name ?? state.session?.user.user_metadata.full_name ?? "User")
 
     return (
         <Pressable
@@ -18,7 +17,7 @@ const ProfileModalIcon = ({borderColor}:{borderColor: string}) => {
                 height: 70,
                 borderRadius: 35,
                 justifyContent: "center",
-                alignItems: "center"
+                alignItems: "center",
             }}
         >
             <View
@@ -37,6 +36,7 @@ const ProfileModalIcon = ({borderColor}:{borderColor: string}) => {
                         <Image
                             source={{uri: profileImageUrl}}
                             style={{width: 54, height: 54, borderRadius: 27}}
+                            contentFit="cover"
                         />
                     ) : (
                         <View style={{width: 54, height: 54, borderRadius: 27}} className="bg-menorah-bg items-center justify-center">

@@ -1,18 +1,19 @@
+import { Button } from "@/components/ui/button"
+import { Icon } from "@/components/ui/icon"
+import { Text as ShadText } from "@/components/ui/text"
 import { Colors } from "@/constants/theme"
+import { hapticMedium } from "@/lib/haptics"
+import { supabase } from "@/lib/supabase"
+import { SignUpSchema } from "@/schemas/auth-schemas"
+import { SignUpFormType } from "@/types/auth-types"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useRouter } from "expo-router"
+import { Loader2 } from "lucide-react-native"
+import { useState } from "react"
+import { Controller, useForm } from "react-hook-form"
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { Button } from "@/components/ui/button"
-import { Text as ShadText } from "@/components/ui/text"
-import { useRouter } from "expo-router"
-import { Controller, useForm } from "react-hook-form"
-import { SignUpFormType } from "@/types/auth-types"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { SignUpSchema } from "@/schemas/auth-schemas"
-import { useState } from "react"
-import { supabase } from "@/lib/supabase"
-import { Icon } from "@/components/ui/icon"
-import { Loader2 } from "lucide-react-native"
 
 const SignUpScreen = () => {
 
@@ -22,10 +23,12 @@ const SignUpScreen = () => {
     const [errorSigningUp, setErrorSigningUp] = useState<string | null>(null)
 
     const routeToLogin = () => {
+        hapticMedium()
         router.replace("/(auth)/login")
     }
 
     const goToPreviousScreen = () => {
+        hapticMedium()
         router.back()
     }
 

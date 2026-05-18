@@ -9,8 +9,8 @@ const HomeProfileIcon = ({borderColor}: {borderColor: string}) => {
 
     const setModalOpen = useHomeProfileModalStore(state => state.setIsOpen)
     
-    const profileImageUrl = useProfileStore(state => state.profileImageUrl)
-    const name: string = useAuthStore(state => state.session?.user.user_metadata.full_name)
+    const profileImageUrl = useAuthStore(state => state.profile?.avatar_url)
+    const name = useAuthStore(state => state.profile?.full_name ?? state.session?.user.user_metadata.full_name ?? "User")
 
     return (
         <Pressable onPress={() => setModalOpen(true)} className="flex-row gap-2 items-center">
@@ -30,6 +30,7 @@ const HomeProfileIcon = ({borderColor}: {borderColor: string}) => {
                         <Image
                             source={{uri: profileImageUrl}}
                             style={{width: 26, height: 26, borderRadius: 13}}
+                            contentFit="cover"
                         />
                     ) : (
                         <View style={{width: 26, height: 26, borderRadius: 13}} className="bg-menorah-bg items-center justify-center">

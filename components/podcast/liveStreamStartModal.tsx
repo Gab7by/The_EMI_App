@@ -1,9 +1,9 @@
-import { Modal, Pressable, Text, View } from "react-native"
-import {BlurView} from "expo-blur"
-import { useLiveStreamStartDialogModalStore, useLiveStreamStartModalStore } from "@/store/podcast-store"
 import { Colors } from "@/constants/theme"
-import { Button } from "../ui/button"
-import { Send, SendHorizonal } from "lucide-react-native"
+import { hapticMedium } from "@/lib/haptics"
+import { useLiveStreamStartDialogModalStore, useLiveStreamStartModalStore } from "@/store/podcast-store"
+import { BlurView } from "expo-blur"
+import { SendHorizonal } from "lucide-react-native"
+import { Modal, Pressable, Text, View } from "react-native"
 
 const LiveStreamStartModal = () => {
 
@@ -13,6 +13,7 @@ const LiveStreamStartModal = () => {
     const setDialogModalOpen = useLiveStreamStartDialogModalStore(state => state.setIsOpen)
 
     const openDialogModal = () => {
+        hapticMedium()
         setModalOpen(false)
         setTimeout(() => {
             setDialogModalOpen(true)

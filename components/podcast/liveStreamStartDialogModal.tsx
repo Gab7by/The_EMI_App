@@ -1,8 +1,9 @@
-import { Modal, Pressable, Text, View } from "react-native"
-import {BlurView} from "expo-blur"
-import { useLiveStreamInfoModalStore, useLiveStreamStartDialogModalStore, useLiveStreamVisibilityModalStore } from "@/store/podcast-store"
 import { Colors } from "@/constants/theme"
-import { Wifi, ChevronRight, SunIcon, Loader2 } from "lucide-react-native"
+import { hapticMedium } from "@/lib/haptics"
+import { useLiveStreamInfoModalStore, useLiveStreamStartDialogModalStore, useLiveStreamVisibilityModalStore } from "@/store/podcast-store"
+import { BlurView } from "expo-blur"
+import { ChevronRight, Loader2, SunIcon, Wifi } from "lucide-react-native"
+import { Modal, Pressable, Text, View } from "react-native"
 import { Icon } from "../ui/icon"
 
 const LiveStreamStartDialogModal = ({playlist, isPublic, startLiveStream, isCreatingLivePodcast, errorStartingLivePodcast}:{errorStartingLivePodcast: string | null, playlist: string, isPublic: boolean, startLiveStream: (closeModal:() => void) => void, isCreatingLivePodcast: boolean}) => {
@@ -14,6 +15,7 @@ const LiveStreamStartDialogModal = ({playlist, isPublic, startLiveStream, isCrea
     const setLiveStreamVisibiltyModal = useLiveStreamVisibilityModalStore(state => state.setIsOpen)
 
     const openLiveStreamInfoModal = () => {
+        hapticMedium()
         setModalOpen(false)
         setTimeout(() => {
             setLiveStreamInfoModal(true)
@@ -21,6 +23,7 @@ const LiveStreamStartDialogModal = ({playlist, isPublic, startLiveStream, isCrea
     }
     
     const openLiveStreamVisibilityModal = () => {
+        hapticMedium()
         setModalOpen(false)
         setTimeout(() => {
             setLiveStreamVisibiltyModal(true)
@@ -67,7 +70,7 @@ const LiveStreamStartDialogModal = ({playlist, isPublic, startLiveStream, isCrea
                             </View>                            
                             <ChevronRight size={35} color={Colors.menorah.primary} />
                     </Pressable>
-                    <Pressable onPress={() => startLiveStream(() => setModalOpen(false))} className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
+                    <Pressable onPress={() => { hapticMedium(); startLiveStream(() => setModalOpen(false)) }} className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
                             {
                                 isCreatingLivePodcast ?
                                 (<View className="pointer-events-none animate-spin">

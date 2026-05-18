@@ -1,6 +1,6 @@
-import { Pressable, Text, View } from "react-native"
+import { Text, View } from "react-native"
 import {Image} from "expo-image"
-import { Colors } from "@/constants/theme"
+import { memo } from "react"
 
 const HostIcon = ({hostName, hostPictureUrl}: {hostPictureUrl: string | null, hostName: string}) => {
     
@@ -32,4 +32,4 @@ const HostIcon = ({hostName, hostPictureUrl}: {hostPictureUrl: string | null, ho
     )
 }
 
-export default HostIcon
+export default memo(HostIcon)

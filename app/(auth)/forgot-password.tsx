@@ -1,5 +1,6 @@
 import { Icon } from "@/components/ui/icon"
 import { Colors } from "@/constants/theme"
+import { hapticMedium } from "@/lib/haptics"
 import { supabase } from "@/lib/supabase"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons"
 import { useLocalSearchParams, useRouter } from "expo-router"
@@ -137,7 +138,7 @@ const ForgotPasswordScreen = () => {
                                 </View>
                             )}
                         </View>
-                        <Pressable onPress={resetPassword} className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
+                        <Pressable onPress={() => { hapticMedium(); resetPassword() }} className="bg-menorah-primary rounded-full flex-row px-8 py-6 justify-center">
                              {
                                 isVerifyingToken || isChangingPassword ? 
                                     (

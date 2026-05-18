@@ -1,10 +1,11 @@
+import { Colors } from "@/constants/theme"
+import { hapticMedium } from "@/lib/haptics"
+import { useAuthStore } from "@/store/authStore"
+import { useHomeProfileModalStore } from "@/store/homeStore"
+import { useRouter } from "expo-router"
 import { Pressable, Text, View } from "react-native"
 import Modal from "react-native-modal"
-import { useHomeProfileModalStore } from "@/store/homeStore"
-import { useAuthStore } from "@/store/authStore"
 import ProfileModalIcon from "./profileModalIcon"
-import { useRouter } from "expo-router"
-import { Colors } from "@/constants/theme"
 
 const HomeProfileModal = () => {
 
@@ -13,10 +14,11 @@ const HomeProfileModal = () => {
     const isModalOpen = useHomeProfileModalStore(state => state.isOpen)
     const setModalOpen = useHomeProfileModalStore(state => state.setIsOpen)
 
-    const name = useAuthStore(state => state.session?.user.user_metadata.full_name)
+    const name = useAuthStore(state => state.profile?.full_name ?? state.session?.user.user_metadata.full_name ?? "User")
     const email = useAuthStore(state => state.session?.user.email)
 
     const routeToProfileScreen = () => {
+        hapticMedium()
         setModalOpen(false)
         setTimeout(() => {
             router.push("/(profile)/entry")

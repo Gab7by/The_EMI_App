@@ -1,0 +1,98 @@
+
+[functions.livekit-token]
+enabled = true
+verify_jwt = true
+import_map = "./functions/livekit-token/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/livekit-token/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/livekit-token/*.html" ]
+
+[functions.livekit-grant-speaker]
+enabled = true
+verify_jwt = true
+import_map = "./functions/livekit-grant-speaker/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/livekit-grant-speaker/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/livekit-grant-speaker/*.html" ]
+
+[functions.livekit-revoke-speaker]
+enabled = true
+verify_jwt = true
+import_map = "./functions/livekit-revoke-speaker/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/livekit-revoke-speaker/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/livekit-revoke-speaker/*.html" ]
+
+[functions.livekit-mute-speaker]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/livekit-mute-speaker/index.ts"
+
+[functions.livekit-start-recording]
+enabled = true
+verify_jwt = true
+import_map = "./functions/livekit-start-recording/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/livekit-start-recording/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/livekit-start-recording/*.html" ]
+
+[functions.livekit-stop-recording]
+enabled = true
+verify_jwt = true
+import_map = "./functions/livekit-stop-recording/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/livekit-stop-recording/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/livekit-stop-recording/*.html" ]
+
+[functions.share-redirect]
+enabled = true
+verify_jwt = true
+import_map = "./functions/share-redirect/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/share-redirect/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/share-redirect/*.html" ]
+
+[functions.delete-account]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/delete-account/index.ts"
+
+[functions.music-bot-play]
+enabled = true
+verify_jwt = true
+import_map = "./functions/music-bot-play/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/music-bot-play/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/music-bot-play/*.html" ]
+
+[functions.music-bot-stop]
+enabled = true
+verify_jwt = true
+import_map = "./functions/music-bot-stop/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/music-bot-stop/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/music-bot-stop/*.html" ]

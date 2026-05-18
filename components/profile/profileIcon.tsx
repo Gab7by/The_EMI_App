@@ -1,20 +1,23 @@
-import { useProfileStore } from "@/store/profileStore"
-import { Pressable, Text, View } from "react-native"
-import {Image} from "expo-image"
+import { hapticMedium } from "@/lib/haptics"
 import { useAuthStore } from "@/store/authStore"
+import { Image } from "expo-image"
 import { useRouter } from "expo-router"
+import { Pressable, Text, View } from "react-native"
 
 const ProfileIcon = ({borderColor}: {borderColor: string}) => {
     
-    const profileImageUrl = useProfileStore(state => state.profileImageUrl)
-    const name: string = useAuthStore(state => state.session?.user.user_metadata.full_name)
+    const profileImageUrl = useAuthStore(state => state.profile?.avatar_url)
+    const name = useAuthStore(state => state.profile?.full_name ?? state.session?.user.user_metadata.full_name ?? "User")
 
     const router = useRouter()
 
 
     return (
         <Pressable
-            onPress={() => router.push("/(profile)/entry")}
+            onPress={() => {
+                hapticMedium()
+                router.push("/(profile)/entry")
+            }}
             style={{
                 borderWidth: 4,
                 borderColor,
@@ -30,6 +33,7 @@ const ProfileIcon = ({borderColor}: {borderColor: string}) => {
                     <Image
                         source={{uri: profileImageUrl}}
                         style={{width: 26, height: 26, borderRadius: 13}}
+                        contentFit="cover"
                     />
                 ) : (
                     <View style={{width: 26, height: 26, borderRadius: 13}} className="bg-menorah-bg items-center justify-center">

@@ -12,13 +12,14 @@ import { imageItems } from "@/constants/podcast";
 import { useLivePodcastSessions } from "@/hooks/tanstack-query-hooks";
 import { createLivePodcast } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
+import { startRecording } from "@/lib/recording";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveStreamStartModalStore } from "@/store/podcast-store";
-import { Playlist, PLAYLIST_OPTIONS, PlaylistOption, PLAYLISTS } from "@/types/podcast-types";
+import { Playlist, PLAYLIST_OPTIONS, PlaylistOption } from "@/types/podcast-types";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { Plus } from "lucide-react-native";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { RefreshControl, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -44,13 +45,13 @@ const PodcastScreen = () => {
   const profile = useAuthStore((state) => state.profile);
   const isAdmin = profile?.role === "admin";
 
-  const openLiveStreamStartModal = () => {
+  const openLiveStreamStartModal = useCallback(() => {
     setOpenLiveStreamStartModal(true);
-  };
+  }, [setOpenLiveStreamStartModal]);
 
   const { data, isLoading, isRefetching, refetch } = useLivePodcastSessions();
 
-  const startLiveStream = (closeModal: () => void) => {
+  const startLiveStream = useCallback((closeModal: () => void) => {
     if(title.length < 1) {
         setErrorStartingLivePodcast("Podcast title is required")
         setTimeout(() => {
@@ -65,7 +66,7 @@ const PodcastScreen = () => {
       start_time: new Date().toISOString(),
       title: title,
       playlist: playlist.value as Playlist,
-    }).then((livePodcast) => {
+    }).then(async (livePodcast) => {
       setIsCreatingLivePodcast(false);
       if (livePodcast === null) {
         return;
@@ -75,6 +76,7 @@ const PodcastScreen = () => {
       setPlaylist(PLAYLIST_OPTIONS[0]);
       setTitle("");
       queryClient.invalidateQueries({ queryKey: ["live-podcast-sessions"] });
+
       closeModal();
       setTimeout(() => {
         router.push(
@@ -86,13 +88,35 @@ const PodcastScreen = () => {
                     title: livePodcast.title,
                     hostId: livePodcast.host.id,
                     hostName: livePodcast.host.full_name,
-                    hostPictureUrl: livePodcast.host.avatar_url
+                    hostPictureUrl: livePodcast.host.avatar_url,
+                    livekitRoomName: livePodcast.livekit_room_name
                 }
             }
         )
       }, 100);
     });
-  };
+  }, [isPublic, isunlisted, playlist.value, router, title]);
+
+  const listHeader = useMemo(() => (
+    <Text className="text-xl font-bold text-menorah-goldDark mb-4">
+      Livestreams
+    </Text>
+  ), [])
+
+  const renderLivePodcast = useCallback(({ item }: { item: NonNullable<typeof data>[number] }) => (
+    <LiveStreamCard
+      livekitRoomName={item.livekit_room_name}
+      playlist={item.playlist}
+      hostId={item.host.id}
+      id={item.id}
+      hostName={item.host.full_name!}
+      title={item.title}
+      hostPictureUrl={item.host.avatar_url}
+      coverImageUrl={item.cover_image_url}
+    />
+  ), [])
+
+  const itemSeparator = useCallback(() => <View style={{ height: 20 }} />, [])
 
   return (
     <SafeAreaView className="flex-1 bg-menorah-bg py-8 px-4 gap-4 relative">
@@ -103,25 +127,13 @@ const PodcastScreen = () => {
       ) : (
         <FlashList
             ListEmptyComponent={<NoLiveStreamCard />}
-            contentContainerStyle={{paddingBottom: insets.bottom + 80}}
-            ListHeaderComponent={
-                <Text className="text-xl font-bold text-menorah-goldDark mb-4">
-                    Livestreams
-                </Text>
-            }
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{paddingBottom: insets.bottom + 120}}
+            ListHeaderComponent={listHeader}
             data={data}
-            renderItem={({ item }) => (
-                <LiveStreamCard
-                    playlist={item.playlist}
-                    hostId={item.host.id}
-                    id={item.id}
-                    hostName={item.host.full_name!}
-                    title={item.title}
-                    hostPictureUrl={item.host.avatar_url}
-                />
-            )}
+            renderItem={renderLivePodcast}
             keyExtractor={(item) => item.id}
-            ItemSeparatorComponent={() => <View style={{ height: 20 }} />}
+            ItemSeparatorComponent={itemSeparator}
             refreshControl={
                 <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
             }

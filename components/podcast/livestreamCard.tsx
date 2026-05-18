@@ -1,10 +1,12 @@
-import { Pressable, Text, View } from "react-native"
-import { Image } from "expo-image"
-import HostIcon from "./hostIcon"
 import Sun from "@/assets/svgs/sun-icon.svg"
+import { hapticMedium } from "@/lib/haptics"
 import { useAuthStore } from "@/store/authStore"
-import { useRouter } from "expo-router"
 import { LiveStreamCardType } from "@/types/podcast-types"
+import { Image } from "expo-image"
+import { useRouter } from "expo-router"
+import { memo, useCallback } from "react"
+import { Pressable, Text, View } from "react-native"
+import HostIcon from "./hostIcon"
 
 const LiveStreamCard = ({
     hostName,
@@ -12,7 +14,9 @@ const LiveStreamCard = ({
     playlist, 
     title,
     hostId,
-    id
+    id,
+    livekitRoomName,
+    coverImageUrl
 }:LiveStreamCardType) => {
 
     const profile = useAuthStore(state => state.profile)
@@ -20,7 +24,8 @@ const LiveStreamCard = ({
 
     const router = useRouter()
 
-    const goToLiveStream = () => {
+    const goToLiveStream = useCallback(() => {
+        hapticMedium()
         if(isAdmin) router.push(
             {
                 pathname: "/(podcast)/live-podcast-admin",
@@ -30,7 +35,9 @@ const LiveStreamCard = ({
                     playlist,
                     hostId,
                     hostName,
-                    hostPictureUrl
+                    hostPictureUrl,
+                    livekitRoomName,
+                    coverImageUrl
                 }
             }
         );
@@ -43,11 +50,13 @@ const LiveStreamCard = ({
                     playlist,
                     hostId,
                     hostName,
-                    hostPictureUrl
+                    hostPictureUrl,
+                    livekitRoomName,
+                    coverImageUrl
                 }
             }
         )
-    }
+    }, [coverImageUrl, hostId, hostName, hostPictureUrl, id, isAdmin, livekitRoomName, playlist, router, title])
 
     return (
         <Pressable onPress={goToLiveStream}>
@@ -73,4 +82,4 @@ const LiveStreamCard = ({
     )
 }
 
-export default LiveStreamCard
+export default memo(LiveStreamCard)

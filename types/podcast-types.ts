@@ -1,3 +1,4 @@
+import { ReactNode } from "react"
 import { Profile } from "./auth-types"
 
 export type liveStreamStartModalType = {
@@ -78,6 +79,7 @@ export type LivePodcast = {
   is_unlisted: boolean
   status: PodcastStatus
   host: Profile
+  livekit_room_name: string
   cover_image_url: string | null
   start_time: string
   end_time: string | null
@@ -101,9 +103,45 @@ export type LiveStreamCardType = {
     hostName: string
     id: string
     hostId: string
+    livekitRoomName: string,
+    coverImageUrl: string | null
 }
 
 export const PLAYLIST_OPTIONS = PLAYLISTS.map((playlist) => ({
   label: playlist,
   value: playlist,
 }))
+
+export type MessageType = 'text' | 'image'
+
+export type LiveMessage = {
+  id: string
+  podcast_id: string
+  sender_id: string
+  sender_name: string
+  sender_avartar_url: string | null
+  content: string 
+  message_type: MessageType
+  created_at: string
+  isLocal?: boolean
+}
+
+export type PodcastBackgroundProps = {
+  coverUrl: string | null
+  children: ReactNode
+}
+
+export type MusicTrack = {
+  id: string
+  name: string
+  url: string
+  path?: string | null
+  duration_seconds: number | null
+}
+
+export type AudioPickerAsset = {
+  uri: string
+  name: string
+  mimeType: string
+  size: number
+}
