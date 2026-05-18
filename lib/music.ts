@@ -32,10 +32,6 @@ export type MusicBotStatus = {
     error: string | null
     volume: number | null
     gain?: number | null
-    effectiveGain?: number | null
-    ducked?: boolean
-    activeSpeakerCount?: number
-    lastActiveSpeakerAt?: number | null
     paused: boolean
 }
 
