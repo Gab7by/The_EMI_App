@@ -105,6 +105,9 @@ export const podcastCurrencies: PodcastCurrencyOption[] = [
   { id: "zar", label: "South African Rand", flag: "ZA" },
 ];
 
+export const MAX_GUEST_SPEAKERS = 10;
+export const SPEAKER_LIMIT_MESSAGE = "Speaker slots are full. Please try again shortly.";
+
 export const renderPaymentMethodIcon = (iconKey: PodcastPaymentMethod["iconKey"]) => {
   if (iconKey === "paypal") {
     return <Text className="text-[28px] font-bold italic text-[#D7FF00]">P</Text>;
@@ -224,10 +227,10 @@ export const PodcastParticipantsGrid = memo(({
 
     return {
       isFewParticipants: isFew,
-      avatarSize: isFew ? 80 : 62,
+      avatarSize: isFew ? 80 : 56,
       containerStyle: isFew
         ? "mb-6 flex-row flex-wrap items-center justify-center gap-x-4 gap-y-4"
-        : "mb-6 flex-row flex-wrap gap-y-4 gap-x-3",
+        : "mb-5 flex-row flex-wrap gap-y-3",
     };
   }, [participants.length]);
 
@@ -241,7 +244,8 @@ export const PodcastParticipantsGrid = memo(({
         return (
           <View
             key={participant.id}
-            className={layout.isFewParticipants ? "mb-4 items-center" : "mb-1 w-[76px] items-center"}
+            className={layout.isFewParticipants ? "mb-4 items-center" : "mb-1 items-center px-0.5"}
+            style={layout.isFewParticipants ? undefined : { width: "20%" }}
           >
             <View
               className="items-center justify-center rounded-full"

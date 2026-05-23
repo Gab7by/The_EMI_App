@@ -3,6 +3,7 @@ import HugeIcon from "@/assets/svgs/hugeicons_note.svg";
 import MoneyIcon from "@/assets/svgs/send_money_icon.svg";
 import {
   HostAvatar,
+  MAX_GUEST_SPEAKERS,
   PodcastBackground,
   PodcastBottomDock,
   PodcastBottomSheet,
@@ -16,6 +17,7 @@ import {
   podcastCurrencies,
   podcastPaymentMethods,
   renderPaymentMethodIcon,
+  SPEAKER_LIMIT_MESSAGE,
   usePodcastFooterLayout,
   type PodcastCurrencyOption
 } from "@/components/podcast/livePodcastShared";
@@ -67,6 +69,7 @@ const MemberLivePodcast = () => {
   const [keyboardHeight, setKeyboardHeight] = useState(0)
   const [isCallActionLoading, setIsCallActionLoading] = useState(false)
   const [hasHungUpSpeaker, setHasHungUpSpeaker] = useState(false)
+  const [speakerLimitMessage, setSpeakerLimitMessage] = useState<string | null>(null)
 
   const selectedCurrency = useMemo(
     () =>
@@ -113,6 +116,25 @@ const MemberLivePodcast = () => {
     ],
     [roomParticipants, hostId, hostName, hostPictureUrl, hostSnapshot?.isSpeaking, hostSnapshot?.audioLevel, profile?.full_name, profile?.avatar_url]
   );
+
+  const activeGuestSpeakerCount = useMemo(
+    () => roomParticipants.filter((participant) => participant.id !== hostId && participant.canPublish).length,
+    [hostId, roomParticipants]
+  )
+
+  const showSpeakerLimitMessage = useCallback(() => {
+    setSpeakerLimitMessage(SPEAKER_LIMIT_MESSAGE)
+  }, [])
+
+  useEffect(() => {
+    if (!speakerLimitMessage) return
+
+    const timeout = setTimeout(() => {
+      setSpeakerLimitMessage(null)
+    }, 3200)
+
+    return () => clearTimeout(timeout)
+  }, [speakerLimitMessage])
 
   const visibleLoveBursts = useMemo(() => {
     const byId = new Map<string, LoveBurst>()
@@ -233,6 +255,13 @@ const MemberLivePodcast = () => {
 
   const handleRaiseHand = async () => {
     if (!room || !profile || isCallActionLoading) return
+
+    if (!canSpeak && !hasRaisedHand && activeGuestSpeakerCount >= MAX_GUEST_SPEAKERS) {
+      hapticMedium()
+      showSpeakerLimitMessage()
+      return
+    }
+
     setIsCallActionLoading(true)
 
     try {
@@ -606,6 +635,14 @@ const MemberLivePodcast = () => {
         <PodcastConnectingOverlay
           visible={shouldShowConnectingOverlay && isConnecting}
         />
+
+        {speakerLimitMessage ? (
+          <View className="absolute left-4 right-4 top-[122px] rounded-[18px] border border-[#D7FF00]/20 bg-[#0F2A08]/95 px-4 py-3">
+            <Text className="text-center text-[13px] font-semibold text-[#F4F5F0]">
+              {speakerLimitMessage}
+            </Text>
+          </View>
+        ) : null}
 
         {hasRaisedHand && !canSpeak ? (
           <View className="absolute left-4 right-4 top-[122px] rounded-[18px] border border-[#D7FF00]/20 bg-[#0F2A08]/90 px-4 py-3">
