@@ -2,10 +2,10 @@ import LivePeople from "@/assets/svgs/live_people_icon.svg";
 import { hapticMedium } from "@/lib/haptics";
 import { LiveMessage, PodcastBackgroundProps } from "@/types/podcast-types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { FlashList } from "@shopify/flash-list";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
     ActivityIndicator,
     Keyboard,
@@ -16,7 +16,9 @@ import {
     Text,
     useWindowDimensions,
     View,
-    type LayoutChangeEvent
+    type LayoutChangeEvent,
+    type NativeScrollEvent,
+    type NativeSyntheticEvent
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -309,8 +311,70 @@ type PodcastCommentsProps = {
 
 export const PodcastComments = memo(({ footerPadding, messages }: PodcastCommentsProps) => {
   const { width } = useWindowDimensions()
+  const listRef = useRef<FlashListRef<LiveMessage>>(null)
+  const shouldScrollToLatestRef = useRef(true)
+  const [isAtBottom, setIsAtBottom] = useState(true)
+  const [canScroll, setCanScroll] = useState(false)
   const imageWidth = Math.min(width * 0.68, 220)
   const imageHeight = imageWidth * 0.72
+  const latestMessageId = messages[messages.length - 1]?.id
+  const scrollButtonIcon = isAtBottom ? "chevron-up" : "chevron-down"
+  const scrollButtonLabel = isAtBottom ? "Go to first message" : "Go to latest message"
+
+  const scrollToLatestMessage = useCallback((animated = true) => {
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToEnd({ animated })
+    })
+  }, [])
+
+  const scrollToFirstMessage = useCallback(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true })
+  }, [])
+
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
+    const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height)
+    const nextIsAtBottom = distanceFromBottom <= 64
+    const nextCanScroll = contentSize.height > layoutMeasurement.height + 64
+
+    setIsAtBottom(nextIsAtBottom)
+    setCanScroll(nextCanScroll)
+  }, [])
+
+  const handleScrollButtonPress = useCallback(() => {
+    hapticMedium()
+
+    if (isAtBottom) {
+      scrollToFirstMessage()
+      return
+    }
+
+    scrollToLatestMessage()
+  }, [isAtBottom, scrollToFirstMessage, scrollToLatestMessage])
+
+  const handleContentSizeChange = useCallback(() => {
+    if (!messages.length) return
+
+    if (shouldScrollToLatestRef.current || isAtBottom) {
+      scrollToLatestMessage(false)
+      shouldScrollToLatestRef.current = false
+    }
+  }, [isAtBottom, messages.length, scrollToLatestMessage])
+
+  useEffect(() => {
+    if (!messages.length) {
+      shouldScrollToLatestRef.current = true
+      setIsAtBottom(true)
+      setCanScroll(false)
+      return
+    }
+
+    if (shouldScrollToLatestRef.current || isAtBottom) {
+      scrollToLatestMessage(!shouldScrollToLatestRef.current)
+      shouldScrollToLatestRef.current = false
+    }
+  }, [isAtBottom, latestMessageId, messages.length, scrollToLatestMessage])
+
   const listHeader = useMemo(() => (
     <View className="mb-5 rounded-2xl bg-menorah-bg/90 px-3.5 py-3">
       <Text className="text-[11px] leading-4 text-[#FFD700]">
@@ -391,15 +455,37 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
   ), [imageHeight, imageWidth, width])
 
   return (
-    <FlashList
-      data={messages}
-      showsVerticalScrollIndicator={false}
-      ListEmptyComponent={listEmpty}
-    keyExtractor={(item) => item.id}
-    contentContainerStyle={{ paddingBottom: footerPadding }}
-    ListHeaderComponent={listHeader}
-    renderItem={renderMessage}
-  />
+    <View className="relative min-h-[220px] flex-1">
+      <FlashList
+        ref={listRef}
+        data={messages}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={listEmpty}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: footerPadding }}
+        ListHeaderComponent={listHeader}
+        onContentSizeChange={handleContentSizeChange}
+        onLoad={() => scrollToLatestMessage(false)}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        renderItem={renderMessage}
+      />
+      {messages.length > 0 && canScroll ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={scrollButtonLabel}
+          onPress={handleScrollButtonPress}
+          className="absolute right-1 h-11 w-11 items-center justify-center rounded-full border border-[#D7FF00]/30 bg-[#143703]/95"
+          style={{ bottom: Math.max(footerPadding - 4, 20) }}
+        >
+          <MaterialCommunityIcons
+            name={scrollButtonIcon}
+            size={26}
+            color="#D7FF00"
+          />
+        </Pressable>
+      ) : null}
+    </View>
 )
 });
 PodcastComments.displayName = "PodcastComments";
