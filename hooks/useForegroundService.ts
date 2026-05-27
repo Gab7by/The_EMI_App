@@ -1,8 +1,8 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { Platform } from "react-native"
 import {
     ForegroundServiceType,
-    startForegroundService,
+    startLiveForegroundService,
     stopForegroundService
 } from "@/lib/foreground-service"
 
@@ -10,16 +10,16 @@ export const useForegroundService = (
     isActive: boolean,
     serviceType: ForegroundServiceType = "mediaPlayback"
 ) => {
+    const hasStartedServiceRef = useRef(false)
+
     useEffect(() => {
         if (Platform.OS != "android") return
 
         if (isActive) {
+            hasStartedServiceRef.current = true
             startService(serviceType)
-        } else {
-            stopService()
-        }
-
-        return () => {
+        } else if (hasStartedServiceRef.current) {
+            hasStartedServiceRef.current = false
             stopService()
         }
     }, [isActive, serviceType])
@@ -28,17 +28,7 @@ export const useForegroundService = (
 const startService = async (serviceType: ForegroundServiceType) => {
 
     try {
-        await startForegroundService({
-            id: 1001,
-            title: "The Menorah - Live",
-            message: "Session is active",
-            ServiceType: serviceType,
-            visibility: "public",
-            icon: 'ic_launcher',
-            importance: "low",
-            number: '0',
-            button: false
-        }) 
+        await startLiveForegroundService(serviceType)
         } catch(error) {
             console.error("Error starting foreground service:", error)
     }

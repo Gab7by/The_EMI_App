@@ -1351,7 +1351,7 @@ const AdminLivePodcast = () => {
           title={title}
         />
 
-        <PodcastConnectingOverlay
+      <PodcastConnectingOverlay
           visible={shouldShowConnectingOverlay && isConnecting}
         />
       </SafeAreaView>

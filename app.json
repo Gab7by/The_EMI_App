@@ -46,7 +46,7 @@
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.POST_NOTIFICATIONS"
       ],
-      "package": "com.snrroko.the_menorah"
+      "package": "com.snr_roko.the_menorah"
     },
     "web": {
       "output": "static",
@@ -89,9 +89,8 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "9b1d09bd-22b8-466c-89d6-02223ca1e415"
+        "projectId": "4d60785a-3fab-4fe0-a6a7-c205ea7664b9"
       }
-    },
-    "owner": "snrroko"
+    }
   }
 }
