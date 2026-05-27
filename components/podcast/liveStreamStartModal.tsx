@@ -4,11 +4,13 @@ import { useLiveStreamStartDialogModalStore, useLiveStreamStartModalStore } from
 import { BlurView } from "expo-blur"
 import { SendHorizonal } from "lucide-react-native"
 import { Modal, Pressable, Text, View } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 const LiveStreamStartModal = () => {
 
     const isModalOpen = useLiveStreamStartModalStore(state => state.isOpen)
     const setModalOpen = useLiveStreamStartModalStore(state => state.setIsOpen)
+    const insets = useSafeAreaInsets()
 
     const setDialogModalOpen = useLiveStreamStartDialogModalStore(state => state.setIsOpen)
 
@@ -38,7 +40,8 @@ const LiveStreamStartModal = () => {
             <View 
                 className="bg-menorah-darkGreen px-5"
                 style={{
-                    flex: 1
+                    flex: 1,
+                    paddingBottom: Math.max(insets.bottom, 16)
                 }}
                 >
                 <View className="h-[3px] self-center bg-menorah-primary mt-4 w-[80px]" />

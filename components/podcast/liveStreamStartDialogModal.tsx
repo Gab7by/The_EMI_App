@@ -4,12 +4,14 @@ import { useLiveStreamInfoModalStore, useLiveStreamStartDialogModalStore, useLiv
 import { BlurView } from "expo-blur"
 import { ChevronRight, Loader2, SunIcon, Wifi } from "lucide-react-native"
 import { Modal, Pressable, Text, View } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Icon } from "../ui/icon"
 
 const LiveStreamStartDialogModal = ({playlist, isPublic, startLiveStream, isCreatingLivePodcast, errorStartingLivePodcast}:{errorStartingLivePodcast: string | null, playlist: string, isPublic: boolean, startLiveStream: (closeModal:() => void) => void, isCreatingLivePodcast: boolean}) => {
 
     const isModalOpen = useLiveStreamStartDialogModalStore(state => state.isOpen)
     const setModalOpen = useLiveStreamStartDialogModalStore(state => state.setIsOpen)
+    const insets = useSafeAreaInsets()
 
     const setLiveStreamInfoModal = useLiveStreamInfoModalStore(state => state.setIsOpen)
     const setLiveStreamVisibiltyModal = useLiveStreamVisibilityModalStore(state => state.setIsOpen)
@@ -48,7 +50,8 @@ const LiveStreamStartDialogModal = ({playlist, isPublic, startLiveStream, isCrea
             <View 
                 className="bg-menorah-darkGreen px-5"
                 style={{
-                    flex: 2
+                    flex: 2,
+                    paddingBottom: Math.max(insets.bottom, 16)
                 }}
                 >
                 <View className="h-[3px] self-center bg-menorah-primary mt-4 w-[80px]" />

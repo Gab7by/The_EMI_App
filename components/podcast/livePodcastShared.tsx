@@ -480,7 +480,7 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
           accessibilityLabel={scrollButtonLabel}
           onPress={handleScrollButtonPress}
           className="absolute right-1 h-11 w-11 items-center justify-center rounded-full border border-[#D7FF00]/30 bg-[#143703]/95"
-          style={{ bottom: Math.max(footerPadding - 4, 20) }}
+          style={{ bottom: Math.max(footerPadding - 28, 8) }}
         >
           <MaterialCommunityIcons
             name={scrollButtonIcon}
