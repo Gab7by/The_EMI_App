@@ -1,102 +1,112 @@
-import { AppRegistry, DeviceEventEmitter, NativeModules, PermissionsAndroid, Platform } from "react-native"
+import { PermissionsAndroid, Platform } from "react-native"
 
-export type ForegroundServiceType = "mediaPlayback" | "microphone" | "phoneCall" | "location"
+export type ForegroundServiceType = "mediaPlayback" | "microphone"
 
-type ForegroundServiceConfig = {
-  id: number
-  title: string
-  message: string
-  ServiceType: ForegroundServiceType
-  visibility?: "private" | "public" | "secret"
-  icon?: string
-  largeIcon?: string
-  importance?: "none" | "min" | "low" | "default" | "high" | "max"
-  number?: string
-  button?: boolean
+type BackgroundServiceModule = typeof import("react-native-background-actions").default
+
+type KeepAliveTaskArgs = {
+  delay: number
 }
 
-type RegisterConfig = {
-  config?: {
-    alert?: boolean
-    onServiceErrorCallBack?: () => void
-  }
-}
-
-const ForegroundServiceModule = NativeModules.ForegroundService
-const taskName = "myTaskName"
-let isRegistered = false
-let serviceRunning = false
+let backgroundServicePromise: Promise<BackgroundServiceModule> | null = null
 let activeServiceType: ForegroundServiceType | null = null
+let serviceOperation: Promise<void> = Promise.resolve()
 
-const taskRunner = async () => {}
+const sleep = (time: number) => new Promise((resolve) => setTimeout(resolve, time))
 
-const ensureAndroidModule = () => {
-  if (Platform.OS !== "android") return null
-  return ForegroundServiceModule
+const getBackgroundService = () => {
+  backgroundServicePromise ??= import("react-native-background-actions").then(
+    (module) => module.default
+  )
+
+  return backgroundServicePromise
+}
+
+const keepAliveTask = async (taskData?: KeepAliveTaskArgs) => {
+  const delay = taskData?.delay ?? 1000
+  const BackgroundService = await getBackgroundService()
+
+  while (BackgroundService.isRunning()) {
+    await sleep(delay)
+  }
 }
 
 const ensureNotificationPermission = async () => {
-  if (Platform.OS !== "android" || Platform.Version < 33) return true
+  if (Platform.OS !== "android" || Platform.Version < 33) return
 
   const permission = PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
-  const currentStatus = await PermissionsAndroid.check(permission)
-  if (currentStatus) return true
+  const hasPermission = await PermissionsAndroid.check(permission)
+  if (hasPermission) return
 
-  const result = await PermissionsAndroid.request(permission)
-  return result === PermissionsAndroid.RESULTS.GRANTED
+  await PermissionsAndroid.request(permission)
 }
 
-export const registerForegroundService = ({ config }: RegisterConfig = {}) => {
-  const module = ensureAndroidModule()
-  if (!module || isRegistered) return
+const getForegroundServiceTypes = (serviceType: ForegroundServiceType) => {
+  if (serviceType === "microphone") {
+    return ["microphone", "mediaPlayback"] as const
+  }
 
-  DeviceEventEmitter.addListener("onServiceError", () => {
-    config?.onServiceErrorCallBack?.()
+  return ["mediaPlayback"] as const
+}
+
+const runServiceOperation = (operation: () => Promise<void>) => {
+  serviceOperation = serviceOperation.then(operation, operation)
+  return serviceOperation
+}
+
+const startForegroundServiceNow = async (serviceType: ForegroundServiceType) => {
+  const BackgroundService = await getBackgroundService()
+
+  await ensureNotificationPermission()
+
+  if (BackgroundService.isRunning()) {
+    if (activeServiceType === serviceType) {
+      await BackgroundService.updateNotification({
+        taskTitle: "The Menorah - Live",
+        taskDesc: serviceType === "microphone" ? "Live audio session is active" : "Live session is active",
+      })
+      return
+    }
+
+    await BackgroundService.stop()
+    activeServiceType = null
+  }
+
+  await BackgroundService.start(keepAliveTask, {
+    taskName: "The Menorah Live",
+    taskTitle: "The Menorah - Live",
+    taskDesc: serviceType === "microphone" ? "Live audio session is active" : "Live session is active",
+    taskIcon: {
+      name: "ic_launcher",
+      type: "mipmap",
+    },
+    color: "#D7FF00",
+    linkingURI: "themenorah://",
+    foregroundServiceType: [...getForegroundServiceTypes(serviceType)],
+    parameters: {
+      delay: 1000,
+    },
   })
 
-  AppRegistry.registerHeadlessTask(taskName, () => taskRunner)
-  isRegistered = true
+  activeServiceType = serviceType
 }
 
-export const startForegroundService = async (config: ForegroundServiceConfig) => {
-  const module = ensureAndroidModule()
-  if (!module) return
-  if (serviceRunning && activeServiceType === config.ServiceType) return
+export const startLiveForegroundService = async (serviceType: ForegroundServiceType) => {
+  if (Platform.OS !== "android") return
 
-  if (serviceRunning) {
-    await stopForegroundService()
-  }
-
-  try {
-    await ensureNotificationPermission()
-
-    await module.startService({
-      vibration: false,
-      largeIcon: "ic_launcher",
-      ...config,
-    })
-
-    serviceRunning = true
-    activeServiceType = config.ServiceType
-
-    await module.runTask({
-      taskName,
-      delay: 500,
-      loopDelay: 500,
-      onLoop: true,
-    })
-  } catch (error) {
-    serviceRunning = false
-    activeServiceType = null
-    throw error
-  }
+  await runServiceOperation(() => startForegroundServiceNow(serviceType))
 }
 
 export const stopForegroundService = async () => {
-  const module = ensureAndroidModule()
-  if (!module || !serviceRunning) return
+  if (Platform.OS !== "android" || !backgroundServicePromise || !activeServiceType) return
 
-  serviceRunning = false
-  activeServiceType = null
-  await module.stopService()
+  await runServiceOperation(async () => {
+    const BackgroundService = await getBackgroundService()
+
+    if (BackgroundService.isRunning()) {
+      await BackgroundService.stop()
+    }
+
+    activeServiceType = null
+  })
 }

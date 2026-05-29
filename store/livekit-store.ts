@@ -98,19 +98,21 @@ export const useLiveKitStore = create<LiveKitStore>(
                     roomName,
                     roomRole: role,
                     connectionState: room.state as ConnectionState,
-                    foregroundServiceType: role === "host" ? "microphone" : "mediaPlayback",
+                    foregroundServiceType: "mediaPlayback",
                 })
 
                 if (role === "host") {
                     await room.localParticipant.setMicrophoneEnabled(true, PODCAST_MIC_CAPTURE_OPTIONS)
                     if (connectRequestId === requestId) {
-                        set({ isMuted: false })
+                        set({ isMuted: false, foregroundServiceType: "microphone" })
                     } else {
                         await room.localParticipant.setMicrophoneEnabled(false)
                         room.disconnect()
                     }
                 }
-            })().finally(() => {
+            })().catch((error) => {
+                throw error
+            }).finally(() => {
                 if (connectRequestId === requestId) {
                     connectPromise = null
                     connectTarget = null

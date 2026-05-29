@@ -5,6 +5,7 @@ import MicrophoneButton from "@/assets/svgs/microphone_button.svg";
 import MusicButton from "@/assets/svgs/music_button_icon.svg";
 import {
   HostAvatar,
+  MAX_GUEST_SPEAKERS,
   PodcastBackground,
   PodcastBottomDock,
   PodcastBottomSheet,
@@ -14,6 +15,7 @@ import {
   PodcastHeader,
   PodcastNotesDialog,
   PodcastParticipantsGrid,
+  SPEAKER_LIMIT_MESSAGE,
   usePodcastFooterLayout,
 } from "@/components/podcast/livePodcastShared";
 import { Icon } from "@/components/ui/icon";
@@ -97,6 +99,7 @@ const AdminLivePodcast = () => {
   const [isMusicActionLoading, setIsMusicActionLoading] = useState(false)
   const [isMusicStatusLoading, setIsMusicStatusLoading] = useState(false)
   const [musicStatusMessage, setMusicStatusMessage] = useState<string | null>(null)
+  const [speakerLimitMessage, setSpeakerLimitMessage] = useState<string | null>(null)
   const [musicVolume, setMusicVolume] = useState(BACKGROUND_MUSIC_DEFAULT_VOLUME)
   const [isMusicPaused, setIsMusicPaused] = useState(false)
   const [deletingMusicTrackId, setDeletingMusicTrackId] = useState<string | null>(null)
@@ -296,8 +299,34 @@ const AdminLivePodcast = () => {
     audioLevel: speaker.audioLevel,
   })), [speakerRows])
 
+  const activeGuestSpeakerCount = useMemo(
+    () => speakerRows.filter((speaker) => !speaker.isHost).length,
+    [speakerRows]
+  )
+
+  const showSpeakerLimitMessage = useCallback(() => {
+    setSpeakerLimitMessage(SPEAKER_LIMIT_MESSAGE)
+  }, [])
+
+  useEffect(() => {
+    if (!speakerLimitMessage) return
+
+    const timeout = setTimeout(() => {
+      setSpeakerLimitMessage(null)
+    }, 3200)
+
+    return () => clearTimeout(timeout)
+  }, [speakerLimitMessage])
+
   const handleApproveRaisedHand = async (participantId: string) => {
     if (!room || !profile || approvingRequests.has(participantId)) return
+
+    const participantIsAlreadySpeaker = speakerRows.some((speaker) => speaker.id === participantId && !speaker.isHost)
+    if (!participantIsAlreadySpeaker && activeGuestSpeakerCount >= MAX_GUEST_SPEAKERS) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+      showSpeakerLimitMessage()
+      return
+    }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
 
@@ -844,6 +873,14 @@ const AdminLivePodcast = () => {
           )}
         </PodcastBottomDock>
 
+        {speakerLimitMessage ? (
+          <View className="absolute left-4 right-4 top-[122px] rounded-[18px] border border-[#D7FF00]/20 bg-[#0F2A08]/95 px-4 py-3">
+            <Text className="text-center text-[13px] font-semibold text-[#F4F5F0]">
+              {speakerLimitMessage}
+            </Text>
+          </View>
+        ) : null}
+
         <PodcastBottomSheet
           visible={activeSheet === "settings"}
           onClose={() => setActiveSheet("none")}
@@ -1111,46 +1148,60 @@ const AdminLivePodcast = () => {
 
           {raisedHands.length ? (
             <View className="mt-4 gap-4">
-              {raisedHands.map((request) => (
-                <View
-                  key={request.fromId}
-                  className="rounded-[22px] bg-[#143703] px-4 py-4"
-                >
-                  <Text className="text-[16px] font-semibold text-[#F4F5F0]">
-                    {request.fromName}
-                  </Text>
-                  <Text className="mt-1 text-[12px] text-[#B7C0BC]">
-                    Wants to call in and join as a speaker.
-                  </Text>
-                  <View className="mt-4 flex-row gap-3">
-                    <Pressable
-                      onPress={() => handleApproveRaisedHand(request.fromId)}
-                      disabled={approvingRequests.has(request.fromId)}
-                      className={`flex-1 items-center rounded-[16px] px-4 py-3 ${
-                        approvingRequests.has(request.fromId)
-                          ? 'bg-[#D7FF00]/70'
-                          : 'bg-[#D7FF00]'
-                      }`}
-                    >
-                      {approvingRequests.has(request.fromId) ? (
-                        <View className="flex-row items-center">
-                          <ActivityIndicator size="small" color="#143703" />
-                          <Text className="ml-2 text-[14px] font-semibold text-[#143703]">Approving...</Text>
-                        </View>
-                      ) : (
-                        <Text className="text-[14px] font-semibold text-[#143703]">Accept</Text>
-                      )}
-                    </Pressable>
-                    <Pressable
-                      onPress={() => handleRejectRaisedHand(request.fromId)}
-                      disabled={approvingRequests.has(request.fromId)}
-                      className="flex-1 items-center rounded-[16px] bg-white/10 px-4 py-3"
-                    >
-                      <Text className="text-[14px] font-semibold text-[#F4F5F0]">Reject</Text>
-                    </Pressable>
+              {raisedHands.map((request) => {
+                const isApprovingRequest = approvingRequests.has(request.fromId)
+                const speakerLimitReached = activeGuestSpeakerCount >= MAX_GUEST_SPEAKERS
+
+                return (
+                  <View
+                    key={request.fromId}
+                    className="rounded-[22px] bg-[#143703] px-4 py-4"
+                  >
+                    <Text className="text-[16px] font-semibold text-[#F4F5F0]">
+                      {request.fromName}
+                    </Text>
+                    <Text className="mt-1 text-[12px] text-[#B7C0BC]">
+                      Wants to call in and join as a speaker.
+                    </Text>
+                    <View className="mt-4 flex-row gap-3">
+                      <Pressable
+                        onPress={() => handleApproveRaisedHand(request.fromId)}
+                        disabled={isApprovingRequest || speakerLimitReached}
+                        className={`flex-1 items-center rounded-[16px] px-4 py-3 ${
+                          isApprovingRequest
+                            ? "bg-[#D7FF00]/70"
+                            : speakerLimitReached
+                              ? "bg-[#184832]"
+                              : "bg-[#D7FF00]"
+                        }`}
+                      >
+                        {isApprovingRequest ? (
+                          <View className="flex-row items-center">
+                            <ActivityIndicator size="small" color="#143703" />
+                            <Text className="ml-2 text-[14px] font-semibold text-[#143703]">Approving...</Text>
+                          </View>
+                        ) : (
+                          <Text className={`text-[14px] font-semibold ${speakerLimitReached ? "text-[#8A9A90]" : "text-[#143703]"}`}>
+                            Accept
+                          </Text>
+                        )}
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleRejectRaisedHand(request.fromId)}
+                        disabled={isApprovingRequest}
+                        className="flex-1 items-center rounded-[16px] bg-white/10 px-4 py-3"
+                      >
+                        <Text className="text-[14px] font-semibold text-[#F4F5F0]">Reject</Text>
+                      </Pressable>
+                    </View>
+                    {speakerLimitReached ? (
+                      <Text className="mt-3 text-[11px] text-[#D7FF00]">
+                        Speaker slots are full.
+                      </Text>
+                    ) : null}
                   </View>
-                </View>
-              ))}
+                )
+              })}
             </View>
           ) : (
             <View className="mt-4 rounded-[22px] bg-[#143703] px-4 py-4">
@@ -1300,7 +1351,7 @@ const AdminLivePodcast = () => {
           title={title}
         />
 
-        <PodcastConnectingOverlay
+      <PodcastConnectingOverlay
           visible={shouldShowConnectingOverlay && isConnecting}
         />
       </SafeAreaView>

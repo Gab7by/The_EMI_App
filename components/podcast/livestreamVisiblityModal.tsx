@@ -5,11 +5,13 @@ import { LiveStreamVisibilityOptionsType } from "@/types/podcast-types"
 import { BlurView } from "expo-blur"
 import { ArrowLeft, Earth, EyeOff } from "lucide-react-native"
 import { Modal, Pressable, Text, View } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 const LiveStreamVisibilityModal = ({isPublic, isUnlisted, setIsPublic, setIsUnlisted}:LiveStreamVisibilityOptionsType) => {
 
     const isModalOpen = useLiveStreamVisibilityModalStore(state => state.isOpen)
     const setModalOpen = useLiveStreamVisibilityModalStore(state => state.setIsOpen)
+    const insets = useSafeAreaInsets()
 
     const setDialogModalOpen = useLiveStreamStartDialogModalStore(state => state.setIsOpen)
 
@@ -39,7 +41,8 @@ const LiveStreamVisibilityModal = ({isPublic, isUnlisted, setIsPublic, setIsUnli
             <View 
                 className="bg-menorah-darkGreen px-5 gap-7"
                 style={{
-                    flex: 1
+                    flex: 1,
+                    paddingBottom: Math.max(insets.bottom, 16)
                 }}
                 >
                 <View className="h-[3px] self-center bg-menorah-primary mt-4 w-[80px]" />

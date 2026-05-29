@@ -2,6 +2,8 @@ import { serve } from 'https://deno.land/std/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { RoomServiceClient } from 'https://esm.sh/livekit-server-sdk@2'
 
+const MAX_GUEST_SPEAKERS = 10
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
@@ -95,6 +97,22 @@ serve(async (req) => {
       livekitApiKey,
       livekitApiSecret
     )
+
+    const participants = await roomService.listParticipants(roomName)
+    const activeGuestSpeakers = participants.filter((participant) => (
+      participant.identity !== podcast.host_id &&
+      participant.permission?.canPublish
+    ))
+    const participantAlreadySpeaker = activeGuestSpeakers.some(
+      (participant) => participant.identity === participantIdentity
+    )
+
+    if (!participantAlreadySpeaker && activeGuestSpeakers.length >= MAX_GUEST_SPEAKERS) {
+      return new Response(
+        JSON.stringify({ error: 'Speaker slots are full' }),
+        { status: 409, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
 
     await roomService.updateParticipant(roomName, participantIdentity, undefined, {
       canPublish: true,
