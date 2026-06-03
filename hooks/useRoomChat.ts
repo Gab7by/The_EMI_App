@@ -85,7 +85,7 @@ export const useRoomChat = (
     const sendImage = useCallback(async (senderName: string, senderAvatarUrl: string | null) => {
         if (!room) return
 
-        const asset = await pickImage({allowsEditing: true})
+        const asset = await pickImage({allowsEditing: false})
         if (!asset) return
 
         const imageUrl = await uploadChatImage(asset, podcastId, currentUserId)
