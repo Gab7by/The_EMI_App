@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "bundleIdentifier": "com.mrroko.themenorah",
       "supportsTablet": true,
       "bitcode": false,
       "infoPlist": {
@@ -18,7 +19,8 @@
         "UIBackgroundModes": [
           "audio",
           "voip"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -89,8 +91,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "4d60785a-3fab-4fe0-a6a7-c205ea7664b9"
+        "projectId": "c725d99d-73a9-425f-b9be-7f00984937c9"
       }
-    }
+    },
+    "owner": "nana_kwame_gabby"
   }
 }
