@@ -12,6 +12,7 @@ import {
     Modal,
     Platform,
     Pressable,
+    Image as RNImage,
     StyleSheet,
     Text,
     useWindowDimensions,
@@ -313,14 +314,79 @@ type PodcastCommentsProps = {
   messages: LiveMessage[]
 };
 
+const getBoundedImageSize = (
+  sourceWidth: number,
+  sourceHeight: number,
+  maxWidth: number,
+  maxHeight: number
+) => {
+  const widthRatio = maxWidth / sourceWidth;
+  const heightRatio = maxHeight / sourceHeight;
+  const ratio = Math.min(widthRatio, heightRatio, 1);
+
+  return {
+    width: Math.round(sourceWidth * ratio),
+    height: Math.round(sourceHeight * ratio),
+  };
+};
+
+const ChatImage = memo(({ uri, maxWidth }: { uri: string; maxWidth: number }) => {
+  const maxHeight = Math.min(maxWidth * 1.45, 360);
+  const [imageSize, setImageSize] = useState(() => ({
+    width: maxWidth,
+    height: Math.min(maxWidth, maxHeight),
+  }));
+
+  useEffect(() => {
+    let isMounted = true;
+
+    RNImage.getSize(
+      uri,
+      (sourceWidth, sourceHeight) => {
+        if (!isMounted || sourceWidth <= 0 || sourceHeight <= 0) return;
+        setImageSize(getBoundedImageSize(sourceWidth, sourceHeight, maxWidth, maxHeight));
+      },
+      () => {
+        if (!isMounted) return;
+        setImageSize({
+          width: maxWidth,
+          height: Math.min(maxWidth, maxHeight),
+        });
+      }
+    );
+
+    return () => {
+      isMounted = false;
+    };
+  }, [maxHeight, maxWidth, uri]);
+
+  return (
+    <View
+      style={{
+        width: imageSize.width,
+        height: imageSize.height,
+        borderRadius: 18,
+        overflow: 'hidden',
+        backgroundColor: '#152b1d',
+      }}
+    >
+      <Image
+        source={{uri}}
+        style={{width: '100%', height: '100%'}}
+        contentFit="cover"
+      />
+    </View>
+  );
+});
+ChatImage.displayName = "ChatImage";
+
 export const PodcastComments = memo(({ footerPadding, messages }: PodcastCommentsProps) => {
   const { width } = useWindowDimensions()
   const listRef = useRef<FlashListRef<LiveMessage>>(null)
   const shouldScrollToLatestRef = useRef(true)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [canScroll, setCanScroll] = useState(false)
-  const imageWidth = Math.min(width * 0.68, 220)
-  const imageHeight = imageWidth * 0.72
+  const imageWidth = Math.min(width * 0.72, 280)
   const latestMessageId = messages[messages.length - 1]?.id
   const scrollButtonIcon = isAtBottom ? "chevron-up" : "chevron-down"
   const scrollButtonLabel = isAtBottom ? "Go to first message" : "Go to latest message"
@@ -434,13 +500,7 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
         )}
         {
           item.message_type === 'image' ? (
-            <View style={{ width: imageWidth, height: imageHeight, borderRadius: 18, overflow: 'hidden', backgroundColor: '#152b1d' }}>
-              <Image
-                source={{uri: item.content}}
-                style={{width: '100%', height: '100%'}}
-                contentFit="cover"
-              />
-            </View>
+            <ChatImage uri={item.content} maxWidth={imageWidth} />
           ) : (
             <View
               className={`rounded-2xl px-3.5 py-2.5 ${
@@ -456,7 +516,7 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
         }
       </View>
     </View>
-  ), [imageHeight, imageWidth, width])
+  ), [imageWidth, width])
 
   return (
     <View className="relative min-h-[220px] flex-1">
