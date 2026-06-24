@@ -171,6 +171,7 @@ type PodcastHeaderProps = {
   hostName: string;
   hostPictureUrl?: string | null;
   participantCount?: number | null;
+  onInfoPress?: () => void;
   actions: ReactNode;
 };
 
@@ -179,10 +180,17 @@ export const PodcastHeader = ({
   hostName,
   hostPictureUrl,
   participantCount,
+  onInfoPress,
   actions,
 }: PodcastHeaderProps) => (
   <View className="mb-5 flex-row items-center justify-between">
-    <View className="mr-2 min-w-0 flex-1 flex-row items-center rounded-full border border-white/10 bg-menorah-bg/90 px-2.5 py-2.5">
+    <Pressable
+      onPress={onInfoPress}
+      disabled={!onInfoPress}
+      accessibilityRole={onInfoPress ? "button" : undefined}
+      accessibilityLabel={onInfoPress ? "Show live participants" : undefined}
+      className="mr-2 min-w-0 flex-1 flex-row items-center rounded-full border border-white/10 bg-menorah-bg/90 px-2.5 py-2.5"
+    >
       <HostAvatar
         hostName={hostName}
         hostPictureUrl={hostPictureUrl}
@@ -205,7 +213,7 @@ export const PodcastHeader = ({
           </Text>
         </View>
       </View>
-    </View>
+    </Pressable>
     <View className="flex-row items-center gap-1.5">{actions}</View>
   </View>
 );
