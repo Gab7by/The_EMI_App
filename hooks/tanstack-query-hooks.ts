@@ -25,6 +25,8 @@ export const useActiveLivePodcastParticipants = (podcastId: string) => {
         queryFn: () => getActiveLivePodcastParticipants(podcastId),
         refetchInterval: 2000,
         staleTime: 1000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     })
 }
 

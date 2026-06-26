@@ -1,4 +1,4 @@
-import { CreateLivePodcastInput, LivePodcast } from "@/types/podcast-types"
+import { CreateLivePodcastInput, LivePodcast, LivePodcastParticipant } from "@/types/podcast-types"
 import { supabase } from "./supabase"
 import { PODCAST_SELECT } from "@/constants/podcast"
 
@@ -254,7 +254,7 @@ export const updateParticipantCalledIn = async (
   }
 }
 
-export const getActiveLivePodcastParticipants = async (podcastId: string) => {
+export const getActiveLivePodcastParticipants = async (podcastId: string): Promise<LivePodcastParticipant[]> => {
   const { data, error } = await supabase
     .from("live_podcast_participants")
     .select(`
@@ -270,5 +270,5 @@ export const getActiveLivePodcastParticipants = async (podcastId: string) => {
     return []
   }
 
-  return data
+  return data as LivePodcastParticipant[]
 }
