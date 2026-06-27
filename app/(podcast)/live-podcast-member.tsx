@@ -6,20 +6,14 @@ import {
   MAX_GUEST_SPEAKERS,
   PodcastBackground,
   PodcastBottomDock,
-  PodcastBottomSheet,
   PodcastComments,
   PodcastConnectingOverlay,
   PodcastDialog,
-  PodcastFullScreenModal,
   PodcastHeader,
   PodcastNotesDialog,
   PodcastParticipantsGrid,
-  podcastCurrencies,
-  podcastPaymentMethods,
-  renderPaymentMethodIcon,
   SPEAKER_LIMIT_MESSAGE,
   usePodcastFooterLayout,
-  type PodcastCurrencyOption
 } from "@/components/podcast/livePodcastShared";
 import { useAudienceRoom } from "@/hooks/useAudienceRoom";
 import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
@@ -27,8 +21,18 @@ import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { hapticMedium } from "@/lib/haptics";
 import { PODCAST_MIC_CAPTURE_OPTIONS } from "@/lib/livekit-audio";
-import { lowerHand, raiseHand, revokeOwnSpeaker, sendLoveSignal } from "@/lib/livekit-signals";
-import { getLivePodcastStatus, joinLivePodcastParticipant, leaveLivePodcastParticipant, updateParticipantCalledIn } from "@/lib/podcast";
+import {
+  lowerHand,
+  raiseHand,
+  revokeOwnSpeaker,
+  sendLoveSignal,
+} from "@/lib/livekit-signals";
+import {
+  getLivePodcastStatus,
+  joinLivePodcastParticipant,
+  leaveLivePodcastParticipant,
+  updateParticipantCalledIn,
+} from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { shareLivePodcast } from "@/lib/share";
 import { useAuthStore } from "@/store/authStore";
@@ -36,13 +40,34 @@ import { useLiveKitStore } from "@/store/livekit-store";
 import type { LoveBurst } from "@/types/livekit-types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, ChevronDown, ChevronRight, Power, Share2, X } from "lucide-react-native";
+import { Power, Share2, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Easing, Keyboard, Pressable, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  Keyboard,
+  Linking,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+const PAYSTACK_PAYMENT_URL = "https://paystack.shop/pay/somo";
+
 const MemberLivePodcast = () => {
-  const { id, title, playlist, hostId, hostName, hostPictureUrl, livekitRoomName, coverImageUrl } = useLocalSearchParams<{
+  const {
+    id,
+    title,
+    playlist,
+    hostId,
+    hostName,
+    hostPictureUrl,
+    livekitRoomName,
+    coverImageUrl,
+  } = useLocalSearchParams<{
     id: string;
     title: string;
     hostId: string;
@@ -50,50 +75,59 @@ const MemberLivePodcast = () => {
     hostPictureUrl: string;
     playlist: string;
     livekitRoomName: string;
-    coverImageUrl?: string
+    coverImageUrl?: string;
   }>();
 
   const router = useRouter();
-  const { footerBottom, footerPaddingBottom, scrollPaddingBottom, handleFooterLayout } =
-    usePodcastFooterLayout();
+  const {
+    footerBottom,
+    footerPaddingBottom,
+    scrollPaddingBottom,
+    handleFooterLayout,
+  } = usePodcastFooterLayout();
 
   const [isExitPromptVisible, setIsExitPromptVisible] = useState(false);
   const [isNotesVisible, setIsNotesVisible] = useState(false);
-  const [isPaymentMethodsVisible, setIsPaymentMethodsVisible] = useState(false);
-  const [isCurrencySheetVisible, setIsCurrencySheetVisible] = useState(false);
-  const [selectedCurrencyId, setSelectedCurrencyId] =
-    useState<PodcastCurrencyOption["id"]>("usd");
-  const [message, setMessage] = useState<string>('')
-  const [shouldShowConnectingOverlay, setShouldShowConnectingOverlay] = useState(true)
-  const [localLoveBursts, setLocalLoveBursts] = useState<LoveBurst[]>([])
-  const [keyboardHeight, setKeyboardHeight] = useState(0)
-  const [isCallActionLoading, setIsCallActionLoading] = useState(false)
-  const [hasHungUpSpeaker, setHasHungUpSpeaker] = useState(false)
-  const [speakerLimitMessage, setSpeakerLimitMessage] = useState<string | null>(null)
-
-  const selectedCurrency = useMemo(
-    () =>
-      podcastCurrencies.find((currency) => currency.id === selectedCurrencyId) ??
-      podcastCurrencies[1],
-    [selectedCurrencyId]
+  const [message, setMessage] = useState<string>("");
+  const [shouldShowConnectingOverlay, setShouldShowConnectingOverlay] =
+    useState(true);
+  const [localLoveBursts, setLocalLoveBursts] = useState<LoveBurst[]>([]);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isCallActionLoading, setIsCallActionLoading] = useState(false);
+  const [hasHungUpSpeaker, setHasHungUpSpeaker] = useState(false);
+  const [speakerLimitMessage, setSpeakerLimitMessage] = useState<string | null>(
+    null,
   );
 
-  const clearRoom = useLiveKitStore(state => state.clearRoom)
-  const room = useLiveKitStore(state => state.room)
-  const { participants: roomParticipants } = useLiveRoomSnapshot(room)
-  const connectionState = useLiveKitStore(state => state.connectionState)
-  const isMuted = useLiveKitStore(state => state.isMuted)
-  const setIsMuted = useLiveKitStore(state => state.setIsMuted)
-  const setForegroundServiceType = useLiveKitStore(state => state.setForegroundServiceType)
-  const profile = useAuthStore(state => state.profile)
-  const {isApprovedToSpeak, sessionEnded, isSpeakerRevoked, backgroundUrl, loveBursts, dismissLoveBurst} = useRoomSignals(room, profile?.id ?? "")
-  const [hasRaisedHand, setHasRaisedHand] = useState<boolean>(false)
-  const canSpeak = isApprovedToSpeak && !hasHungUpSpeaker
-  const isConnecting = connectionState !== "connected"
-  const participantCount = roomParticipants.filter((participant) => participant.id !== hostId).length
+  const clearRoom = useLiveKitStore((state) => state.clearRoom);
+  const room = useLiveKitStore((state) => state.room);
+  const { participants: roomParticipants } = useLiveRoomSnapshot(room);
+  const connectionState = useLiveKitStore((state) => state.connectionState);
+  const isMuted = useLiveKitStore((state) => state.isMuted);
+  const setIsMuted = useLiveKitStore((state) => state.setIsMuted);
+  const setForegroundServiceType = useLiveKitStore(
+    (state) => state.setForegroundServiceType,
+  );
+  const profile = useAuthStore((state) => state.profile);
+  const {
+    isApprovedToSpeak,
+    sessionEnded,
+    isSpeakerRevoked,
+    backgroundUrl,
+    loveBursts,
+    dismissLoveBurst,
+  } = useRoomSignals(room, profile?.id ?? "");
+  const [hasRaisedHand, setHasRaisedHand] = useState<boolean>(false);
+  const canSpeak = isApprovedToSpeak && !hasHungUpSpeaker;
+  const isConnecting = connectionState !== "connected";
+  const participantCount = roomParticipants.filter(
+    (participant) => participant.id !== hostId,
+  ).length;
 
-  const activeCoverUrl = backgroundUrl ?? coverImageUrl ?? null
-  const hostSnapshot = roomParticipants.find((participant) => participant.id === hostId)
+  const activeCoverUrl = backgroundUrl ?? coverImageUrl ?? null;
+  const hostSnapshot = roomParticipants.find(
+    (participant) => participant.id === hostId,
+  );
 
   const speakerGridParticipants = useMemo(
     () => [
@@ -105,195 +139,237 @@ const MemberLivePodcast = () => {
         audioLevel: hostSnapshot?.audioLevel ?? 0,
       },
       ...roomParticipants
-        .filter((participant) => participant.id !== hostId && participant.canPublish)
+        .filter(
+          (participant) => participant.id !== hostId && participant.canPublish,
+        )
         .map((participant) => ({
           id: participant.id,
-          name: participant.isLocal ? profile?.full_name ?? participant.name : participant.name,
-          pictureUrl: participant.isLocal ? profile?.avatar_url ?? null : null,
+          name: participant.isLocal
+            ? (profile?.full_name ?? participant.name)
+            : participant.name,
+          pictureUrl: participant.isLocal
+            ? (profile?.avatar_url ?? null)
+            : null,
           isSpeaking: participant.isSpeaking,
           audioLevel: participant.audioLevel,
         })),
     ],
-    [roomParticipants, hostId, hostName, hostPictureUrl, hostSnapshot?.isSpeaking, hostSnapshot?.audioLevel, profile?.full_name, profile?.avatar_url]
+    [
+      roomParticipants,
+      hostId,
+      hostName,
+      hostPictureUrl,
+      hostSnapshot?.isSpeaking,
+      hostSnapshot?.audioLevel,
+      profile?.full_name,
+      profile?.avatar_url,
+    ],
   );
 
   const activeGuestSpeakerCount = useMemo(
-    () => roomParticipants.filter((participant) => participant.id !== hostId && participant.canPublish).length,
-    [hostId, roomParticipants]
-  )
+    () =>
+      roomParticipants.filter(
+        (participant) => participant.id !== hostId && participant.canPublish,
+      ).length,
+    [hostId, roomParticipants],
+  );
 
   const showSpeakerLimitMessage = useCallback(() => {
-    setSpeakerLimitMessage(SPEAKER_LIMIT_MESSAGE)
-  }, [])
+    setSpeakerLimitMessage(SPEAKER_LIMIT_MESSAGE);
+  }, []);
 
   useEffect(() => {
-    if (!speakerLimitMessage) return
+    if (!speakerLimitMessage) return;
 
     const timeout = setTimeout(() => {
-      setSpeakerLimitMessage(null)
-    }, 3200)
+      setSpeakerLimitMessage(null);
+    }, 3200);
 
-    return () => clearTimeout(timeout)
-  }, [speakerLimitMessage])
+    return () => clearTimeout(timeout);
+  }, [speakerLimitMessage]);
 
   const visibleLoveBursts = useMemo(() => {
-    const byId = new Map<string, LoveBurst>()
+    const byId = new Map<string, LoveBurst>();
 
-    loveBursts.forEach((love) => byId.set(love.id, love))
-    localLoveBursts.forEach((love) => byId.set(love.id, love))
+    loveBursts.forEach((love) => byId.set(love.id, love));
+    localLoveBursts.forEach((love) => byId.set(love.id, love));
 
-    return Array.from(byId.values()).sort((a, b) => a.createdAt - b.createdAt)
-  }, [localLoveBursts, loveBursts])
+    return Array.from(byId.values()).sort((a, b) => a.createdAt - b.createdAt);
+  }, [localLoveBursts, loveBursts]);
 
-  useAudienceRoom(livekitRoomName, id)
+  useAudienceRoom(livekitRoomName, id);
 
   useEffect(() => {
-    const showSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
-      setKeyboardHeight(event.endCoordinates.height)
-    })
+    const showSubscription = Keyboard.addListener(
+      "keyboardDidShow",
+      (event) => {
+        setKeyboardHeight(event.endCoordinates.height);
+      },
+    );
 
     const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
-      setKeyboardHeight(0)
-    })
+      setKeyboardHeight(0);
+    });
 
     return () => {
-      showSubscription.remove()
-      hideSubscription.remove()
-    }
-  }, [])
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      setShouldShowConnectingOverlay(true)
+      setShouldShowConnectingOverlay(true);
 
       const verifySession = async () => {
-        const status = await getLivePodcastStatus(id)
+        const status = await getLivePodcastStatus(id);
 
         if (status === "ended") {
           if (profile?.id) {
-            await leaveLivePodcastParticipant(id, profile.id)
+            await leaveLivePodcastParticipant(id, profile.id);
           }
-          await room?.localParticipant.setMicrophoneEnabled(false)
-          clearRoom()
-          router.replace("/(tabs)/podcast")
+          await room?.localParticipant.setMicrophoneEnabled(false);
+          clearRoom();
+          router.replace("/(tabs)/podcast");
         }
-      }
+      };
 
-      verifySession()
+      verifySession();
 
       return () => {
-        setShouldShowConnectingOverlay(false)
-      }
-    }, [id, profile?.id, clearRoom, router])
-  )
+        setShouldShowConnectingOverlay(false);
+      };
+    }, [id, profile?.id, clearRoom, router]),
+  );
 
-  const {messages, sendMessage} = useRoomChat(
-      room,
-      id,
-      profile?.id ?? ''
-    )
+  const { messages, sendMessage } = useRoomChat(room, id, profile?.id ?? "");
 
   const handleSendMessage = async () => {
-    if (!message.trim()) return
-    await sendMessage(message, profile?.full_name ?? "User", profile?.avatar_url ?? null)
-    setMessage('')
-  }
-  const canSendMessage = message.trim().length > 0
+    if (!message.trim()) return;
+    await sendMessage(
+      message,
+      profile?.full_name ?? "User",
+      profile?.avatar_url ?? null,
+    );
+    setMessage("");
+  };
+  const canSendMessage = message.trim().length > 0;
 
   useEffect(() => {
-    if (!isApprovedToSpeak || !room || hasHungUpSpeaker) return
-    
+    if (!isApprovedToSpeak || !room || hasHungUpSpeaker) return;
+
     room.localParticipant
       .setMicrophoneEnabled(true, PODCAST_MIC_CAPTURE_OPTIONS)
       .then(() => {
-        setIsMuted(false)
-        setForegroundServiceType("microphone")
-        setHasRaisedHand(false)
-        setHasHungUpSpeaker(false)
-        queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+        setIsMuted(false);
+        setForegroundServiceType("microphone");
+        setHasRaisedHand(false);
+        setHasHungUpSpeaker(false);
+        queryClient.invalidateQueries({
+          queryKey: ["active-live-podcast-participants", id],
+        });
       })
       .catch((error) => {
-        console.error("Failed to enable speaker microphone", error)
-      })
-  }, [hasHungUpSpeaker, id, isApprovedToSpeak, room, setForegroundServiceType, setIsMuted])
+        console.error("Failed to enable speaker microphone", error);
+      });
+  }, [
+    hasHungUpSpeaker,
+    id,
+    isApprovedToSpeak,
+    room,
+    setForegroundServiceType,
+    setIsMuted,
+  ]);
 
   useEffect(() => {
-    if (!isSpeakerRevoked || !room) return
+    if (!isSpeakerRevoked || !room) return;
 
     room.localParticipant
       .setMicrophoneEnabled(false)
       .then(() => {
-        setIsMuted(true)
-        setForegroundServiceType("mediaPlayback")
-        setHasRaisedHand(false)
-        setHasHungUpSpeaker(false)
-        queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+        setIsMuted(true);
+        setForegroundServiceType("mediaPlayback");
+        setHasRaisedHand(false);
+        setHasHungUpSpeaker(false);
+        queryClient.invalidateQueries({
+          queryKey: ["active-live-podcast-participants", id],
+        });
       })
       .catch((error) => {
-        console.error("Failed to disable revoked speaker microphone", error)
-      })
-  }, [isSpeakerRevoked, room, setForegroundServiceType, setIsMuted, id])
+        console.error("Failed to disable revoked speaker microphone", error);
+      });
+  }, [isSpeakerRevoked, room, setForegroundServiceType, setIsMuted, id]);
 
   useEffect(() => {
-    if (connectionState !== "connected" || !profile?.id) return
+    if (connectionState !== "connected" || !profile?.id) return;
 
     joinLivePodcastParticipant(id, profile.id).then(() => {
-      queryClient.invalidateQueries({ queryKey: ["live-podcast-participants", id, hostId] })
-      queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
-    })
-  }, [connectionState, profile?.id, id, hostId])
+      queryClient.invalidateQueries({
+        queryKey: ["live-podcast-participants", id, hostId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["active-live-podcast-participants", id],
+      });
+    });
+  }, [connectionState, profile?.id, id, hostId]);
 
   useEffect(() => {
-    if (!sessionEnded) return
+    if (!sessionEnded) return;
     if (profile?.id) {
-      leaveLivePodcastParticipant(id, profile.id)
+      leaveLivePodcastParticipant(id, profile.id);
     }
-    room?.localParticipant.setMicrophoneEnabled(false)
-    clearRoom()
-    router.replace("/(tabs)/podcast")
-  }, [sessionEnded, profile?.id, id])
+    room?.localParticipant.setMicrophoneEnabled(false);
+    clearRoom();
+    router.replace("/(tabs)/podcast");
+  }, [sessionEnded, profile?.id, id]);
 
   const handleRaiseHand = async () => {
-    if (!room || !profile || isCallActionLoading) return
+    if (!room || !profile || isCallActionLoading) return;
 
-    if (!canSpeak && !hasRaisedHand && activeGuestSpeakerCount >= MAX_GUEST_SPEAKERS) {
-      hapticMedium()
-      showSpeakerLimitMessage()
-      return
+    if (
+      !canSpeak &&
+      !hasRaisedHand &&
+      activeGuestSpeakerCount >= MAX_GUEST_SPEAKERS
+    ) {
+      hapticMedium();
+      showSpeakerLimitMessage();
+      return;
     }
 
-    setIsCallActionLoading(true)
+    setIsCallActionLoading(true);
 
     try {
       if (canSpeak) {
-        const nextMutedState = !isMuted
+        const nextMutedState = !isMuted;
         await room.localParticipant.setMicrophoneEnabled(
           !nextMutedState,
-          !nextMutedState ? PODCAST_MIC_CAPTURE_OPTIONS : undefined
-        )
-        setIsMuted(nextMutedState)
-        setForegroundServiceType(nextMutedState ? "mediaPlayback" : "microphone")
-        return
+          !nextMutedState ? PODCAST_MIC_CAPTURE_OPTIONS : undefined,
+        );
+        setIsMuted(nextMutedState);
+        setForegroundServiceType(
+          nextMutedState ? "mediaPlayback" : "microphone",
+        );
+        return;
       }
 
       if (hasRaisedHand) {
-        await lowerHand(room, profile.id, profile.full_name ?? "Listener")
-        setHasRaisedHand(false)
+        await lowerHand(room, profile.id, profile.full_name ?? "Listener");
+        setHasRaisedHand(false);
       } else {
-        await raiseHand(room, profile.id, profile.full_name ?? "Listener")
-        setHasRaisedHand(true)
-        setHasHungUpSpeaker(false)
+        await raiseHand(room, profile.id, profile.full_name ?? "Listener");
+        setHasRaisedHand(true);
+        setHasHungUpSpeaker(false);
       }
     } finally {
-      setIsCallActionLoading(false)
+      setIsCallActionLoading(false);
     }
-  }
+  };
 
   const handleHangUpSpeaker = async () => {
-    if (!room || !profile || isCallActionLoading) return
+    if (!room || !profile || isCallActionLoading) return;
 
-    hapticMedium()
-    setIsCallActionLoading(true)
+    hapticMedium();
+    setIsCallActionLoading(true);
 
     try {
       const revoked = await revokeOwnSpeaker(
@@ -301,31 +377,37 @@ const MemberLivePodcast = () => {
         profile.id,
         profile.full_name ?? "Listener",
         livekitRoomName,
-        id
-      )
+        id,
+      );
 
-      if (!revoked) return
+      if (!revoked) return;
 
-      await room.localParticipant.setMicrophoneEnabled(false)
-      setIsMuted(true)
-      setForegroundServiceType("mediaPlayback")
-      setHasRaisedHand(false)
-      setHasHungUpSpeaker(true)
-      await updateParticipantCalledIn(id, profile.id, false)
-      queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+      await room.localParticipant.setMicrophoneEnabled(false);
+      setIsMuted(true);
+      setForegroundServiceType("mediaPlayback");
+      setHasRaisedHand(false);
+      setHasHungUpSpeaker(true);
+      await updateParticipantCalledIn(id, profile.id, false);
+      queryClient.invalidateQueries({
+        queryKey: ["active-live-podcast-participants", id],
+      });
     } catch (error) {
-      console.error("Failed to hang up speaker:", error)
+      console.error("Failed to hang up speaker:", error);
     } finally {
-      setIsCallActionLoading(false)
+      setIsCallActionLoading(false);
     }
-  }
+  };
 
   const handleSendLove = async () => {
-    if (!room || !profile) return
+    if (!room || !profile) return;
 
-    hapticMedium()
-    const loveId = await sendLoveSignal(room, profile.id, profile.full_name ?? "Listener")
-    setLocalLoveBursts(prev => [
+    hapticMedium();
+    const loveId = await sendLoveSignal(
+      room,
+      profile.id,
+      profile.full_name ?? "Listener",
+    );
+    setLocalLoveBursts((prev) => [
       ...prev.slice(-4),
       {
         id: loveId,
@@ -333,13 +415,26 @@ const MemberLivePodcast = () => {
         fromName: profile.full_name ?? "Listener",
         createdAt: Date.now(),
       },
-    ])
-  }
+    ]);
+  };
 
-  const dismissVisibleLoveBurst = useCallback((loveId: string) => {
-    dismissLoveBurst(loveId)
-    setLocalLoveBursts(prev => prev.filter(love => love.id !== loveId))
-  }, [dismissLoveBurst])
+  const handleOpenPaymentLink = useCallback(async () => {
+    hapticMedium();
+
+    try {
+      await Linking.openURL(PAYSTACK_PAYMENT_URL);
+    } catch (error) {
+      console.error("Failed to open payment link:", error);
+    }
+  }, []);
+
+  const dismissVisibleLoveBurst = useCallback(
+    (loveId: string) => {
+      dismissLoveBurst(loveId);
+      setLocalLoveBursts((prev) => prev.filter((love) => love.id !== loveId));
+    },
+    [dismissLoveBurst],
+  );
 
   return (
     <PodcastBackground coverUrl={activeCoverUrl}>
@@ -353,14 +448,25 @@ const MemberLivePodcast = () => {
             actions={
               <>
                 <View className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
-                  <Pressable onPress={() => { hapticMedium(); setIsNotesVisible(true) }} hitSlop={10}>
+                  <Pressable
+                    onPress={() => {
+                      hapticMedium();
+                      setIsNotesVisible(true);
+                    }}
+                    hitSlop={10}
+                  >
                     <HugeIcon width={21} height={21} />
                   </Pressable>
                 </View>
                 <Pressable
                   onPress={() => {
-                    hapticMedium()
-                    shareLivePodcast({ hostName, title, podcastId: id, playlist })
+                    hapticMedium();
+                    shareLivePodcast({
+                      hostName,
+                      title,
+                      podcastId: id,
+                      playlist,
+                    });
                   }}
                   hitSlop={10}
                   className="h-9 w-9 items-center justify-center rounded-full bg-white/10"
@@ -368,7 +474,10 @@ const MemberLivePodcast = () => {
                   <Share2 size={20} color="#F3F6E7" strokeWidth={1.2} />
                 </Pressable>
                 <Pressable
-                  onPress={() => { hapticMedium(); setIsExitPromptVisible(true) }}
+                  onPress={() => {
+                    hapticMedium();
+                    setIsExitPromptVisible(true);
+                  }}
                   className="h-9 w-9 items-center justify-center rounded-full bg-[#F3523C]/20"
                 >
                   <Power size={19} color="#FF5A45" strokeWidth={2} />
@@ -377,11 +486,12 @@ const MemberLivePodcast = () => {
             }
           />
 
-          <PodcastParticipantsGrid
-            participants={speakerGridParticipants}
-          />
+          <PodcastParticipantsGrid participants={speakerGridParticipants} />
 
-          <PodcastComments messages={messages} footerPadding={scrollPaddingBottom} />
+          <PodcastComments
+            messages={messages}
+            footerPadding={scrollPaddingBottom}
+          />
         </View>
 
         <PodcastBottomDock
@@ -399,13 +509,13 @@ const MemberLivePodcast = () => {
                 className="flex-1 text-[12px] text-white"
                 returnKeyType="send"
                 onSubmitEditing={() => {
-                  handleSendMessage()
+                  handleSendMessage();
                 }}
               />
               <Pressable
                 onPress={() => {
-                  hapticMedium()
-                  handleSendMessage()
+                  hapticMedium();
+                  handleSendMessage();
                 }}
                 disabled={!canSendMessage}
                 hitSlop={8}
@@ -420,11 +530,22 @@ const MemberLivePodcast = () => {
             </View>
 
             <View className="flex-row items-center gap-2">
-              <Pressable onPress={handleSendLove} hitSlop={10} className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
-                <MaterialCommunityIcons name="heart" size={22} color="#FF4B1F" />
+              <Pressable
+                onPress={handleSendLove}
+                hitSlop={10}
+                className="h-9 w-9 items-center justify-center rounded-full bg-white/10"
+              >
+                <MaterialCommunityIcons
+                  name="heart"
+                  size={22}
+                  color="#FF4B1F"
+                />
               </Pressable>
               <Pressable
-                onPress={() => { hapticMedium(); handleRaiseHand() }}
+                onPress={() => {
+                  hapticMedium();
+                  handleRaiseHand();
+                }}
                 disabled={isCallActionLoading}
                 hitSlop={8}
                 className="h-10 min-w-[48px] items-center justify-center rounded-[12px] bg-white/10 px-1"
@@ -435,7 +556,13 @@ const MemberLivePodcast = () => {
                   <>
                     <Call width={22} height={22} />
                     <Text className="mt-0.5 text-[8px] font-medium text-[#F3F6E7]">
-                      {canSpeak ? (isMuted ? "Unmute" : "Mute") : hasRaisedHand ? "Pending" : "Call in"}
+                      {canSpeak
+                        ? isMuted
+                          ? "Unmute"
+                          : "Mute"
+                        : hasRaisedHand
+                          ? "Pending"
+                          : "Call in"}
                     </Text>
                   </>
                 )}
@@ -452,7 +579,11 @@ const MemberLivePodcast = () => {
                   </Text>
                 </Pressable>
               ) : null}
-              <Pressable onPress={() => { hapticMedium(); setIsPaymentMethodsVisible(true) }} hitSlop={8} className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
+              <Pressable
+                onPress={handleOpenPaymentLink}
+                hitSlop={8}
+                className="h-9 w-9 items-center justify-center rounded-full bg-white/10"
+              >
                 <MoneyIcon width={22} height={22} />
               </Pressable>
             </View>
@@ -487,23 +618,34 @@ const MemberLivePodcast = () => {
                   setIsExitPromptVisible(false);
                   if (profile?.id) {
                     leaveLivePodcastParticipant(id, profile.id).then(() => {
-                      queryClient.invalidateQueries({ queryKey: ["live-podcast-participants", id, hostId] })
-                      queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
-                    })
+                      queryClient.invalidateQueries({
+                        queryKey: ["live-podcast-participants", id, hostId],
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ["active-live-podcast-participants", id],
+                      });
+                    });
                   }
-                  room?.localParticipant.setMicrophoneEnabled(false)
-                  clearRoom()
+                  room?.localParticipant.setMicrophoneEnabled(false);
+                  clearRoom();
                   router.replace("/(tabs)/podcast");
                 }}
                 className="flex-1 items-center justify-center bg-[#D7FF00] px-4 py-4"
               >
-                <Text className="text-[18px] font-medium text-black">Leave</Text>
+                <Text className="text-[18px] font-medium text-black">
+                  Leave
+                </Text>
               </Pressable>
               <Pressable
-                onPress={() => { hapticMedium(); setIsExitPromptVisible(false) }}
+                onPress={() => {
+                  hapticMedium();
+                  setIsExitPromptVisible(false);
+                }}
                 className="flex-1 items-center justify-center bg-[#01411D] px-4 py-4"
               >
-                <Text className="text-[18px] font-medium text-[#D7FF00]">Stay</Text>
+                <Text className="text-[18px] font-medium text-[#D7FF00]">
+                  Stay
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -515,122 +657,6 @@ const MemberLivePodcast = () => {
           playlist={playlist}
           title={title}
         />
-
-        <PodcastFullScreenModal
-          visible={isPaymentMethodsVisible}
-          onClose={() => {
-            setIsCurrencySheetVisible(false);
-            setIsPaymentMethodsVisible(false);
-          }}
-        >
-          <SafeAreaView className="flex-1">
-            <View className="flex-1 px-6 pt-4">
-              <Pressable
-                onPress={() => {
-                  setIsCurrencySheetVisible(false);
-                  setIsPaymentMethodsVisible(false);
-                }}
-                hitSlop={12}
-                className="self-start py-3 pr-3"
-              >
-                <ArrowLeft size={34} color="#F4F5F0" strokeWidth={2.2} />
-              </Pressable>
-
-              <Pressable
-                onPress={() => setIsCurrencySheetVisible(true)}
-                className="mt-4 w-[250px] rounded-[24px] bg-[#013220] px-4 py-3"
-              >
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-row items-center">
-                    <View className="h-[30px] w-[30px] items-center justify-center rounded-full bg-white">
-                      <Text className="text-[11px] font-semibold text-[#013220]">
-                        {selectedCurrency.flag}
-                      </Text>
-                    </View>
-                    <Text className="ml-4 text-[18px] font-semibold text-[#F4F5F0]">
-                      Currency
-                    </Text>
-                  </View>
-
-                  <ChevronDown size={34} color="#D7FF00" strokeWidth={3} />
-                </View>
-              </Pressable>
-
-              <Text className="mt-8 text-[18px] font-semibold text-[#F4F5F0]">
-                Select payment method
-              </Text>
-
-              <View className="mt-4 gap-4">
-                {podcastPaymentMethods.map((method) => (
-                  <Pressable
-                    key={method.id}
-                    className="h-[80px] rounded-[24px] bg-[#013220] px-5 py-6"
-                  >
-                    <View className="flex-row items-center justify-between">
-                      <View className="mr-4 flex-1 flex-row items-center">
-                        <View className="h-[30px] w-[30px] items-center justify-center">
-                          {renderPaymentMethodIcon(method.iconKey)}
-                        </View>
-
-                        <View className="ml-5 flex-1">
-                          <Text className="text-[18px] font-medium text-[#F4F5F0]">
-                            {method.title}
-                          </Text>
-                          {method.subtitle ? (
-                            <Text className="mt-2 text-[14px] text-[#E4EAE3]">
-                              {method.subtitle}
-                            </Text>
-                          ) : null}
-                        </View>
-                      </View>
-
-                      {method.trailing === "chevron" ? (
-                        <ChevronRight size={34} color="#D7FF00" strokeWidth={2.7} />
-                      ) : (
-                        <MaterialCommunityIcons
-                          name="content-copy"
-                          size={34}
-                          color="#D7FF00"
-                        />
-                      )}
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          </SafeAreaView>
-
-          <PodcastBottomSheet
-            visible={isCurrencySheetVisible}
-            onClose={() => setIsCurrencySheetVisible(false)}
-          >
-            <View className="items-center">
-              <View className="h-[4px] w-[82px] rounded-full bg-[#E8E8E8]" />
-            </View>
-
-            <View className="mt-8 gap-8">
-              {podcastCurrencies.map((currency) => (
-                <Pressable
-                  key={currency.id}
-                  onPress={() => {
-                    setSelectedCurrencyId(currency.id);
-                    setIsCurrencySheetVisible(false);
-                  }}
-                  className="flex-row items-center"
-                >
-                  <View className="h-[34px] w-[34px] items-center justify-center rounded-full bg-white">
-                    <Text className="text-[11px] font-semibold text-[#013220]">
-                      {currency.flag}
-                    </Text>
-                  </View>
-                  <Text className="ml-4 text-[16px] font-medium text-[#F4F5F0]">
-                    {currency.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </PodcastBottomSheet>
-        </PodcastFullScreenModal>
 
         <PodcastConnectingOverlay
           visible={shouldShowConnectingOverlay && isConnecting}
@@ -665,7 +691,10 @@ const MemberLivePodcast = () => {
           </View>
         ) : null}
 
-        <View pointerEvents="none" className="absolute bottom-24 right-8 h-[220px] w-[96px] overflow-visible">
+        <View
+          pointerEvents="none"
+          className="absolute bottom-24 right-8 h-[220px] w-[96px] overflow-visible"
+        >
           {visibleLoveBursts.map((love, index) => (
             <FloatingLove
               key={love.id}
@@ -685,12 +714,12 @@ const FloatingLove = ({
   index,
   onDone,
 }: {
-  burstId: string
-  index: number
-  onDone: (burstId: string) => void
+  burstId: string;
+  index: number;
+  onDone: (burstId: string) => void;
 }) => {
-  const progress = useRef(new Animated.Value(0)).current
-  const drift = useMemo(() => ((index % 5) - 2) * 9, [index])
+  const progress = useRef(new Animated.Value(0)).current;
+  const drift = useMemo(() => ((index % 5) - 2) * 9, [index]);
 
   useEffect(() => {
     Animated.timing(progress, {
@@ -698,8 +727,8 @@ const FloatingLove = ({
       duration: 1500,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
-    }).start(() => onDone(burstId))
-  }, [burstId, onDone, progress])
+    }).start(() => onDone(burstId));
+  }, [burstId, onDone, progress]);
 
   return (
     <Animated.View
@@ -733,7 +762,7 @@ const FloatingLove = ({
     >
       <MaterialCommunityIcons name="heart" size={30} color="#FF4B1F" />
     </Animated.View>
-  )
-}
+  );
+};
 
 export default MemberLivePodcast;
