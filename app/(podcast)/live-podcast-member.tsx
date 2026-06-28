@@ -38,7 +38,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, ChevronDown, ChevronRight, Power, Share2, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Easing, Keyboard, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Animated, Easing, Keyboard, Linking, Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const MemberLivePodcast = () => {
@@ -341,6 +341,16 @@ const MemberLivePodcast = () => {
     setLocalLoveBursts(prev => prev.filter(love => love.id !== loveId))
   }, [dismissLoveBurst])
 
+  const redirectToPaymentPage = useCallback(async () => {
+    try {
+      console.log(process.env.EXPO_PUBLIC_PAYSTACK_PAYMENT_URL)
+      await Linking.openURL(process.env.EXPO_PUBLIC_PAYSTACK_PAYMENT_URL!)
+    } catch(e) {
+      console.log(e)
+      Alert.alert("Something went wrong, Please try again later")
+    }
+  }, [])
+
   return (
     <PodcastBackground coverUrl={activeCoverUrl}>
       <SafeAreaView className="flex-1">
@@ -452,7 +462,7 @@ const MemberLivePodcast = () => {
                   </Text>
                 </Pressable>
               ) : null}
-              <Pressable onPress={() => { hapticMedium(); setIsPaymentMethodsVisible(true) }} hitSlop={8} className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
+              <Pressable onPress={() => { hapticMedium(); redirectToPaymentPage() }} hitSlop={8} className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
                 <MoneyIcon width={22} height={22} />
               </Pressable>
             </View>
@@ -516,7 +526,7 @@ const MemberLivePodcast = () => {
           title={title}
         />
 
-        <PodcastFullScreenModal
+        {/* <PodcastFullScreenModal
           visible={isPaymentMethodsVisible}
           onClose={() => {
             setIsCurrencySheetVisible(false);
@@ -630,7 +640,7 @@ const MemberLivePodcast = () => {
               ))}
             </View>
           </PodcastBottomSheet>
-        </PodcastFullScreenModal>
+        </PodcastFullScreenModal> */}
 
         <PodcastConnectingOverlay
           visible={shouldShowConnectingOverlay && isConnecting}
