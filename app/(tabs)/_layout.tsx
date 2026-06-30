@@ -13,6 +13,15 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
       />
+      <Tabs.Screen
+        name='library'
+      />
+      <Tabs.Screen
+        name='discipleship'
+      />
+      <Tabs.Screen
+        name='giving'
+      />
       <Tabs.Screen 
         name='podcast'
       />

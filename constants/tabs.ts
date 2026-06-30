@@ -1,14 +1,20 @@
-import { House, Podcast } from "lucide-react-native"
+import { Gift, GraduationCap, House, Library, Podcast } from "lucide-react-native"
 import { StyleSheet } from "react-native"
 import { Colors } from "./theme"
 
 export const ICONS = {
     index: House,
+    library: Library,
+    discipleship: GraduationCap,
+    giving: Gift,
     podcast: Podcast
 }
 
 export const LABELS = {
     index: "Home",
+    library: "Library",
+    discipleship: "Discipleship",
+    giving: "Giving",
     podcast: "Podcast"
 }
 
@@ -25,28 +31,35 @@ export const tabStyles = StyleSheet.create({
     backgroundColor: Colors.menorah.darkGreen,
     borderRadius: 32,
     padding: 5,
-    alignItems: 'center'
-  },
-  tabButton : {
-    flex: 1,
-    height: 60,
-    borderRadius: 24,
-    overflow: 'hidden',
-    justifyContent: "center"
-  },
-  tab: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    justifyContent: "center"
+    justifyContent: 'center'
   },
-  tabActive: {
+  tabButtonInactive: {
+    width: 50,
+    height: 50,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  tabButtonActive: {
+    flex: 1,
+    height: 50,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: Colors.menorah.primary
   },
+  tabRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: "center",
+    gap: 4,
+    paddingHorizontal: 10
+  },
   label: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#000',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#014421',
     overflow: 'hidden',
   },
 })
