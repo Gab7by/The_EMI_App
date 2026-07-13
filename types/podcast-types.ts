@@ -145,3 +145,13 @@ export type AudioPickerAsset = {
   mimeType: string
   size: number
 }
+
+export type Recording = {
+  id: string
+  podcast_id: string
+  file_path: string
+  status: 'recording' | 'completed' | 'failed'
+  publish: boolean
+  started_at: string
+  duration_seconds: number | null
+}
