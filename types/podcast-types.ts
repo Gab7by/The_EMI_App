@@ -154,4 +154,5 @@ export type Recording = {
   publish: boolean
   started_at: string
   duration_seconds: number | null
+  podcast_title?: string
 }
