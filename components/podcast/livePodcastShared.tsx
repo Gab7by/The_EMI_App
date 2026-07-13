@@ -5,9 +5,12 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { Directory, File, Paths } from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
     ActivityIndicator,
+    Alert,
     Keyboard,
     Modal,
     Platform,
@@ -322,6 +325,62 @@ type PodcastCommentsProps = {
   messages: LiveMessage[]
 };
 
+type ImageViewerProps = {
+  visible: boolean;
+  imageUri: string | null;
+  onClose: () => void;
+  onDownload: () => void;
+};
+
+export const ImageViewer = memo(({ visible, imageUri, onClose, onDownload }: ImageViewerProps) => {
+  const insets = useSafeAreaInsets();
+
+  if (!visible || !imageUri) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent={false}
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <View className="flex-1 bg-black">
+        <Pressable
+          onPress={onClose}
+          className="absolute right-4 z-10 h-12 w-12 items-center justify-center rounded-full bg-black/50"
+          style={{ top: insets.top + 8 }}
+        >
+          <MaterialCommunityIcons
+            name="close"
+            size={28}
+            color="white"
+          />
+        </Pressable>
+
+        <Pressable
+          onPress={onDownload}
+          className="absolute left-4 z-10 h-12 w-12 items-center justify-center rounded-full bg-black/50"
+          style={{ top: insets.top + 8 }}
+        >
+          <MaterialCommunityIcons
+            name="download"
+            size={28}
+            color="#D7FF00"
+          />
+        </Pressable>
+
+        <Image
+          source={{ uri: imageUri }}
+          style={{ width: '100%', height: '100%' }}
+          contentFit="contain"
+        />
+      </View>
+    </Modal>
+  );
+});
+ImageViewer.displayName = "ImageViewer";
+
 const getBoundedImageSize = (
   sourceWidth: number,
   sourceHeight: number,
@@ -338,12 +397,13 @@ const getBoundedImageSize = (
   };
 };
 
-const ChatImage = memo(({ uri, maxWidth }: { uri: string; maxWidth: number }) => {
+const ChatImage = memo(({ uri, maxWidth, onPress }: { uri: string; maxWidth: number; onPress?: (uri: string) => void }) => {
   const maxHeight = Math.min(maxWidth * 1.45, 360);
   const [imageSize, setImageSize] = useState(() => ({
     width: maxWidth,
     height: Math.min(maxWidth, maxHeight),
   }));
+  const [isPressed, setIsPressed] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -369,21 +429,27 @@ const ChatImage = memo(({ uri, maxWidth }: { uri: string; maxWidth: number }) =>
   }, [maxHeight, maxWidth, uri]);
 
   return (
-    <View
-      style={{
-        width: imageSize.width,
-        height: imageSize.height,
-        borderRadius: 18,
-        overflow: 'hidden',
-        backgroundColor: '#152b1d',
-      }}
+    <Pressable
+      onPress={() => onPress?.(uri)}
+      onPressIn={() => setIsPressed(true)}
+      onPressOut={() => setIsPressed(false)}
+      style={[
+        {
+          width: imageSize.width,
+          height: imageSize.height,
+          borderRadius: 18,
+          overflow: 'hidden',
+          backgroundColor: '#152b1d',
+        },
+        isPressed && { opacity: 0.7 }
+      ]}
     >
       <Image
         source={{uri}}
         style={{width: '100%', height: '100%'}}
         contentFit="cover"
       />
-    </View>
+    </Pressable>
   );
 });
 ChatImage.displayName = "ChatImage";
@@ -394,6 +460,8 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
   const shouldScrollToLatestRef = useRef(true)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [canScroll, setCanScroll] = useState(false)
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null)
+  const [isImageViewerVisible, setIsImageViewerVisible] = useState(false)
   const imageWidth = Math.min(width * 0.72, 280)
   const latestMessageId = messages[messages.length - 1]?.id
   const scrollButtonIcon = isAtBottom ? "chevron-up" : "chevron-down"
@@ -456,8 +524,8 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
   const listHeader = useMemo(() => (
     <View className="mb-5 rounded-2xl bg-menorah-bg/90 px-3.5 py-3">
       <Text className="text-[11px] leading-4 text-[#FFD700]">
-        Please keep comments respectful and uplifting. &quot;Let your words edify and
-        bring grace to those who hear.&quot; - Ephesians 4:29.
+        Please keep comments respectful and uplifting. "Let your words edify and
+        bring grace to those who hear." - Ephesians 4:29.
       </Text>
     </View>  
   ), [])
@@ -508,7 +576,7 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
         )}
         {
           item.message_type === 'image' ? (
-            <ChatImage uri={item.content} maxWidth={imageWidth} />
+            <ChatImage uri={item.content} maxWidth={imageWidth} onPress={handleImagePress} />
           ) : (
             <View
               className={`rounded-2xl px-3.5 py-2.5 ${
@@ -525,6 +593,53 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
       </View>
     </View>
   ), [imageWidth, width])
+
+  const handleImagePress = useCallback((uri: string) => {
+    setSelectedImageUri(uri)
+    setIsImageViewerVisible(true)
+  }, [])
+
+  const handleCloseImageViewer = useCallback(() => {
+    setIsImageViewerVisible(false)
+    setSelectedImageUri(null)
+  }, [])
+
+  const handleDownloadImage = useCallback(async () => {
+    if (!selectedImageUri) return;
+
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Please grant permission to save images to your device.');
+        return;
+      }
+
+      Alert.alert('Downloading', 'Saving image to your device...');
+
+      const fileExtension = selectedImageUri.split('.').pop() || 'jpg';
+      const fileName = `EMI_Image_${Date.now()}.${fileExtension}`;
+      
+      // Create destination directory
+      const destinationDir = new Directory(Paths.document, 'downloads');
+      
+      // Create directory if it doesn't exist
+      if (!destinationDir.exists) {
+        destinationDir.create();
+      }
+
+      // Download file
+      const downloadedFile = await File.downloadFileAsync(
+        selectedImageUri,
+        destinationDir
+      );
+
+      await MediaLibrary.saveToLibraryAsync(downloadedFile.uri);
+      Alert.alert('Success', 'Image saved to your device gallery!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to download image. Please try again.');
+      console.error('Download error:', error);
+    }
+  }, [selectedImageUri])
 
   return (
     <View className="relative min-h-[220px] flex-1">
@@ -557,8 +672,15 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
           />
         </Pressable>
       ) : null}
+
+      <ImageViewer
+        visible={isImageViewerVisible}
+        imageUri={selectedImageUri}
+        onClose={handleCloseImageViewer}
+        onDownload={handleDownloadImage}
+      />
     </View>
-)
+  );
 });
 PodcastComments.displayName = "PodcastComments";
 
