@@ -25,6 +25,8 @@ export type SignalType =
   | 'SESSION_ENDED'
   | 'BACKGROUND_CHANGED'
   | 'LOVE'
+  | 'EDIT_MESSAGE'
+  | 'DELETE_MESSAGE'
 
 export type RoomSignal = {
     type: SignalType
@@ -32,6 +34,9 @@ export type RoomSignal = {
     fromName: string
     toId?: string
     id?: string
+    messageId?: string
+    newContent?: string
+    editedAt?: string
 }
 
 export type LoveBurst = {

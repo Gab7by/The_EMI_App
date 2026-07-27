@@ -18,6 +18,7 @@ import {
     Image as RNImage,
     StyleSheet,
     Text,
+    TextInput,
     useWindowDimensions,
     View,
     type LayoutChangeEvent,
@@ -323,6 +324,14 @@ PodcastParticipantsGrid.displayName = "PodcastParticipantsGrid";
 type PodcastCommentsProps = {
   footerPadding: number;
   messages: LiveMessage[]
+  currentUserId?: string
+  onEditMessage?: (messageId: string, newContent: string) => void
+  onDeleteMessage?: (messageId: string) => void
+  canDeleteMessage?: (senderId: string) => boolean
+  canEditMessage?: (senderId: string) => boolean
+  onReplyToMessage?: (messageId: string, senderName: string) => void
+  replyingTo?: { messageId: string; senderName: string } | null
+  onCancelReply?: () => void
 };
 
 type ImageViewerProps = {
@@ -380,6 +389,59 @@ export const ImageViewer = memo(({ visible, imageUri, onClose, onDownload }: Ima
   );
 });
 ImageViewer.displayName = "ImageViewer";
+
+type ProfileViewerProps = {
+  visible: boolean;
+  imageUrl: string | null;
+  userName: string;
+  onClose: () => void;
+};
+
+export const ProfileViewer = memo(({ visible, imageUrl, userName, onClose }: ProfileViewerProps) => {
+  const insets = useSafeAreaInsets();
+
+  if (!visible || !imageUrl) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent={false}
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <View className="flex-1 bg-black">
+        <Pressable
+          onPress={onClose}
+          className="absolute right-4 z-10 h-12 w-12 items-center justify-center rounded-full bg-black/50"
+          style={{ top: insets.top + 8 }}
+        >
+          <MaterialCommunityIcons
+            name="close"
+            size={28}
+            color="white"
+          />
+        </Pressable>
+
+        <Image
+          source={{ uri: imageUrl }}
+          style={{ width: '100%', height: '100%' }}
+          contentFit="contain"
+        />
+
+        <View
+          className="absolute bottom-0 left-0 right-0 items-center justify-center rounded-t-[24px] bg-black/60 px-6 py-4"
+          style={{ paddingBottom: Math.max(insets.bottom, 16) + 16 }}
+        >
+          <Text className="text-[15px] font-semibold text-white">
+            {userName}
+          </Text>
+        </View>
+      </View>
+    </Modal>
+  );
+});
+ProfileViewer.displayName = "ProfileViewer";
 
 const getBoundedImageSize = (
   sourceWidth: number,
@@ -454,7 +516,102 @@ const ChatImage = memo(({ uri, maxWidth, onPress }: { uri: string; maxWidth: num
 });
 ChatImage.displayName = "ChatImage";
 
-export const PodcastComments = memo(({ footerPadding, messages }: PodcastCommentsProps) => {
+// ─── Reply Preview Banner ───────────────────────────────────────────────
+const ReplyPreviewBanner = memo(({
+  replyPreview,
+  onTap,
+}: {
+  replyPreview: { sender_name: string; content: string; message_type: string }
+  onTap?: () => void
+}) => {
+  const displayText = replyPreview.message_type === 'image'
+    ? '📷 Image'
+    : replyPreview.content.length > 60
+      ? replyPreview.content.slice(0, 60) + '...'
+      : replyPreview.content
+
+  return (
+    <Pressable
+      onPress={onTap}
+      className="mb-1.5 flex-row items-center overflow-hidden rounded-lg border-l-[3px] border-[#D7FF00] bg-white/5 px-2.5 py-1.5"
+    >
+      <View className="flex-1">
+        <Text className="text-[10px] font-semibold text-[#D7FF00]" numberOfLines={1}>
+          {replyPreview.sender_name}
+        </Text>
+        <Text className="mt-0.5 text-[9px] text-white/60" numberOfLines={1}>
+          {displayText}
+        </Text>
+      </View>
+      <MaterialCommunityIcons name="reply" size={12} color="#D7FF00" style={{ opacity: 0.6 }} />
+    </Pressable>
+  )
+})
+ReplyPreviewBanner.displayName = "ReplyPreviewBanner"
+
+// ─── Edit Message Input ─────────────────────────────────────────────────
+const EditMessageInput = memo(({
+  initialContent,
+  onSave,
+  onCancel,
+}: {
+  initialContent: string
+  onSave: (newContent: string) => void
+  onCancel: () => void
+}) => {
+  const [editText, setEditText] = useState(initialContent)
+  const inputRef = useRef<TextInput>(null)
+
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 100)
+  }, [])
+
+  return (
+    <View className="rounded-2xl bg-white/10 px-3.5 py-2.5">
+      <TextInput
+        ref={inputRef}
+        value={editText}
+        onChangeText={setEditText}
+        className="text-[11px] font-semibold leading-4 text-menorah-whiteSoft"
+        multiline
+        selectionColor="#D7FF00"
+        returnKeyType="default"
+      />
+      <View className="mt-2 flex-row justify-end gap-2">
+        <Pressable
+          onPress={onCancel}
+          className="rounded-lg bg-white/10 px-3 py-1.5"
+        >
+          <Text className="text-[10px] font-semibold text-white/60">Cancel</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => onSave(editText)}
+          disabled={!editText.trim()}
+          className="rounded-lg bg-[#D7FF00] px-3 py-1.5"
+        >
+          <Text className={`text-[10px] font-semibold ${editText.trim() ? 'text-[#143703]' : 'text-[#143703]/40'}`}>
+            Save
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  )
+})
+EditMessageInput.displayName = "EditMessageInput"
+
+// ─── Main PodcastComments Component ─────────────────────────────────────
+export const PodcastComments = memo(({
+  footerPadding,
+  messages,
+  currentUserId,
+  onEditMessage,
+  onDeleteMessage,
+  canDeleteMessage,
+  canEditMessage,
+  onReplyToMessage,
+  replyingTo,
+  onCancelReply,
+}: PodcastCommentsProps) => {
   const { width } = useWindowDimensions()
   const listRef = useRef<FlashListRef<LiveMessage>>(null)
   const shouldScrollToLatestRef = useRef(true)
@@ -462,10 +619,25 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
   const [canScroll, setCanScroll] = useState(false)
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null)
   const [isImageViewerVisible, setIsImageViewerVisible] = useState(false)
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [deleteConfirmMessageId, setDeleteConfirmMessageId] = useState<string | null>(null)
+  const [profileViewerVisible, setProfileViewerVisible] = useState(false)
+  const [profileViewerImageUrl, setProfileViewerImageUrl] = useState<string | null>(null)
+  const [profileViewerName, setProfileViewerName] = useState('')
   const imageWidth = Math.min(width * 0.72, 280)
   const latestMessageId = messages[messages.length - 1]?.id
   const scrollButtonIcon = isAtBottom ? "chevron-up" : "chevron-down"
   const scrollButtonLabel = isAtBottom ? "Go to first message" : "Go to latest message"
+
+  // Build a map of messageId to index for scroll-to-reply
+  const messageIndexMap = useMemo(() => {
+    const map = new Map<string, number>()
+    messages.forEach((msg, index) => {
+      map.set(msg.id, index)
+    })
+    return map
+  }, [messages])
 
   const scrollToLatestMessage = useCallback((animated = true) => {
     requestAnimationFrame(() => {
@@ -476,6 +648,17 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
   const scrollToFirstMessage = useCallback(() => {
     listRef.current?.scrollToOffset({ offset: 0, animated: true })
   }, [])
+
+  const scrollToMessage = useCallback((messageId: string) => {
+    const index = messageIndexMap.get(messageId)
+    if (index !== undefined) {
+      try {
+        listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 })
+      } catch {
+        // Fallback: content may not be rendered yet
+      }
+    }
+  }, [messageIndexMap])
 
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
@@ -521,78 +704,54 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
     }
   }, [isAtBottom, latestMessageId, messages.length, scrollToLatestMessage])
 
-  const listHeader = useMemo(() => (
-    <View className="mb-5 rounded-2xl bg-menorah-bg/90 px-3.5 py-3">
-      <Text className="text-[11px] leading-4 text-[#FFD700]">
-        Please keep comments respectful and uplifting. "Let your words edify and
-        bring grace to those who hear." - Ephesians 4:29.
-      </Text>
-    </View>  
-  ), [])
-  const listEmpty = useMemo(() => (
-    <View className="mx-2 mt-8 items-center rounded-[24px] border border-white/10 bg-[#0F2A08]/80 px-6 py-8">
-      <View className="h-[58px] w-[58px] items-center justify-center rounded-full bg-[#D7FF00]/15">
-        <MaterialCommunityIcons
-          name="message-text-outline"
-          size={26}
-          color="#D7FF00"
-        />
-      </View>
-      <Text className="mt-4 text-[15px] font-semibold text-[#F4F5F0]">
-        No messages yet
-      </Text>
-      <Text className="mt-2 text-center text-[12px] leading-5 text-[#B7C0BC]">
-        Start the conversation with an encouraging message for everyone in the room.
-      </Text>
-    </View>
-  ), [])
-  const renderMessage = useCallback(({item}: { item: LiveMessage }) => (
-    <View
-      className={`mb-3.5 flex-row ${item.isLocal ? "justify-end" : "items-start"}`}
-    >
-      {!item.isLocal && (
-        item.sender_avartar_url ? (
-          <Image
-            source={{uri: item.sender_avartar_url}}
-            style={{ width: 30, height: 30, borderRadius: 15 }}
-            contentFit="cover"
-          />
-        ) : (
-          <View
-            style={{width: 30, height: 30, borderRadius: 15}}
-            className="items-center justify-center bg-menorah-primary"
-          >
-            <Text className="text-base font-bold text-menorah-bg">
-              {item.sender_name.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-        )
-      )}
-      <View className={`${item.isLocal ? "items-end" : "ml-3"}`} style={{ maxWidth: width * 0.74, alignSelf: item.isLocal ? 'flex-end' : 'flex-start' }}>
-        {!item.isLocal && (
-          <Text className="mb-1.5 text-[10px] font-medium text-menorah-whiteSoft/90">
-            {item.sender_name}
-          </Text>
-        )}
-        {
-          item.message_type === 'image' ? (
-            <ChatImage uri={item.content} maxWidth={imageWidth} onPress={handleImagePress} />
-          ) : (
-            <View
-              className={`rounded-2xl px-3.5 py-2.5 ${
-                item.isLocal ? "bg-[#D7FF00]" : "self-start bg-white/20"
-              }`}
-              style={{ maxWidth: width * 0.68 }}
-            >
-              <Text className={`text-[11px] font-semibold leading-4 ${item.isLocal ? 'text-[#143703]' : 'text-menorah-whiteSoft'}`}>
-                {item.content}
-              </Text>
-            </View>
-          )
-        }
-      </View>
-    </View>
-  ), [imageWidth, width])
+  // Dismiss selections when keyboard hides
+  useEffect(() => {
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      setSelectedMessageId(null)
+      setEditingMessageId(null)
+      setDeleteConfirmMessageId(null)
+    })
+
+    return () => hideSubscription.remove()
+  }, [])
+
+  const handleMessagePress = useCallback((messageId: string) => {
+    Keyboard.dismiss()
+    setSelectedMessageId(prev => prev === messageId ? null : messageId)
+  }, [])
+
+  const handleEditStart = useCallback((messageId: string) => {
+    setEditingMessageId(messageId)
+    setSelectedMessageId(null)
+  }, [])
+
+  const handleEditSave = useCallback((messageId: string, newContent: string) => {
+    onEditMessage?.(messageId, newContent)
+    setEditingMessageId(null)
+  }, [onEditMessage])
+
+  const handleEditCancel = useCallback(() => {
+    setEditingMessageId(null)
+  }, [])
+
+  const handleDeleteRequest = useCallback((messageId: string) => {
+    setDeleteConfirmMessageId(messageId)
+    setSelectedMessageId(null)
+  }, [])
+
+  const handleDeleteConfirm = useCallback((messageId: string) => {
+    onDeleteMessage?.(messageId)
+    setDeleteConfirmMessageId(null)
+  }, [onDeleteMessage])
+
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteConfirmMessageId(null)
+  }, [])
+
+  const handleReplyTap = useCallback((messageId: string, senderName: string) => {
+    onReplyToMessage?.(messageId, senderName)
+    setSelectedMessageId(null)
+  }, [onReplyToMessage])
 
   const handleImagePress = useCallback((uri: string) => {
     setSelectedImageUri(uri)
@@ -619,15 +778,12 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
       const fileExtension = selectedImageUri.split('.').pop() || 'jpg';
       const fileName = `EMI_Image_${Date.now()}.${fileExtension}`;
       
-      // Create destination directory
       const destinationDir = new Directory(Paths.document, 'downloads');
       
-      // Create directory if it doesn't exist
       if (!destinationDir.exists) {
         destinationDir.create();
       }
 
-      // Download file
       const downloadedFile = await File.downloadFileAsync(
         selectedImageUri,
         destinationDir
@@ -641,8 +797,217 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
     }
   }, [selectedImageUri])
 
+  const listHeader = useMemo(() => (
+    <View className="mb-5 rounded-2xl bg-menorah-bg/90 px-3.5 py-3">
+      <Text className="text-[11px] leading-4 text-[#FFD700]">
+        Please keep comments respectful and uplifting. "Let your words edify and
+        bring grace to those who hear." - Ephesians 4:29.
+      </Text>
+    </View>  
+  ), [])
+  const listEmpty = useMemo(() => (
+    <View className="mx-2 mt-8 items-center rounded-[24px] border border-white/10 bg-[#0F2A08]/80 px-6 py-8">
+      <View className="h-[58px] w-[58px] items-center justify-center rounded-full bg-[#D7FF00]/15">
+        <MaterialCommunityIcons
+          name="message-text-outline"
+          size={26}
+          color="#D7FF00"
+        />
+      </View>
+      <Text className="mt-4 text-[15px] font-semibold text-[#F4F5F0]">
+        No messages yet
+      </Text>
+      <Text className="mt-2 text-center text-[12px] leading-5 text-[#B7C0BC]">
+        Start the conversation with an encouraging message for everyone in the room.
+      </Text>
+    </View>
+  ), [])
+
+  const renderMessage = useCallback(({item}: { item: LiveMessage }) => {
+    // System messages (join/leave notifications)
+    if (item.message_type === 'system') {
+      return (
+        <View className="mb-3 items-center">
+          <View className="rounded-full bg-white/5 px-4 py-1.5">
+            <Text className="text-[10px] text-white/40 italic">
+              {item.content}
+            </Text>
+          </View>
+        </View>
+      )
+    }
+
+    const isOwn = item.isLocal ?? false
+    const isSelected = selectedMessageId === item.id
+    const isEditing = editingMessageId === item.id
+    const showDeleteConfirm = deleteConfirmMessageId === item.id
+    const userCanDelete = canDeleteMessage?.(item.sender_id) ?? false
+    const userCanEdit = canEditMessage?.(item.sender_id) ?? false
+    const hasReply = item.reply_to_id && item.reply_preview
+
+    return (
+      <Pressable
+        onPress={() => handleMessagePress(item.id)}
+        className={`mb-3.5 ${isOwn ? "items-end" : "items-start"}`}
+      >
+        <View
+          className={`flex-row ${isOwn ? "flex-row-reverse" : ""}`}
+        >
+          <Pressable
+            onPress={() => {
+              if (item.sender_avartar_url) {
+                setProfileViewerImageUrl(item.sender_avartar_url)
+                setProfileViewerName(item.sender_name)
+                setProfileViewerVisible(true)
+              }
+            }}
+            disabled={!item.sender_avartar_url}
+          >
+            {item.sender_avartar_url ? (
+              <Image
+                source={{uri: item.sender_avartar_url}}
+                style={{ width: 30, height: 30, borderRadius: 15 }}
+                contentFit="cover"
+              />
+            ) : (
+              <View
+                style={{width: 30, height: 30, borderRadius: 15}}
+                className="items-center justify-center bg-menorah-primary"
+              >
+                <Text className="text-base font-bold text-menorah-bg">
+                  {item.sender_name.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+          <View
+            className={`${isOwn ? "items-end mr-3" : "items-start ml-3"}`}
+            style={{ maxWidth: width * 0.74 }}
+          >
+            <Text className="mb-1.5 text-[10px] font-medium text-menorah-whiteSoft/90">
+              {item.sender_name}
+            </Text>
+
+            {/* Reply Preview Banner */}
+            {hasReply && item.reply_preview && (
+              <ReplyPreviewBanner
+                replyPreview={item.reply_preview}
+                onTap={() => scrollToMessage(item.reply_to_id!)}
+              />
+            )}
+
+            {/* Message Bubble / Edit Input */}
+            {isEditing ? (
+              <EditMessageInput
+                initialContent={item.content}
+                onSave={(newContent) => handleEditSave(item.id, newContent)}
+                onCancel={handleEditCancel}
+              />
+            ) : (
+              <>
+                {item.message_type === 'image' ? (
+                  <ChatImage uri={item.content} maxWidth={imageWidth} onPress={handleImagePress} />
+                ) : (
+                  <View
+                    className={`rounded-2xl px-3.5 py-2.5 ${
+                      isOwn ? "bg-[#D7FF00]" : "self-start bg-white/20"
+                    } ${isSelected ? 'border border-[#D7FF00]' : ''}`}
+                    style={{ maxWidth: width * 0.68 }}
+                  >
+                    <Text className={`text-[11px] font-semibold leading-4 ${isOwn ? 'text-[#143703]' : 'text-menorah-whiteSoft'}`}>
+                      {item.content}
+                    </Text>
+                    {item.edited_at && (
+                      <Text className={`text-[8px] mt-0.5 ${isOwn ? 'text-[#143703]/60' : 'text-white/40'}`}>
+                        (edited)
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </>
+            )}
+
+            {/* Delete Confirmation */}
+            {showDeleteConfirm && (
+              <View className="mt-1.5 flex-row items-center gap-2 rounded-lg bg-[#F3523C]/20 px-2.5 py-1.5">
+                <Text className="text-[10px] text-white/70">Delete?</Text>
+                <Pressable
+                  onPress={() => handleDeleteConfirm(item.id)}
+                  className="rounded bg-[#F3523C] px-2 py-0.5"
+                >
+                  <Text className="text-[9px] font-semibold text-white">Yes</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleDeleteCancel}
+                  className="rounded bg-white/10 px-2 py-0.5"
+                >
+                  <Text className="text-[9px] font-semibold text-white/60">No</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {/* Action Buttons (shown when message is selected) */}
+            {isSelected && !isEditing && !showDeleteConfirm && (
+              <View className="mt-1.5 flex-row items-center gap-2">
+                <Pressable
+                  onPress={() => handleReplyTap(item.id, item.sender_name)}
+                  className="flex-row items-center gap-1 rounded-full bg-[#D7FF00]/20 px-2.5 py-1"
+                >
+                  <MaterialCommunityIcons name="reply" size={12} color="#D7FF00" />
+                  <Text className="text-[9px] font-semibold text-[#D7FF00]">Reply</Text>
+                </Pressable>
+                {userCanEdit && (
+                  <Pressable
+                    onPress={() => handleEditStart(item.id)}
+                    className="flex-row items-center gap-1 rounded-full bg-[#87CEEB]/20 px-2.5 py-1"
+                  >
+                    <MaterialCommunityIcons name="pencil" size={12} color="#87CEEB" />
+                    <Text className="text-[9px] font-semibold text-[#87CEEB]">Edit</Text>
+                  </Pressable>
+                )}
+                {userCanDelete && (
+                  <Pressable
+                    onPress={() => handleDeleteRequest(item.id)}
+                    className="flex-row items-center gap-1 rounded-full bg-[#FF6B6B]/20 px-2.5 py-1"
+                  >
+                    <MaterialCommunityIcons name="delete-outline" size={12} color="#FF6B6B" />
+                    <Text className="text-[9px] font-semibold text-[#FF6B6B]">Delete</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
+          </View>
+        </View>
+      </Pressable>
+    )
+  }, [
+    imageWidth,
+    width,
+    selectedMessageId,
+    editingMessageId,
+    deleteConfirmMessageId,
+    canDeleteMessage,
+    canEditMessage,
+    handleMessagePress,
+    handleEditSave,
+    handleEditCancel,
+    handleDeleteRequest,
+    handleDeleteConfirm,
+    handleDeleteCancel,
+    handleReplyTap,
+    scrollToMessage,
+    handleImagePress,
+  ])
+
   return (
     <View className="relative min-h-[220px] flex-1">
+      {/* Tap backdrop to deselect message */}
+      {selectedMessageId && (
+        <Pressable
+          onPress={() => setSelectedMessageId(null)}
+          className="absolute inset-0 z-0"
+        />
+      )}
       <FlashList
         ref={listRef}
         data={messages}
@@ -656,6 +1021,7 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
         onScroll={handleScroll}
         scrollEventThrottle={16}
         renderItem={renderMessage}
+        extraData={{ selectedMessageId, editingMessageId, deleteConfirmMessageId }}
       />
       {messages.length > 0 && canScroll ? (
         <Pressable
@@ -673,11 +1039,37 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
         </Pressable>
       ) : null}
 
+      {/* Replying to indicator at bottom */}
+      {replyingTo && (
+        <View className="absolute bottom-0 left-0 right-0 flex-row items-center bg-[#143703] px-4 py-2">
+          <View className="flex-1 flex-row items-center">
+            <MaterialCommunityIcons name="reply" size={16} color="#D7FF00" />
+            <Text className="ml-2 text-[11px] text-white/70">
+              Replying to <Text className="font-semibold text-[#D7FF00]">{replyingTo.senderName}</Text>
+            </Text>
+          </View>
+          <Pressable onPress={onCancelReply} hitSlop={8}>
+            <MaterialCommunityIcons name="close-circle" size={20} color="#FF6B6B" />
+          </Pressable>
+        </View>
+      )}
+
       <ImageViewer
         visible={isImageViewerVisible}
         imageUri={selectedImageUri}
         onClose={handleCloseImageViewer}
         onDownload={handleDownloadImage}
+      />
+
+      <ProfileViewer
+        visible={profileViewerVisible}
+        imageUrl={profileViewerImageUrl}
+        userName={profileViewerName}
+        onClose={() => {
+          setProfileViewerVisible(false)
+          setProfileViewerImageUrl(null)
+          setProfileViewerName('')
+        }}
       />
     </View>
   );

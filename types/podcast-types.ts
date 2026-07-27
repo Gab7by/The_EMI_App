@@ -112,7 +112,13 @@ export const PLAYLIST_OPTIONS = PLAYLISTS.map((playlist) => ({
   value: playlist,
 }))
 
-export type MessageType = 'text' | 'image'
+export type MessageType = 'text' | 'image' | 'system'
+
+export type ReplyPreview = {
+  sender_name: string
+  content: string
+  message_type: MessageType
+}
 
 export type LiveMessage = {
   id: string
@@ -123,6 +129,9 @@ export type LiveMessage = {
   content: string 
   message_type: MessageType
   created_at: string
+  reply_to_id: string | null
+  reply_preview: ReplyPreview | null
+  edited_at: string | null
   isLocal?: boolean
 }
 

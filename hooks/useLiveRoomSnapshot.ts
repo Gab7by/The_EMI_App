@@ -1,5 +1,5 @@
 import { RoomEvent, type Participant, type Room } from "livekit-client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type LiveRoomParticipantSnapshot = {
   id: string;
@@ -54,12 +54,27 @@ const getAudioTrackSid = (participant: Participant) => {
   return publication?.trackSid ?? null;
 };
 
-export const useLiveRoomSnapshot = (room: Room | null) => {
+export type ParticipantChangeCallback = (
+  action: 'joined' | 'left',
+  participantId: string,
+  participantName: string
+) => void;
+
+export const useLiveRoomSnapshot = (
+  room: Room | null,
+  onParticipantChange?: ParticipantChangeCallback
+) => {
   const [participants, setParticipants] = useState<LiveRoomParticipantSnapshot[]>([]);
+  const previousIdsRef = useRef<Set<string>>(new Set());
+  const participantsRef = useRef<LiveRoomParticipantSnapshot[]>([]);
+
+  // Keep the ref in sync with state
+  participantsRef.current = participants;
 
   useEffect(() => {
     if (!room) {
       setParticipants([]);
+      previousIdsRef.current = new Set();
       return;
     }
 
@@ -94,6 +109,27 @@ export const useLiveRoomSnapshot = (room: Room | null) => {
       );
 
       const nextParticipants = [...localParticipants, ...remoteParticipants];
+      const nextIds = new Set(nextParticipants.map((p) => p.id));
+
+      // Detect joins/leaves (skip initial sync when previousIds is empty)
+      if (previousIdsRef.current.size > 0 && onParticipantChange) {
+        for (const participant of nextParticipants) {
+          if (!previousIdsRef.current.has(participant.id) && !participant.isLocal) {
+            onParticipantChange('joined', participant.id, participant.name);
+          }
+        }
+
+        for (const prevId of previousIdsRef.current) {
+          if (!nextIds.has(prevId)) {
+            const prevParticipant = participantsRef.current.find((p) => p.id === prevId);
+            const name = prevParticipant?.name ?? "Someone";
+            onParticipantChange('left', prevId, name);
+          }
+        }
+      }
+
+      previousIdsRef.current = nextIds;
+
       setParticipants((previous) => (
         areSnapshotsEqual(previous, nextParticipants) ? previous : nextParticipants
       ));
@@ -119,7 +155,7 @@ export const useLiveRoomSnapshot = (room: Room | null) => {
       room.off(RoomEvent.TrackMuted, syncParticipants);
       room.off(RoomEvent.TrackUnmuted, syncParticipants);
     };
-  }, [room]);
+  }, [room, onParticipantChange]);
 
   return { participants };
 };

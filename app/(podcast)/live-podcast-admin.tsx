@@ -108,6 +108,7 @@ const AdminLivePodcast = () => {
   const [deletingMusicTrackId, setDeletingMusicTrackId] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [isRefreshingLiveParticipants, setIsRefreshingLiveParticipants] = useState(false)
+  const [replyingTo, setReplyingTo] = useState<{ messageId: string; senderName: string } | null>(null)
 
   const room = useLiveKitStore(state => state.room)
   const isMuted = useLiveKitStore(state => state.isMuted)
@@ -137,14 +138,24 @@ const AdminLivePodcast = () => {
   );
   
   useHostRooom(livekitRoomName, id)
-  const { participants: roomParticipants } = useLiveRoomSnapshot(room)
 
   const {raisedHands, dismissRaisedHand} = useRoomSignals(room, profile?.id ?? "")
-  const {messages, sendMessage, sendImage} = useRoomChat(
+  const {messages, sendMessage, sendImage, editMessage, deleteMessage, canDeleteMessage, canEditMessage, addSystemMessage} = useRoomChat(
     room,
     id,
-    profile?.id ?? ''
+    profile?.id ?? '',
+    profile?.role
   )
+
+  const handleParticipantChange = useCallback((action: 'joined' | 'left', _participantId: string, participantName: string) => {
+    if (action === 'joined') {
+      addSystemMessage(`${participantName} joined the live room`)
+    } else {
+      addSystemMessage(`${participantName} left the live room`)
+    }
+  }, [addSystemMessage])
+
+  const { participants: roomParticipants } = useLiveRoomSnapshot(room, handleParticipantChange)
   const latestRaisedHand = raisedHands[raisedHands.length - 1]
   const participantCount = roomParticipants.filter((participant) => participant.id !== hostId).length
   const liveRoomParticipantIds = useMemo(
@@ -182,8 +193,9 @@ const AdminLivePodcast = () => {
 
   const handleSendMessage = async () => {
     if (!message.trim()) return
-    await sendMessage(message, profile?.full_name ?? "User", profile?.avatar_url ?? null)
+    await sendMessage(message, profile?.full_name ?? "User", profile?.avatar_url ?? null, replyingTo?.messageId)
     setMessage('')
+    setReplyingTo(null)
   }
   const canSendMessage = message.trim().length > 0
 
@@ -835,7 +847,21 @@ const AdminLivePodcast = () => {
             participants={speakerGridParticipants}
           />
 
-          <PodcastComments messages={messages} footerPadding={scrollPaddingBottom} />
+          <PodcastComments
+            messages={messages}
+            footerPadding={scrollPaddingBottom}
+            currentUserId={profile?.id}
+            onEditMessage={editMessage}
+            onDeleteMessage={deleteMessage}
+            canDeleteMessage={canDeleteMessage}
+            canEditMessage={canEditMessage}
+            onReplyToMessage={(messageId, senderName) => {
+              setReplyingTo({ messageId, senderName })
+              setIsMessageComposerVisible(true)
+            }}
+            replyingTo={replyingTo}
+            onCancelReply={() => setReplyingTo(null)}
+          />
         </View>
 
         <PodcastBottomDock
