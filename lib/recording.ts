@@ -5,7 +5,7 @@ export const startRecording = async (
     roomName: string,
     podcastId: string): Promise<string | null> => {
 
-        const {data, error} = await supabase.functions.invoke("livekit-start-recording", {
+        const { data, error} = await supabase.functions.invoke("livekit-start-recording", {
             body: {roomName, podcastId}
         })
 
@@ -40,7 +40,7 @@ export const getRecordings = async (isAdmin: boolean = false): Promise<Recording
         .from("podcast_recordings")
         .select(`
             *,
-            live_podcasts!inner(title)
+            live_podcasts!inner(title, playlist)
         `)
         .eq("status", "completed")
 
@@ -49,7 +49,7 @@ export const getRecordings = async (isAdmin: boolean = false): Promise<Recording
         query = query.eq("publish", true)
     }
 
-    const {data, error} = await query
+    const { data, error} = await query
         .order("started_at", { ascending: false })
 
     if (error) {
@@ -67,6 +67,7 @@ export const getRecordings = async (isAdmin: boolean = false): Promise<Recording
         started_at: item.started_at,
         duration_seconds: item.duration_seconds,
         podcast_title: item.live_podcasts?.title ?? null,
+        playlist: item.live_podcasts?.playlist ?? null,
     })) as Recording[]
 }
 

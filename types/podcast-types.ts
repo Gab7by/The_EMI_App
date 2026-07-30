@@ -164,4 +164,5 @@ export type Recording = {
   started_at: string
   duration_seconds: number | null
   podcast_title?: string
+  playlist?: string
 }

@@ -1,14 +1,16 @@
-// app/(tabs)/library/index.tsx (or wherever your library screen lives)
-import { View, Text, ScrollView, RefreshControl, Modal, Pressable } from 'react-native'
+import { View, Text, ScrollView, RefreshControl, Modal, Pressable, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRecordingPlayer } from '@/hooks/useRecordingPlayer'
 import { LinearGradient } from 'expo-linear-gradient'
 import { getRecordings, toggleRecordingPublish } from '@/lib/recording'
 import { useAuthStore } from '@/store/authStore'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import RecordingItem from '@/components/recording/RecordingItem'
+import RecordingPlayerScreen from '@/components/recording/RecordingPlayerScreen'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { PLAYLISTS } from '@/types/podcast-types'
+import { hapticMedium } from '@/lib/haptics'
 
 export default function LibraryScreen() {
     const profile = useAuthStore((state) => state.profile)
@@ -16,42 +18,63 @@ export default function LibraryScreen() {
     const queryClient = useQueryClient()
     const [showDisclaimer, setShowDisclaimer] = useState(!isAdmin)
     const [disclaimerAccepted, setDisclaimerAccepted] = useState(false)
+    const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null)
+    const [playerVisible, setPlayerVisible] = useState(false)
+    const [activeRecording, setActiveRecording] = useState<any>(null)
 
     const { data: recordings = [], isLoading, refetch, isRefetching } = useQuery({
         queryKey: ['recordings', isAdmin ? 'admin' : 'member'],
         queryFn: () => getRecordings(isAdmin),
         staleTime: 5 * 60 * 1000,
-        // cache for 5 minutes — recordings do not change frequently
-        // user can pull to refresh to force a new fetch
     })
 
     const {
         playRecording,
+        loadRecording,
         togglePlayPause,
         seekTo,
         stop,
+        setPlaybackRate,
+        playNext,
+        playPrevious,
         isPlaying,
         currentTime,
         duration,
-        loadingId,
-        currentUrl,
         isLoaded,
+        loadingId,
+        playbackRate,
+        currentIndex,
+        setRecordings,
     } = useRecordingPlayer()
 
-    // Track which recording is currently active by matching the URL
-    // We cannot match by ID directly since the player only knows about URLs
-    // So we track which recording's URL is currently loaded
-    const [activeRecordingId, setActiveRecordingId] = useState<string | null>(null)
+    // Filter recordings by selected playlist
+    const filteredRecordings = useMemo(() => {
+        if (!selectedPlaylist) return recordings
+        return recordings.filter(r => r.playlist === selectedPlaylist)
+    }, [recordings, selectedPlaylist])
 
-    async function handlePlay(recording: typeof recordings[0]) {
-        setActiveRecordingId(recording.id)
-        await playRecording(recording.id, recording.file_path)
-    }
+    // Update the player's recordings list when filtered recordings change
+    const handlePlay = useCallback(async (recording: any, index: number) => {
+        setActiveRecording(recording)
+        setPlayerVisible(true)
+        setRecordings(filteredRecordings)
+        await loadRecording(recording, index)
+    }, [filteredRecordings, loadRecording])
 
-    function handleStop() {
+    const handleToggle = useCallback(() => {
+        togglePlayPause()
+    }, [togglePlayPause])
+
+    const handleStop = useCallback(() => {
         stop()
-        setActiveRecordingId(null)
-    }
+        setPlayerVisible(false)
+        setActiveRecording(null)
+    }, [stop])
+
+    const handleClosePlayer = useCallback(() => {
+        setPlayerVisible(false)
+        setActiveRecording(null)
+    }, [])
 
     const handlePublishToggle = useCallback(async (recordingId: string, currentPublish: boolean) => {
         const success = await toggleRecordingPublish(recordingId, currentPublish)
@@ -65,7 +88,12 @@ export default function LibraryScreen() {
         setDisclaimerAccepted(true)
     }, [])
 
-    const visibleRecordings = showDisclaimer ? [] : recordings
+    const handlePlaylistSelect = useCallback((playlist: string | null) => {
+        hapticMedium()
+        setSelectedPlaylist(playlist)
+    }, [])
+
+    const visibleRecordings = showDisclaimer ? [] : filteredRecordings
 
     return (
         <LinearGradient
@@ -76,11 +104,59 @@ export default function LibraryScreen() {
         >
             <SafeAreaView className="flex-1">
                 <View className="flex-1 px-4 pt-4">
-
                     {/* Header */}
-                    <Text className="text-[22px] font-bold text-[#D7FF00] mb-6">
-                        Recordings
-                    </Text>
+                    <View className="mb-6 flex-row items-center justify-between">
+                        <Text className="text-[22px] font-bold text-[#D7FF00]">
+                            Recordings
+                        </Text>
+                        {selectedPlaylist && (
+                            <Pressable
+                                onPress={() => handlePlaylistSelect(null)}
+                                className="rounded-full bg-white/10 px-3 py-1.5"
+                                hitSlop={8}
+                            >
+                                <Text className="text-[11px] font-semibold text-[#B7C0BC]">
+                                    Clear Filter
+                                </Text>
+                            </Pressable>
+                        )}
+                    </View>
+
+                    {/* Playlist Filter Chips */}
+                    <View className="mb-5 flex-row flex-wrap gap-2">
+                        <TouchableOpacity
+                            onPress={() => handlePlaylistSelect(null)}
+                            className={`rounded-full px-4 py-2 ${
+                                !selectedPlaylist ? 'bg-[#D7FF00]/20' : 'bg-white/5'
+                            }`}
+                            activeOpacity={0.7}
+                        >
+                            <Text className={`text-[12px] font-medium ${
+                                !selectedPlaylist ? 'text-[#D7FF00]' : 'text-[#B7C0BC]'
+                            }`}>
+                                All
+                            </Text>
+                        </TouchableOpacity>
+                        {PLAYLISTS.map((playlist) => {
+                            const isSelected = selectedPlaylist === playlist
+                            return (
+                                <TouchableOpacity
+                                    key={playlist}
+                                    onPress={() => handlePlaylistSelect(playlist)}
+                                    className={`rounded-full px-4 py-2 ${
+                                        isSelected ? 'bg-[#D7FF00]/20' : 'bg-white/5'
+                                    }`}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text className={`text-[12px] font-medium ${
+                                        isSelected ? 'text-[#D7FF00]' : 'text-[#B7C0BC]'
+                                    }`}>
+                                        {playlist}
+                                    </Text>
+                                </TouchableOpacity>
+                            )
+                        })}
+                    </View>
 
                     {/* Disclaimer Modal for members */}
                     <Modal
@@ -140,30 +216,47 @@ export default function LibraryScreen() {
                                     refreshing={isRefetching}
                                     onRefresh={refetch}
                                     tintColor="#D7FF00"
-                                    // pull down to refresh the recordings list
                                 />
                             }
                         >
-                            {visibleRecordings.map((recording) => (
+                            {visibleRecordings.map((recording, index) => (
                                 <RecordingItem
                                     key={recording.id}
                                     recording={recording}
-                                    isActive={activeRecordingId === recording.id}
-                                    isPlaying={activeRecordingId === recording.id && isPlaying}
+                                    isActive={currentIndex === index}
+                                    isPlaying={currentIndex === index && isPlaying}
                                     isLoading={loadingId === recording.id}
-                                    currentTime={activeRecordingId === recording.id ? currentTime : 0}
-                                    duration={activeRecordingId === recording.id ? duration : 0}
                                     isAdmin={isAdmin}
-                                    onPlay={() => handlePlay(recording)}
-                                    onToggle={togglePlayPause}
-                                    onStop={handleStop}
-                                    onSeek={seekTo}
+                                    onPlay={() => handlePlay(recording, index)}
+                                    onToggle={handleToggle}
                                     onPublishToggle={isAdmin ? () => handlePublishToggle(recording.id, recording.publish) : undefined}
                                 />
                             ))}
                         </ScrollView>
                     )}
                 </View>
+
+                {/* Full-Screen Player */}
+                {activeRecording && (
+                    <RecordingPlayerScreen
+                        visible={playerVisible}
+                        recording={activeRecording}
+                        recordings={filteredRecordings}
+                        currentIndex={currentIndex ?? 0}
+                        isPlaying={isPlaying}
+                        currentTime={currentTime}
+                        duration={duration}
+                        isLoaded={isLoaded}
+                        playbackRate={playbackRate}
+                        onClose={handleClosePlayer}
+                        onToggle={handleToggle}
+                        onSeek={seekTo}
+                        onSetPlaybackRate={setPlaybackRate}
+                        onNext={playNext}
+                        onPrevious={playPrevious}
+                        onStop={handleStop}
+                    />
+                )}
             </SafeAreaView>
         </LinearGradient>
     )
