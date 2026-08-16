@@ -47,6 +47,9 @@ export type Playlist =
   | 'School of Spiritual Mysteries'
   | 'Mega One Word From the Lord'
   | '45 minutes in Tongues'
+  | 'Prophetic Training'
+  | 'Prophetic Prayers'
+  | 'Prophetic Crossover Service'
 
 export type PlaylistOption = {
     label: string
@@ -59,7 +62,10 @@ export const PLAYLISTS: Playlist[] = [
   'School of the Prophets',
   'School of Spiritual Mysteries',
   'Mega One Word From the Lord',
-  '45 minutes in Tongues'
+  '45 minutes in Tongues',
+  'Prophetic Training',
+  'Prophetic Prayers',
+  'Prophetic Crossover Service'
 ]
 
 export type LivePodcastParticipant = {

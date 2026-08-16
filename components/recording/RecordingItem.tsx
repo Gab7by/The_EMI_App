@@ -1,7 +1,7 @@
-import { View, Text, Pressable, ActivityIndicator } from 'react-native'
-import { Play, Pause, Globe, GlobeOff, Trash2 } from 'lucide-react-native'
-import { formatRecordingDate, formatDuration } from '@/lib/formatters'
+import { formatDuration, formatRecordingDate } from '@/lib/formatters'
 import { type Recording } from '@/types/podcast-types'
+import { Globe, GlobeOff, Pause, Play, Trash2 } from 'lucide-react-native'
+import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 
 interface RecordingItemProps {
     recording: Recording
@@ -117,6 +117,9 @@ const PLAYLIST_COLORS: Record<string, string> = {
     'School of Spiritual Mysteries': '#00C9A6',
     'Mega One Word From the Lord': '#FFD700',
     '45 minutes in Tongues': '#FF4B5F',
+    'Prophetic Training': '#8A2BE2',
+    'Prophetic Prayers': '#32CD32',
+    'Prophetic Crossover Service': '#FF8C00',
 }
 
 function getPlaylistColor(playlist: string): string {

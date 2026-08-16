@@ -1,11 +1,11 @@
-import { View, Text, Pressable, Modal, TouchableOpacity } from 'react-native'
-import { LinearGradient } from 'expo-linear-gradient'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { formatDuration, formatRecordingDate } from '@/lib/formatters'
-import { Recording } from '@/types/podcast-types'
-import AudioProgressBar from './AudioProgressBar'
 import { hapticMedium } from '@/lib/haptics'
+import { Recording } from '@/types/podcast-types'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
+import { Modal, Pressable, Text, TouchableOpacity, View } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import AudioProgressBar from './AudioProgressBar'
 
 interface RecordingPlayerScreenProps {
     visible: boolean
@@ -35,6 +35,9 @@ const PLAYLIST_COLORS: Record<string, string> = {
     'School of Spiritual Mysteries': '#00C9A6',
     'Mega One Word From the Lord': '#FFD700',
     '45 minutes in Tongues': '#FF4B5F',
+    'Prophetic Training': '#8A2BE2',
+    'Prophetic Prayers': '#32CD32',
+    'Prophetic Crossover Service': '#FF8C00',
 }
 
 export default function RecordingPlayerScreen({
