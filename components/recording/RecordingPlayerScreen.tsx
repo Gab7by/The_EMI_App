@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { formatDuration, formatRecordingDate } from '@/lib/formatters'
-import { Recording, Playlist, PLAYLISTS } from '@/types/podcast-types'
+import { Recording } from '@/types/podcast-types'
 import AudioProgressBar from './AudioProgressBar'
 import { hapticMedium } from '@/lib/haptics'
 
@@ -191,6 +191,9 @@ export default function RecordingPlayerScreen({
 
                         {/* Main controls */}
                         <View className="flex-row items-center justify-center gap-8">
+                            <TouchableOpacity onPress={() => onSeek(Math.max(0, currentTime - 15))} className="h-11 w-11 items-center justify-center rounded-full bg-white/10" activeOpacity={0.7}>
+                                <MaterialCommunityIcons name="rewind-15" size={22} color="#F4F5F0" />
+                            </TouchableOpacity>
                             {/* Previous */}
                             <TouchableOpacity
                                 onPress={onPrevious}
@@ -244,6 +247,9 @@ export default function RecordingPlayerScreen({
                                     color={hasNext ? "#143703" : "#6F7C73"}
                                 />
                             </TouchableOpacity>
+                            <TouchableOpacity onPress={() => onSeek(Math.min(duration, currentTime + 15))} className="h-11 w-11 items-center justify-center rounded-full bg-white/10" activeOpacity={0.7}>
+                                <MaterialCommunityIcons name="fast-forward-15" size={22} color="#F4F5F0" />
+                            </TouchableOpacity>
                         </View>
 
                         {/* Stop button */}
@@ -263,35 +269,6 @@ export default function RecordingPlayerScreen({
                         </TouchableOpacity>
                     </View>
 
-                    {/* Playlist Tags at bottom */}
-                    <View className="mt-auto px-4 pb-6">
-                        <Text className="mb-3 text-[11px] font-semibold uppercase tracking-[1px] text-[#B7C0BC]">
-                            All Playlists
-                        </Text>
-                        <View className="flex-row flex-wrap gap-2">
-                            {PLAYLISTS.map((playlist) => {
-                                const color = PLAYLIST_COLORS[playlist] ?? '#D7FF00'
-                                const isCurrent = recording.playlist === playlist
-                                return (
-                                    <View
-                                        key={playlist}
-                                        className={`rounded-full px-3.5 py-1.5 ${
-                                            isCurrent ? 'bg-[#D7FF00]/20' : 'bg-white/5'
-                                        }`}
-                                    >
-                                        <Text
-                                            className={`text-[11px] font-medium ${
-                                                isCurrent ? 'text-[#D7FF00]' : 'text-[#B7C0BC]'
-                                            }`}
-                                            style={isCurrent ? { color: color } : undefined}
-                                        >
-                                            {playlist}
-                                        </Text>
-                                    </View>
-                                )
-                            })}
-                        </View>
-                    </View>
                 </SafeAreaView>
             </LinearGradient>
         </Modal>

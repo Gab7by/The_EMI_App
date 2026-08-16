@@ -550,41 +550,19 @@ const ReplyPreviewBanner = memo(({
   onTap?: () => void
   isOwn?: boolean
 }) => {
-  const accentColor = isOwn ? "#143703" : "#D7FF00"
-  const previewText = replyPreview.message_type === 'image' ? '📷 Photo' : replyPreview.content
-
+  // The chip always sits on an opaque dark surface, so it remains legible on
+  // lime own-message bubbles and arbitrary podcast cover images alike.
+  const accentColor = isOwn ? "#FFFFFF" : "#D7FF00"
   return (
     <Pressable
       onPress={onTap}
       hitSlop={6}
-      className={`mb-1.5 flex-row items-center overflow-hidden rounded-lg ${
-        isOwn ? "bg-[#143703]/10" : "bg-white/10"
-      }`}
+      className="mb-1 flex-row items-center self-start rounded-full border border-white/20 bg-[#08130A]/85 px-2 py-1"
     >
-      {/* Colored left bar (WhatsApp-style) */}
-      <View
-        className="h-full w-[3px]"
-        style={{ backgroundColor: accentColor, opacity: 0.8 }}
-      />
-      <View className="flex-1 px-2 py-1.5">
-        <View className="flex-row items-center gap-1">
-          <MaterialCommunityIcons name="reply" size={10} color={accentColor} style={{ opacity: 0.8 }} />
-          <Text
-            className="text-[9px] font-bold"
-            style={{ color: accentColor }}
-            numberOfLines={1}
-          >
-            {replyPreview.sender_name}
-          </Text>
-        </View>
-        <Text
-          className="mt-0.5 text-[9px] leading-3"
-          style={{ color: isOwn ? "rgba(20, 55, 3, 0.7)" : "rgba(244, 245, 240, 0.7)" }}
-          numberOfLines={1}
-        >
-          {previewText}
-        </Text>
-      </View>
+      <MaterialCommunityIcons name="reply" size={13} color={accentColor} />
+      <Text className="ml-1 text-[10px] font-bold" style={{ color: accentColor }} numberOfLines={1}>
+        Replying to {replyPreview.sender_name}
+      </Text>
     </Pressable>
   )
 })
@@ -626,14 +604,14 @@ const EditMessageInput = memo(({
       />
       <View className="mt-2 flex-row justify-end gap-2">
         <Pressable
-          onPress={onCancel}
+          onPress={(event) => { event.stopPropagation(); onCancel() }}
           disabled={isLoading}
           className="rounded-lg bg-white/10 px-4 py-2"
         >
           <Text className="text-[12px] font-semibold text-white/60">Cancel</Text>
         </Pressable>
         <Pressable
-          onPress={() => onSave(editText)}
+          onPress={(event) => { event.stopPropagation(); onSave(editText) }}
           disabled={!canSave}
           className="rounded-lg bg-[#D7FF00] px-4 py-2 flex-row items-center gap-1.5"
         >
@@ -786,7 +764,10 @@ type MenuPillProps = {
 }
 const MenuPill = memo(({ icon, label, color, onPress, disabled, solid }: MenuPillProps) => (
   <Pressable
-    onPress={() => { hapticLight(); onPress() }}
+    // Action pills live inside a selectable message Pressable. Without
+    // stopping propagation, tapping Edit also triggers the parent handler,
+    // which dismisses the keyboard and immediately clears editingMessageId.
+    onPress={(event) => { event.stopPropagation(); hapticLight(); onPress() }}
     disabled={disabled}
     className="flex-row items-center gap-1 rounded-full px-2.5 py-1.5"
     style={{
@@ -914,7 +895,6 @@ export const PodcastComments = memo(({
   useEffect(() => {
     const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
       setSelectedMessageId(null)
-      setEditingMessageId(null)
     })
     return () => hideSubscription.remove()
   }, [])
@@ -933,6 +913,8 @@ export const PodcastComments = memo(({
   // ── Edit ───────────────────────────────────────────────────────────
   const handleEditStart = useCallback((messageId: string) => {
     hapticLight()
+    console.log('[PodcastComments] Opening editor', { messageId })
+    setSelectedMessageId(messageId)
     setEditingMessageId(messageId)
   }, [])
 
@@ -940,9 +922,17 @@ export const PodcastComments = memo(({
     const message = messages.find(m => m.id === messageId)
     if (!message) return
 
+    console.log('[PodcastComments] Saving edit', { messageId, contentLength: newContent.trim().length })
     setEditLoading(true)
-    const result = await onEditMessage?.(message, newContent)
-    setEditLoading(false)
+    let result: ChatActionResult | undefined
+    try {
+      result = await onEditMessage?.(message, newContent)
+    } catch (error) {
+      console.error('[PodcastComments] Edit callback threw', { messageId, error })
+      result = { ok: false, error: 'Edit request failed before it reached the server.' }
+    } finally {
+      setEditLoading(false)
+    }
 
     if (result?.ok) {
       setEditingMessageId(null)

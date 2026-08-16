@@ -1,5 +1,5 @@
 import { View, Text, Pressable, ActivityIndicator } from 'react-native'
-import { Play, Pause, Globe, GlobeOff } from 'lucide-react-native'
+import { Play, Pause, Globe, GlobeOff, Trash2 } from 'lucide-react-native'
 import { formatRecordingDate, formatDuration } from '@/lib/formatters'
 import { type Recording } from '@/types/podcast-types'
 
@@ -12,6 +12,7 @@ interface RecordingItemProps {
     onPlay: () => void
     onToggle: () => void
     onPublishToggle?: () => void
+    onDelete?: () => void
 }
 
 export default function RecordingItem({
@@ -23,6 +24,7 @@ export default function RecordingItem({
     onPlay,
     onToggle,
     onPublishToggle,
+    onDelete,
 }: RecordingItemProps) {
     const playlistColor = recording.playlist ? getPlaylistColor(recording.playlist) : '#D7FF00'
 
@@ -79,6 +81,11 @@ export default function RecordingItem({
                             ) : (
                                 <Globe size={16} color="#B7C0BC" />
                             )}
+                        </Pressable>
+                    )}
+                    {isAdmin && onDelete && (
+                        <Pressable onPress={onDelete} className="h-10 w-10 items-center justify-center rounded-full bg-[#5A2020]" hitSlop={8}>
+                            <Trash2 size={16} color="#FFB4A9" />
                         </Pressable>
                     )}
 
