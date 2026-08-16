@@ -49,7 +49,7 @@ const PodcastScreen = () => {
     setOpenLiveStreamStartModal(true);
   }, [setOpenLiveStreamStartModal]);
 
-  const { data, isLoading, isRefetching, refetch } = useLivePodcastSessions();
+  const { data, isLoading, isRefetching, refetch } = useLivePodcastSessions(profile?.id);
 
   const startLiveStream = useCallback((closeModal: () => void) => {
     if(title.length < 1) {

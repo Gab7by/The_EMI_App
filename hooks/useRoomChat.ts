@@ -1,8 +1,25 @@
 import { pickImage, uploadChatImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
-import { LiveMessage, MessageType, ReplyPreview } from "@/types/podcast-types";
+import { ChatActionResult, LiveMessage, MessageType, ReplyPreview } from "@/types/podcast-types";
 import type { Room } from "livekit-client";
 import { useCallback, useEffect, useState } from "react";
+
+/** Users may only edit their own messages within 10 minutes of sending. */
+const EDIT_WINDOW_MS = 10 * 60 * 1000;
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Guards every value that will be used in a `.eq('id', …)` / FK column.
+ * The `live_podcast_messages.id` column is a PostgreSQL `uuid`, so anything
+ * that is not a real UUID would crash with
+ * `invalid input syntax for type uuid`. The DB is the single source of
+ * truth for message IDs — we never fabricate IDs on the client.
+ */
+const isUuid = (value: string | null | undefined): value is string => {
+  return typeof value === "string" && UUID_PATTERN.test(value);
+};
 
 export const useRoomChat = (
     room: Room | null,
@@ -11,8 +28,14 @@ export const useRoomChat = (
     currentUserRole?: string
 ) => {
     const [messages, setMessages] = useState<LiveMessage[]>([])
+    const [isLoading, setIsLoading] = useState(true)
 
     const fetchReplyPreview = useCallback(async (replyToId: string): Promise<ReplyPreview | null> => {
+        if (!isUuid(replyToId)) {
+            console.error("fetchReplyPreview: reply_to_id is not a valid UUID", replyToId)
+            return null
+        }
+
         const { data, error } = await supabase
             .from('live_podcast_messages')
             .select('sender_name, content, message_type')
@@ -33,26 +56,70 @@ export const useRoomChat = (
 
     useEffect(() => {
         const loadHistory = async () => {
-            const {data, error} = await supabase
+            setIsLoading(true)
+            console.log("[useRoomChat] loadHistory started", { podcastId, currentUserId })
+
+            const { data, error } = await supabase
                 .from('live_podcast_messages')
                 .select('*')
                 .eq('podcast_id', podcastId)
-                .order("created_at", {ascending: true})
+                .order("created_at", { ascending: true })
 
             if (error) {
-                console.error("Failed to load live podcast messages", error)
+                console.error("[useRoomChat] loadHistory failed", { error, podcastId })
+                setIsLoading(false)
                 return
             }
 
-            if (data) {
-                setMessages(
-                    data.map((message) => ({
-                        ...message,
-                        reply_preview: null,
-                        isLocal: message.sender_id === currentUserId,
-                    }))
-                )
+            if (!data) {
+                console.warn("[useRoomChat] loadHistory returned no data", { podcastId })
+                setIsLoading(false)
+                return
             }
+
+            console.log("[useRoomChat] loadHistory fetched messages", { count: data.length })
+
+            // Batch-resolve reply previews for every message that references
+            // another message, so the "Replying to …" banner shows even for
+            // messages loaded from history (not just LiveKit broadcasts).
+            const replyIds = data
+                .map((message) => message.reply_to_id)
+                .filter((id): id is string => isUuid(id))
+
+            const uniqueReplyIds = [...new Set(replyIds)]
+
+            let previewMap = new Map<string, ReplyPreview>()
+            if (uniqueReplyIds.length > 0) {
+                const { data: previews, error: previewError } = await supabase
+                    .from('live_podcast_messages')
+                    .select('id, sender_name, content, message_type')
+                    .in('id', uniqueReplyIds)
+
+                if (!previewError && previews) {
+                    previewMap = new Map(
+                        previews.map((preview) => [
+                            preview.id,
+                            {
+                                sender_name: preview.sender_name,
+                                content: preview.content,
+                                message_type: preview.message_type as MessageType,
+                            },
+                        ])
+                    )
+                }
+            }
+
+            setMessages(
+                data.map((message) => ({
+                    ...message,
+                    reply_preview: message.reply_to_id
+                        ? (previewMap.get(message.reply_to_id) ?? null)
+                        : null,
+                    isLocal: message.sender_id === currentUserId,
+                }))
+            )
+            setIsLoading(false)
+            console.log("[useRoomChat] loadHistory completed", { messageCount: data.length })
         }
 
         loadHistory()
@@ -63,10 +130,9 @@ export const useRoomChat = (
 
         let cleanup: (() => void) | null = null
 
-        import("livekit-client").then(({RoomEvent}) => {
+        import("livekit-client").then(({ RoomEvent }) => {
             const handleData = (payload: Uint8Array) => {
                 const decoder = new TextDecoder()
-
                 const text = decoder.decode(payload)
 
                 try {
@@ -97,7 +163,7 @@ export const useRoomChat = (
                     }
 
                     if (parsed.type === 'EDIT_MESSAGE') {
-                        setMessages(prev => prev.map(msg => 
+                        setMessages(prev => prev.map(msg =>
                             msg.id === parsed.messageId
                                 ? { ...msg, content: parsed.newContent, edited_at: parsed.editedAt }
                                 : msg
@@ -110,7 +176,7 @@ export const useRoomChat = (
                         return
                     }
                 } catch {
-
+                    // Ignore malformed / non-chat payloads
                 }
             }
 
@@ -121,147 +187,252 @@ export const useRoomChat = (
         return () => cleanup?.()
     }, [room, currentUserId])
 
-    const sendImage = useCallback(async (senderName: string, senderAvatarUrl: string | null) => {
-        if (!room) return
+    /**
+     * Sends an image message.
+     *
+     * The message is first persisted to Supabase WITHOUT a client-supplied id —
+     * the database generates the real UUID. We read it back and use that same
+     * UUID for local state and the LiveKit broadcast, so every layer agrees on
+     * the id (this is what makes reply / edit / delete work).
+     */
+    const sendImage = useCallback(async (
+        senderName: string,
+        senderAvatarUrl: string | null,
+        replyToId?: string | null
+    ): Promise<ChatActionResult> => {
+        if (!room) return { ok: false, error: "Not connected to the live room." }
 
-        const asset = await pickImage({allowsEditing: false})
-        if (!asset) return
+        const asset = await pickImage({ allowsEditing: false })
+        if (!asset) return { ok: false, error: "No image selected." }
 
         const imageUrl = await uploadChatImage(asset, podcastId, currentUserId)
-        if (!imageUrl) return
+        if (!imageUrl) return { ok: false, error: "Failed to upload image." }
 
-        const id = `${Date.now()}-${currentUserId}-img`
-        const created_at = new Date().toISOString()
+        let replyPreview: ReplyPreview | null = null
+        if (replyToId) {
+            replyPreview = await fetchReplyPreview(replyToId)
+        }
 
-        const newMessage = {
-            id,
+        const insertPayload: Record<string, unknown> = {
             podcast_id: podcastId,
             sender_id: currentUserId,
             sender_name: senderName,
             sender_avartar_url: senderAvatarUrl,
             content: imageUrl,
             message_type: 'image' as MessageType,
-            created_at,
-            reply_to_id: null,
-            reply_preview: null,
-            edited_at: null,
-            isLocal: true
         }
 
-        const { error } = await supabase.from('live_podcast_messages').insert({
+        if (replyToId) {
+            insertPayload.reply_to_id = replyToId
+        }
+
+        const { data: inserted, error } = await supabase
+            .from('live_podcast_messages')
+            .insert(insertPayload)
+            .select('id, created_at')
+            .single()
+
+        if (error || !inserted) {
+            console.error("Failed to save live podcast image message", error)
+            return { ok: false, error: "Failed to send image." }
+        }
+
+        const newMessage: LiveMessage = {
+            id: inserted.id,
             podcast_id: podcastId,
             sender_id: currentUserId,
             sender_name: senderName,
             sender_avartar_url: senderAvatarUrl,
             content: imageUrl,
-            message_type: 'image'
-        })
-
-        if (error) {
-            console.error('Failed to save live podcast image message', error)
-            return
+            message_type: 'image',
+            created_at: inserted.created_at,
+            reply_to_id: replyToId ?? null,
+            reply_preview: replyPreview,
+            edited_at: null,
+            isLocal: true,
         }
 
-        setMessages(prev => [...prev, newMessage])
+        setMessages(prev => {
+            if (prev.some((message) => message.id === newMessage.id)) return prev
+            return [...prev, newMessage]
+        })
 
         const encoder = new TextEncoder()
         room.localParticipant.publishData(
-            encoder.encode(JSON.stringify({
-                type: 'CHAT',
-                ...newMessage
-            })),
-            {reliable: true}
+            encoder.encode(JSON.stringify({ type: 'CHAT', ...newMessage })),
+            { reliable: true }
         )
-    }, [room, podcastId, currentUserId])
 
+        return { ok: true }
+    }, [room, podcastId, currentUserId, fetchReplyPreview])
+
+    /**
+     * Sends a text message. Same id strategy as `sendImage`: the DB owns the id.
+     * `replyToId` is the real UUID of an existing message (already in the DB),
+     * so linking it as a foreign key is trivial.
+     */
     const sendMessage = useCallback(async (
         content: string,
         senderName: string,
         senderAvatarUrl: string | null,
         replyToId?: string | null
-        ) => {
-            if (!room || !content.trim()) return
+    ): Promise<ChatActionResult> => {
+        if (!room) return { ok: false, error: "Not connected to the live room." }
+        if (!content.trim()) return { ok: false, error: "Message is empty." }
 
-            const id = `${Date.now()}-${currentUserId}`
-            const created_at = new Date().toISOString()
+        let replyPreview: ReplyPreview | null = null
+        if (replyToId) {
+            replyPreview = await fetchReplyPreview(replyToId)
+        }
 
-            let replyPreview: ReplyPreview | null = null
-            if (replyToId) {
-                replyPreview = await fetchReplyPreview(replyToId)
-            }
+        const insertPayload: Record<string, unknown> = {
+            podcast_id: podcastId,
+            sender_id: currentUserId,
+            sender_name: senderName,
+            sender_avartar_url: senderAvatarUrl,
+            content: content.trim(),
+            message_type: 'text' as MessageType,
+        }
 
-            const messageData = {
-                id,
-                podcast_id: podcastId,
-                sender_id: currentUserId,
-                sender_name: senderName,
-                sender_avartar_url: senderAvatarUrl,
-                content: content.trim(),
-                message_type: 'text' as MessageType,
-                created_at,
-                reply_to_id: replyToId ?? null,
-                reply_preview: replyPreview,
-                edited_at: null,
-                isLocal: true
-            }
+        if (replyToId) {
+            insertPayload.reply_to_id = replyToId
+        }
 
-            setMessages(prev => {
-                if (prev.some((message) => message.id === id)) {
-                    return prev
-                }
+        const { data: inserted, error } = await supabase
+            .from('live_podcast_messages')
+            .insert(insertPayload)
+            .select('id, created_at')
+            .single()
 
-                return [...prev, messageData]
-            })
+        if (error || !inserted) {
+            console.error("Failed to save live podcast message", error)
+            return { ok: false, error: "Failed to send message." }
+        }
 
-            import('livekit-client').then(() => {
-                const encoder = new TextEncoder()
-                room.localParticipant.publishData(
-                    encoder.encode(JSON.stringify({
-                        type: 'CHAT',
-                        ...messageData
-                    })),
-                    {reliable: true}
-                )
-            })
+        const messageData: LiveMessage = {
+            id: inserted.id,
+            podcast_id: podcastId,
+            sender_id: currentUserId,
+            sender_name: senderName,
+            sender_avartar_url: senderAvatarUrl,
+            content: content.trim(),
+            message_type: 'text',
+            created_at: inserted.created_at,
+            reply_to_id: replyToId ?? null,
+            reply_preview: replyPreview,
+            edited_at: null,
+            isLocal: true,
+        }
 
-            const insertPayload: Record<string, any> = {
-                podcast_id: podcastId,
-                sender_id: currentUserId,
-                sender_name: senderName,
-                sender_avartar_url: senderAvatarUrl,
-                content: content.trim(),
-                message_type: 'text' as MessageType,
-            }
+        setMessages(prev => {
+            if (prev.some((message) => message.id === messageData.id)) return prev
+            return [...prev, messageData]
+        })
 
-            if (replyToId) {
-                insertPayload.reply_to_id = replyToId
-            }
+        const encoder = new TextEncoder()
+        room.localParticipant.publishData(
+            encoder.encode(JSON.stringify({ type: 'CHAT', ...messageData })),
+            { reliable: true }
+        )
 
-            const { error } = await supabase.from('live_podcast_messages').insert(insertPayload)
+        return { ok: true }
+    }, [room, podcastId, currentUserId, fetchReplyPreview])
 
-            if (error) {
-                console.error("Failed to save live podcast message", error)
-            }
-        }, [room, podcastId, currentUserId, fetchReplyPreview])
+    /**
+     * Edits a message. Enforces the 10-minute window on the client — if the
+     * message is older than 10 minutes, we do NOT make the API call at all.
+     */
+    const editMessage = useCallback(async (message: LiveMessage, newContent: string): Promise<ChatActionResult> => {
+        console.log("[useRoomChat] editMessage called", {
+            messageId: message.id,
+            currentUserId,
+            newContent,
+            roomConnected: !!room,
+            fullMessage: message,
+        })
 
-    const editMessage = useCallback(async (messageId: string, newContent: string) => {
-        if (!room || !newContent.trim()) return
+        if (!room) return { ok: false, error: "Not connected to the live room." }
+        if (!newContent.trim()) return { ok: false, error: "Message is empty." }
+        if (message.message_type === 'system') return { ok: false, error: "System messages cannot be edited." }
+
+        const validUuid = isUuid(message.id)
+        console.log("[useRoomChat] editMessage uuid check", { validUuid, messageId: message.id })
+        if (!validUuid) {
+            return { ok: false, error: "This message can't be edited — it was sent by an older version of the app." }
+        }
+
+        const createdAt = new Date(message.created_at).getTime()
+        const ageMs = Date.now() - createdAt
+        console.log("[useRoomChat] editMessage time check", {
+            createdAt,
+            ageMs,
+            editWindowMs: EDIT_WINDOW_MS,
+            withinWindow: !Number.isNaN(createdAt) && ageMs <= EDIT_WINDOW_MS,
+            created_atRaw: message.created_at,
+        })
+        if (!Number.isNaN(createdAt) && ageMs > EDIT_WINDOW_MS) {
+            return { ok: false, error: "You can only edit a message within 10 minutes of sending it." }
+        }
 
         const editedAt = new Date().toISOString()
 
-        const { error } = await supabase
+        console.log("[useRoomChat] editMessage calling supabase update", {
+            id: message.id,
+            senderId: currentUserId,
+            hasEditedAtColumnAssumed: true,
+            updatePayload: { content: newContent.trim(), edited_at: editedAt },
+        })
+
+        const { data, error } = await supabase
             .from('live_podcast_messages')
             .update({ content: newContent.trim(), edited_at: editedAt })
-            .eq('id', messageId)
+            .eq('id', message.id)
             .eq('sender_id', currentUserId)
+            .select('id')
+            .maybeSingle()
+
+        console.log("[useRoomChat] editMessage supabase result", {
+            data,
+            error,
+            errorCode: error?.code ?? null,
+            errorDetails: error?.details ?? null,
+            errorHint: error?.hint ?? null,
+            matchedRows: data ? 1 : 0,
+        })
 
         if (error) {
-            console.error("Failed to edit message", error)
-            return
+            console.error("[useRoomChat] editMessage failed with error:", {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint,
+            })
+            return { ok: false, error: `Failed to edit message: ${error.message}` }
         }
 
+        // update matched ZERO rows — the most likely cause of "silent" edit failure:
+        //  - the message id isn't in the DB (legacy fake id slipped through)
+        //  - RLS policy blocks UPDATE for this user
+        //  - sender_id mismatch (editing someone else's message)
+        if (!data) {
+            console.warn(
+                "[useRoomChat] editMessage: update matched 0 rows. Check RLS policies on live_podcast_messages (UPDATE) and that id=",
+                message.id,
+                "sender_id=",
+                currentUserId,
+                "exists."
+            )
+            return { ok: false, error: "Message not found or you don't have permission to edit it." }
+        }
+
+        console.log("[useRoomChat] editMessage succeeded, broadcasting EDIT_MESSAGE", {
+            messageId: message.id,
+            newContent: newContent.trim(),
+            editedAt,
+        })
+
         setMessages(prev => prev.map(msg =>
-            msg.id === messageId
+            msg.id === message.id
                 ? { ...msg, content: newContent.trim(), edited_at: editedAt }
                 : msg
         ))
@@ -270,24 +441,34 @@ export const useRoomChat = (
         room.localParticipant.publishData(
             encoder.encode(JSON.stringify({
                 type: 'EDIT_MESSAGE',
-                messageId,
+                messageId: message.id,
                 newContent: newContent.trim(),
                 editedAt,
                 fromId: currentUserId,
             })),
-            {reliable: true}
+            { reliable: true }
         )
+
+        return { ok: true }
     }, [room, currentUserId])
 
-    const deleteMessage = useCallback(async (messageId: string) => {
-        if (!room) return
+    /**
+     * Deletes a message. Admins may delete any message; everyone else may only
+     * delete their own.
+     */
+    const deleteMessage = useCallback(async (message: LiveMessage): Promise<ChatActionResult> => {
+        if (!room) return { ok: false, error: "Not connected to the live room." }
+        if (message.message_type === 'system') return { ok: false, error: "System messages cannot be deleted." }
+        if (!isUuid(message.id)) {
+            return { ok: false, error: "This message can't be deleted — it was sent by an older version of the app." }
+        }
 
         const isAdmin = currentUserRole === 'admin'
 
         let query = supabase
             .from('live_podcast_messages')
             .delete()
-            .eq('id', messageId)
+            .eq('id', message.id)
 
         // If not admin, only allow deleting own messages
         if (!isAdmin) {
@@ -298,28 +479,61 @@ export const useRoomChat = (
 
         if (error) {
             console.error("Failed to delete message", error)
-            return
+            return { ok: false, error: "Failed to delete message." }
         }
 
-        setMessages(prev => prev.filter(msg => msg.id !== messageId))
+        setMessages(prev => prev.filter(msg => msg.id !== message.id))
 
         const encoder = new TextEncoder()
         room.localParticipant.publishData(
             encoder.encode(JSON.stringify({
                 type: 'DELETE_MESSAGE',
-                messageId,
+                messageId: message.id,
                 fromId: currentUserId,
             })),
-            {reliable: true}
+            { reliable: true }
         )
+
+        return { ok: true }
     }, [room, currentUserId, currentUserRole])
 
-    const canDeleteMessage = useCallback((messageSenderId: string) => {
-        return currentUserId === messageSenderId || currentUserRole === 'admin'
+    const canDeleteMessage = useCallback((message: LiveMessage) => {
+        if (message.message_type === 'system') return false
+        if (!isUuid(message.id)) return false
+        return currentUserId === message.sender_id || currentUserRole === 'admin'
     }, [currentUserId, currentUserRole])
 
-    const canEditMessage = useCallback((messageSenderId: string) => {
-        return currentUserId === messageSenderId
+    const canEditMessage = useCallback((message: LiveMessage) => {
+        if (message.message_type === 'system') {
+            console.log("[useRoomChat] canEditMessage: false (system message)", { id: message.id })
+            return false
+        }
+        if (!isUuid(message.id)) {
+            console.log("[useRoomChat] canEditMessage: false (not a valid UUID)", { id: message.id })
+            return false
+        }
+        if (currentUserId !== message.sender_id) {
+            console.log("[useRoomChat] canEditMessage: false (not own message)", {
+                id: message.id,
+                currentUserId,
+                senderId: message.sender_id,
+            })
+            return false
+        }
+
+        const createdAt = new Date(message.created_at).getTime()
+        if (Number.isNaN(createdAt)) {
+            console.log("[useRoomChat] canEditMessage: false (invalid created_at)", { id: message.id, created_at: message.created_at })
+            return false
+        }
+        const withinWindow = Date.now() - createdAt <= EDIT_WINDOW_MS
+        console.log("[useRoomChat] canEditMessage", {
+            id: message.id,
+            withinWindow,
+            ageMs: Date.now() - createdAt,
+            editWindowMs: EDIT_WINDOW_MS,
+        })
+        return withinWindow
     }, [currentUserId])
 
     const addSystemMessage = useCallback((content: string) => {
@@ -344,5 +558,15 @@ export const useRoomChat = (
         setMessages(prev => [...prev, systemMessage])
     }, [podcastId])
 
-        return {messages, sendMessage, sendImage, editMessage, deleteMessage, canDeleteMessage, canEditMessage, addSystemMessage}
+    return {
+        messages,
+        isLoading,
+        sendMessage,
+        sendImage,
+        editMessage,
+        deleteMessage,
+        canDeleteMessage,
+        canEditMessage,
+        addSystemMessage,
+    }
 }

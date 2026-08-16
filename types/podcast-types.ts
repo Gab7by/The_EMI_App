@@ -135,6 +135,29 @@ export type LiveMessage = {
   isLocal?: boolean
 }
 
+/**
+ * Result of an asynchronous chat mutation (send / edit / delete).
+ * `ok` is `false` when the operation failed so the UI can show an
+ * error snackbar instead of silently pretending everything worked.
+ */
+export type ChatActionResult = {
+  ok: boolean
+  error?: string | null
+}
+
+export type LivePodcastInvitationStatus = 'pending' | 'accepted' | 'expired' | 'revoked'
+
+export type LivePodcastInvitation = {
+  id: string
+  podcast_id: string
+  inviter_id: string
+  invitee_id: string
+  status: LivePodcastInvitationStatus
+  created_at: string
+  expires_at: string | null
+  accepted_at: string | null
+}
+
 export type PodcastBackgroundProps = {
   coverUrl: string | null
   children: ReactNode

@@ -1,6 +1,6 @@
+import { PODCAST_SELECT } from "@/constants/podcast"
 import { CreateLivePodcastInput, LivePodcast, LivePodcastParticipant } from "@/types/podcast-types"
 import { supabase } from "./supabase"
-import { PODCAST_SELECT } from "@/constants/podcast"
 
 export const createLivePodcast = async (
   input: CreateLivePodcastInput
@@ -36,15 +36,23 @@ export const createLivePodcast = async (
 }
 
 
-export const getLiveSessions = async (): Promise<LivePodcast[]> => {
-
-  const { data, error } = await supabase
+export const getLiveSessions = async (hostId?: string): Promise<LivePodcast[]> => {
+  let query = supabase
     .from('live_podcasts')
     .select(PODCAST_SELECT)
     .eq('status', 'live')
-    .eq('is_public', true)
-    .eq('is_unlisted', false)
     .order('start_time', { ascending: false })
+
+  if (hostId) {
+    // Host sees ALL their own live podcasts (regardless of public/unlisted status)
+    // plus public + listed podcasts from other hosts
+    query = query.or(`host_id.eq.${hostId},and(is_public.eq.true,is_unlisted.eq.false)`)
+  } else {
+    // Without hostId, only show public + listed
+    query = query.eq('is_public', true).eq('is_unlisted', false)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error('getLiveSessions:', error.message)

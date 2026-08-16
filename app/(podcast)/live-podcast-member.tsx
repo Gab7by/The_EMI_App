@@ -93,7 +93,7 @@ const MemberLivePodcast = () => {
 
   useAudienceRoom(livekitRoomName, id)
 
-  const {messages, sendMessage, editMessage, deleteMessage, canDeleteMessage, canEditMessage, addSystemMessage} = useRoomChat(
+  const {messages, isLoading: isChatLoading, sendMessage, editMessage, deleteMessage, canDeleteMessage, canEditMessage, addSystemMessage} = useRoomChat(
     room,
     id,
     profile?.id ?? '',
@@ -205,9 +205,11 @@ const MemberLivePodcast = () => {
 
   const handleSendMessage = async () => {
     if (!message.trim()) return
-    await sendMessage(message, profile?.full_name ?? "User", profile?.avatar_url ?? null, replyingTo?.messageId)
-    setMessage('')
-    setReplyingTo(null)
+    const result = await sendMessage(message, profile?.full_name ?? "User", profile?.avatar_url ?? null, replyingTo?.messageId)
+    if (result.ok) {
+      setMessage('')
+      setReplyingTo(null)
+    }
   }
   const canSendMessage = message.trim().length > 0
 
@@ -404,6 +406,7 @@ const MemberLivePodcast = () => {
 
           <PodcastComments
             messages={messages}
+            isLoading={isChatLoading}
             footerPadding={scrollPaddingBottom}
             currentUserId={profile?.id}
             onEditMessage={editMessage}

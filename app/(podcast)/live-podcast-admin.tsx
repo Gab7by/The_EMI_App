@@ -140,7 +140,7 @@ const AdminLivePodcast = () => {
   useHostRooom(livekitRoomName, id)
 
   const {raisedHands, dismissRaisedHand} = useRoomSignals(room, profile?.id ?? "")
-  const {messages, sendMessage, sendImage, editMessage, deleteMessage, canDeleteMessage, canEditMessage, addSystemMessage} = useRoomChat(
+  const {messages, isLoading: isChatLoading, sendMessage, sendImage, editMessage, deleteMessage, canDeleteMessage, canEditMessage, addSystemMessage} = useRoomChat(
     room,
     id,
     profile?.id ?? '',
@@ -193,9 +193,11 @@ const AdminLivePodcast = () => {
 
   const handleSendMessage = async () => {
     if (!message.trim()) return
-    await sendMessage(message, profile?.full_name ?? "User", profile?.avatar_url ?? null, replyingTo?.messageId)
-    setMessage('')
-    setReplyingTo(null)
+    const result = await sendMessage(message, profile?.full_name ?? "User", profile?.avatar_url ?? null, replyingTo?.messageId)
+    if (result.ok) {
+      setMessage('')
+      setReplyingTo(null)
+    }
   }
   const canSendMessage = message.trim().length > 0
 
@@ -849,6 +851,7 @@ const AdminLivePodcast = () => {
 
           <PodcastComments
             messages={messages}
+            isLoading={isChatLoading}
             footerPadding={scrollPaddingBottom}
             currentUserId={profile?.id}
             onEditMessage={editMessage}
@@ -894,7 +897,7 @@ const AdminLivePodcast = () => {
                 className="mr-2"
                 onPress={() => {
                   hapticMedium()
-                  sendImage(profile?.full_name ?? "Admin", profile?.avatar_url ?? null)
+                  sendImage(profile?.full_name ?? "Admin", profile?.avatar_url ?? null, replyingTo?.messageId)
                 }}
                 >
                 <MaterialCommunityIcons
