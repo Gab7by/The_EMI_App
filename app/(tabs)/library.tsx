@@ -1,30 +1,38 @@
-import { View, Text, ScrollView, RefreshControl, Modal, Pressable, TouchableOpacity } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRecordingPlayer } from '@/hooks/useRecordingPlayer'
-import { LinearGradient } from 'expo-linear-gradient'
-import { getRecordings, toggleRecordingPublish } from '@/lib/recording'
-import { useAuthStore } from '@/store/authStore'
-import { useState, useCallback, useMemo } from 'react'
 import RecordingItem from '@/components/recording/RecordingItem'
 import RecordingPlayerScreen from '@/components/recording/RecordingPlayerScreen'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { PLAYLISTS } from '@/types/podcast-types'
+import { useRecordingPlayer } from '@/hooks/useRecordingPlayer'
 import { hapticMedium } from '@/lib/haptics'
+import { deleteRecording, getRecordings, toggleRecordingPublish } from '@/lib/recording'
+import { useAuthStore } from '@/store/authStore'
+import { PLAYLISTS } from '@/types/podcast-types'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { LinearGradient } from 'expo-linear-gradient'
+import { useCallback, useMemo, useState } from 'react'
+import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
+
+const INITIAL_LIMIT = 10
+const ADMIN_INITIAL_LIMIT = 15
+const PAGE_SIZE = 10
 
 export default function LibraryScreen() {
     const profile = useAuthStore((state) => state.profile)
     const isAdmin = profile?.role === 'admin'
+    const insets = useSafeAreaInsets()
     const queryClient = useQueryClient()
     const [showDisclaimer, setShowDisclaimer] = useState(!isAdmin)
     const [disclaimerAccepted, setDisclaimerAccepted] = useState(false)
     const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null)
     const [playerVisible, setPlayerVisible] = useState(false)
     const [activeRecording, setActiveRecording] = useState<any>(null)
+    const [visibleCount, setVisibleCount] = useState(isAdmin ? ADMIN_INITIAL_LIMIT : INITIAL_LIMIT)
+    const [isLoadingMore, setIsLoadingMore] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
 
     const { data: recordings = [], isLoading, refetch, isRefetching } = useQuery({
         queryKey: ['recordings', isAdmin ? 'admin' : 'member'],
-        queryFn: () => getRecordings(isAdmin),
+        queryFn: () => getRecordings(isAdmin, visibleCount, 0),
         staleTime: 5 * 60 * 1000,
     })
 
@@ -49,9 +57,15 @@ export default function LibraryScreen() {
 
     // Filter recordings by selected playlist
     const filteredRecordings = useMemo(() => {
-        if (!selectedPlaylist) return recordings
-        return recordings.filter(r => r.playlist === selectedPlaylist)
-    }, [recordings, selectedPlaylist])
+        const query = searchQuery.trim().toLowerCase()
+        return recordings.filter((recording) => {
+            const matchesPlaylist = !selectedPlaylist || recording.playlist === selectedPlaylist
+            const matchesSearch = !query || [recording.podcast_title, recording.playlist]
+                .filter(Boolean)
+                .some((value) => value!.toLowerCase().includes(query))
+            return matchesPlaylist && matchesSearch
+        })
+    }, [recordings, selectedPlaylist, searchQuery])
 
     // Update the player's recordings list when filtered recordings change
     const handlePlay = useCallback(async (recording: any, index: number) => {
@@ -83,6 +97,20 @@ export default function LibraryScreen() {
         }
     }, [queryClient])
 
+    const handleDelete = useCallback((recording: any) => {
+        Alert.alert('Delete sermon?', 'This removes the recording from the library. This cannot be undone.', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: async () => {
+                if (await deleteRecording(recording)) {
+                    if (activeRecording?.id === recording.id) handleStop()
+                    queryClient.invalidateQueries({ queryKey: ['recordings'] })
+                } else {
+                    Alert.alert('Could not delete sermon', 'Check your Supabase delete policy and try again.')
+                }
+            } },
+        ])
+    }, [activeRecording?.id, handleStop, queryClient])
+
     const handleAcceptDisclaimer = useCallback(() => {
         setShowDisclaimer(false)
         setDisclaimerAccepted(true)
@@ -93,7 +121,26 @@ export default function LibraryScreen() {
         setSelectedPlaylist(playlist)
     }, [])
 
+    const handleLoadMore = useCallback(async () => {
+        if (isLoadingMore) return
+        setIsLoadingMore(true)
+        try {
+            const nextCount = visibleCount + PAGE_SIZE
+            const more = await getRecordings(isAdmin, PAGE_SIZE, visibleCount)
+            if (more.length > 0) {
+                setVisibleCount(nextCount)
+                queryClient.setQueryData(
+                    ['recordings', isAdmin ? 'admin' : 'member'],
+                    (old: any[] = []) => [...old, ...more]
+                )
+            }
+        } finally {
+            setIsLoadingMore(false)
+        }
+    }, [isAdmin, isLoadingMore, queryClient, visibleCount])
+
     const visibleRecordings = showDisclaimer ? [] : filteredRecordings
+    const hasMore = visibleRecordings.length >= visibleCount
 
     return (
         <LinearGradient
@@ -106,9 +153,14 @@ export default function LibraryScreen() {
                 <View className="flex-1 px-4 pt-4">
                     {/* Header */}
                     <View className="mb-6 flex-row items-center justify-between">
-                        <Text className="text-[22px] font-bold text-[#D7FF00]">
-                            Recordings
-                        </Text>
+                        <View className="gap-1">
+                            <Text className="text-[22px] font-bold text-white">
+                                Library
+                            </Text>
+                            <Text className="text-[12px] text-menorah-muted">
+                                Sermons, books, and teachings
+                            </Text>
+                        </View>
                         {selectedPlaylist && (
                             <Pressable
                                 onPress={() => handlePlaylistSelect(null)}
@@ -120,6 +172,29 @@ export default function LibraryScreen() {
                                 </Text>
                             </Pressable>
                         )}
+                    </View>
+
+                    {/* Sermons primary text */}
+                    <Text className="mb-4 text-lg font-bold text-[#D7FF00]">
+                        Sermons
+                    </Text>
+
+                    <View className="mb-4 flex-row items-center rounded-[16px] border border-white/10 bg-white/5 px-3">
+                        <MaterialCommunityIcons name="magnify" size={20} color="#B7C0BC" />
+                        <TextInput
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            placeholder="Search sermons or playlists"
+                            placeholderTextColor="#7E8C83"
+                            className="h-11 flex-1 px-3 text-[13px] text-white"
+                            returnKeyType="search"
+                            accessibilityLabel="Search sermons"
+                        />
+                        {searchQuery ? (
+                            <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+                                <MaterialCommunityIcons name="close-circle" size={18} color="#B7C0BC" />
+                            </Pressable>
+                        ) : null}
                     </View>
 
                     {/* Playlist Filter Chips */}
@@ -210,7 +285,7 @@ export default function LibraryScreen() {
                     ) : (
                         <ScrollView
                             showsVerticalScrollIndicator={false}
-                            contentContainerStyle={{ paddingBottom: 100 }}
+                            contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
                             refreshControl={
                                 <RefreshControl
                                     refreshing={isRefetching}
@@ -230,8 +305,33 @@ export default function LibraryScreen() {
                                     onPlay={() => handlePlay(recording, index)}
                                     onToggle={handleToggle}
                                     onPublishToggle={isAdmin ? () => handlePublishToggle(recording.id, recording.publish) : undefined}
+                                    onDelete={isAdmin ? () => handleDelete(recording) : undefined}
                                 />
                             ))}
+
+                            {/* Load more indicator */}
+                            {hasMore && (
+                                <Pressable
+                                    onPress={handleLoadMore}
+                                    disabled={isLoadingMore}
+                                    className="mt-2 items-center rounded-[16px] bg-white/5 px-4 py-3.5"
+                                >
+                                    {isLoadingMore ? (
+                                        <ActivityIndicator size="small" color="#D7FF00" />
+                                    ) : (
+                                        <View className="flex-row items-center gap-2">
+                                            <MaterialCommunityIcons
+                                                name="chevron-down"
+                                                size={18}
+                                                color="#D7FF00"
+                                            />
+                                            <Text className="text-[12px] font-semibold text-[#D7FF00]">
+                                                Load more sermons
+                                            </Text>
+                                        </View>
+                                    )}
+                                </Pressable>
+                            )}
                         </ScrollView>
                     )}
                 </View>

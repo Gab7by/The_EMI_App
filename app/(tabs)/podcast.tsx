@@ -98,9 +98,11 @@ const PodcastScreen = () => {
   }, [isPublic, isunlisted, playlist.value, router, title]);
 
   const listHeader = useMemo(() => (
-    <Text className="text-xl font-bold text-menorah-goldDark mb-4">
-      Livestreams
-    </Text>
+    <View className="mb-5">
+      <Text className="text-[11px] font-bold uppercase tracking-[1.5px] text-menorah-primary">Listen together</Text>
+      <Text className="mt-1 text-2xl font-bold text-white">Live podcasts</Text>
+      <Text className="mt-1 text-sm text-menorah-muted">Join a live room and take part in the conversation.</Text>
+    </View>
   ), [])
 
   const renderLivePodcast = useCallback(({ item }: { item: NonNullable<typeof data>[number] }) => (
@@ -119,9 +121,9 @@ const PodcastScreen = () => {
   const itemSeparator = useCallback(() => <View style={{ height: 20 }} />, [])
 
   return (
-    <SafeAreaView className="flex-1 bg-menorah-bg py-8 px-4 gap-4 relative">
+    <SafeAreaView className="flex-1 bg-menorah-bg py-5 px-4 gap-5 relative">
       <PodcastProfileBar />
-      <ImageSlider items={imageItems} height={220} />
+      <ImageSlider items={imageItems} height={196} />
       {isLoading ? (
         <PodcastLoadingSkeleton />
       ) : (
