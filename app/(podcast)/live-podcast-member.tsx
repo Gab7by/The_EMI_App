@@ -93,20 +93,16 @@ const MemberLivePodcast = () => {
 
   useAudienceRoom(livekitRoomName, id)
 
-  const {messages, isLoading: isChatLoading, sendMessage, editMessage, deleteMessage, canDeleteMessage, canEditMessage, addSystemMessage} = useRoomChat(
+  const {messages, isLoading: isChatLoading, sendMessage, editMessage, deleteMessage, canDeleteMessage, canEditMessage} = useRoomChat(
     room,
     id,
     profile?.id ?? '',
     profile?.role
   )
 
-  const handleParticipantChange = useCallback((action: 'joined' | 'left', _participantId: string, participantName: string) => {
-    if (action === 'joined') {
-      addSystemMessage(`${participantName} joined the live room`)
-    } else {
-      addSystemMessage(`${participantName} left the live room`)
-    }
-  }, [addSystemMessage])
+  // The host persists join/leave events. Members only render the resulting
+  // CHAT event, avoiding a duplicate system message from every client.
+  const handleParticipantChange = useCallback((_action: 'joined' | 'left', _participantId: string, _participantName: string) => {}, [])
 
   const { participants: roomParticipants } = useLiveRoomSnapshot(room, handleParticipantChange)
   const participantCount = roomParticipants.filter((participant) => participant.id !== hostId).length

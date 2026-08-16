@@ -27,7 +27,7 @@ import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { hapticMedium } from "@/lib/haptics";
 import { BACKGROUND_MUSIC_DEFAULT_VOLUME, BACKGROUND_MUSIC_VOLUME_STEP, PODCAST_MIC_CAPTURE_OPTIONS } from "@/lib/livekit-audio";
 import { approveSpeaker, muteSpeaker, revokeSpeaker, sendBackgroundChangedSignal, sendSessionEnded } from "@/lib/livekit-signals";
-import { endLiveSession, updateParticipantCalledIn } from "@/lib/podcast";
+import { closeLiveKitRoom, endLiveSession, updateParticipantCalledIn } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { startRecording, stopRecording } from "@/lib/recording";
 import { pickAudioFile, pickImage, uploadPodcastBackground } from "@/lib/storage";
@@ -104,6 +104,7 @@ const AdminLivePodcast = () => {
   const [musicStatusMessage, setMusicStatusMessage] = useState<string | null>(null)
   const [speakerLimitMessage, setSpeakerLimitMessage] = useState<string | null>(null)
   const [musicVolume, setMusicVolume] = useState(BACKGROUND_MUSIC_DEFAULT_VOLUME)
+  const [musicSliderWidth, setMusicSliderWidth] = useState(0)
   const [isMusicPaused, setIsMusicPaused] = useState(false)
   const [deletingMusicTrackId, setDeletingMusicTrackId] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -140,7 +141,7 @@ const AdminLivePodcast = () => {
   useHostRooom(livekitRoomName, id)
 
   const {raisedHands, dismissRaisedHand} = useRoomSignals(room, profile?.id ?? "")
-  const {messages, isLoading: isChatLoading, sendMessage, sendImage, editMessage, deleteMessage, canDeleteMessage, canEditMessage, addSystemMessage} = useRoomChat(
+  const {messages, isLoading: isChatLoading, sendMessage, sendImage, editMessage, deleteMessage, canDeleteMessage, canEditMessage, sendSystemMessage} = useRoomChat(
     room,
     id,
     profile?.id ?? '',
@@ -149,11 +150,11 @@ const AdminLivePodcast = () => {
 
   const handleParticipantChange = useCallback((action: 'joined' | 'left', _participantId: string, participantName: string) => {
     if (action === 'joined') {
-      addSystemMessage(`${participantName} joined the live room`)
+      void sendSystemMessage(`${participantName} joined the live room`, `joined:${_participantId}`)
     } else {
-      addSystemMessage(`${participantName} left the live room`)
+      void sendSystemMessage(`${participantName} left the live room`, `left:${_participantId}`)
     }
-  }, [addSystemMessage])
+  }, [sendSystemMessage])
 
   const { participants: roomParticipants } = useLiveRoomSnapshot(room, handleParticipantChange)
   const latestRaisedHand = raisedHands[raisedHands.length - 1]
@@ -264,6 +265,7 @@ const AdminLivePodcast = () => {
         }
 
         if (room) {
+          await closeLiveKitRoom(livekitRoomName, id)
           await room.localParticipant.setMicrophoneEnabled(false)
         }
 
@@ -619,6 +621,12 @@ const AdminLivePodcast = () => {
     if (!success) {
       setUploadError("Could not update music volume.")
     }
+  }
+
+  const handleMusicSliderRelease = (locationX: number, width: number) => {
+    if (isMusicActionLoading || width <= 0) return
+    const target = Math.max(0, Math.min(1, locationX / width))
+    handleAdjustMusicVolume(target - musicVolume)
   }
 
   const handleCheckMusicStatus = async () => {
@@ -1189,11 +1197,11 @@ const AdminLivePodcast = () => {
               >
                 <Minus size={18} color={musicVolume <= 0.05 ? "#6F7C73" : "#D7FF00"} />
               </Pressable>
-              <View className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
-                <View
-                  className="h-full rounded-full bg-[#D7FF00]"
-                  style={{ width: `${Math.round(musicVolume * 100)}%` }}
-                />
+              <View className="h-8 flex-1 justify-center" accessibilityRole="adjustable" accessibilityLabel="Music volume" onLayout={(event) => setMusicSliderWidth(event.nativeEvent.layout.width)} onStartShouldSetResponder={() => true} onResponderRelease={(event) => handleMusicSliderRelease(event.nativeEvent.locationX, musicSliderWidth)}>
+                <View className="h-2 overflow-hidden rounded-full bg-white/10">
+                  <View className="h-full rounded-full bg-[#D7FF00]" style={{ width: `${Math.round(musicVolume * 100)}%` }} />
+                </View>
+                <View pointerEvents="none" className="absolute h-5 w-5 rounded-full border-2 border-white bg-[#D7FF00]" style={{ left: `${Math.max(0, Math.min(100, musicVolume * 100))}%`, marginLeft: -10 }} />
               </View>
               <Pressable
                 onPress={() => handleAdjustMusicVolume(BACKGROUND_MUSIC_VOLUME_STEP)}
