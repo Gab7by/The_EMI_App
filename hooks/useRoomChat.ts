@@ -2,7 +2,7 @@ import { pickImage, uploadChatImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 import { ChatActionResult, LiveMessage, MessageType, ReplyPreview } from "@/types/podcast-types";
 import type { Room } from "livekit-client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /** Users may only edit their own messages within 10 minutes of sending. */
 const EDIT_WINDOW_MS = 10 * 60 * 1000;
@@ -29,6 +29,7 @@ export const useRoomChat = (
 ) => {
     const [messages, setMessages] = useState<LiveMessage[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const recentSystemEventsRef = useRef(new Map<string, number>())
 
     const fetchReplyPreview = useCallback(async (replyToId: string): Promise<ReplyPreview | null> => {
         if (!isUuid(replyToId)) {
@@ -139,6 +140,19 @@ export const useRoomChat = (
                     const parsed = JSON.parse(text)
 
                     if (parsed.type === 'CHAT') {
+                        // LiveKit is only the real-time delivery mechanism;
+                        // rows from Supabase are the chat source of truth. An
+                        // older client fabricated timestamp-based IDs, which
+                        // can never be edited/deleted in PostgreSQL. Do not
+                        // let those broadcasts pollute the authoritative UI.
+                        if (!isUuid(parsed.id)) {
+                            console.warn('[useRoomChat] Ignored non-persisted LiveKit chat payload', {
+                                id: parsed.id,
+                                senderId: parsed.sender_id,
+                                podcastId: parsed.podcast_id,
+                            })
+                            return
+                        }
                         setMessages(prev => {
                             if (prev.some((message) => message.id === parsed.id)) {
                                 return prev
@@ -379,25 +393,41 @@ export const useRoomChat = (
         console.log("[useRoomChat] editMessage calling supabase update", {
             id: message.id,
             senderId: currentUserId,
-            hasEditedAtColumnAssumed: true,
+            editTransport: 'database RPC with direct-update fallback',
             updatePayload: { content: newContent.trim(), edited_at: editedAt },
         })
 
-        const { data, error } = await supabase
-            .from('live_podcast_messages')
-            .update({ content: newContent.trim(), edited_at: editedAt })
-            .eq('id', message.id)
-            .eq('sender_id', currentUserId)
-            .select('id')
-            .maybeSingle()
+        // The RPC makes the ownership and edit-window checks inside
+        // PostgreSQL. Fall back only while an older backend is being deployed.
+        const rpcResult = await supabase.rpc('edit_live_podcast_message', {
+            p_message_id: message.id,
+            p_content: newContent.trim(),
+        })
+        const rpcMissing = rpcResult.error?.code === 'PGRST202' ||
+            rpcResult.error?.message?.toLowerCase().includes('could not find the function')
+        let data = rpcResult.data as { id: string } | { id: string }[] | null
+        let error = rpcResult.error
+        if (rpcMissing) {
+            console.warn('[useRoomChat] Edit RPC is not deployed; using direct update fallback.')
+            const fallback = await supabase
+                .from('live_podcast_messages')
+                .update({ content: newContent.trim(), edited_at: editedAt })
+                .eq('id', message.id)
+                .eq('sender_id', currentUserId)
+                .select('id')
+                .maybeSingle()
+            data = fallback.data
+            error = fallback.error
+        }
 
+        const updatedMessage = Array.isArray(data) ? data[0] ?? null : data
         console.log("[useRoomChat] editMessage supabase result", {
-            data,
+            data: updatedMessage,
             error,
             errorCode: error?.code ?? null,
             errorDetails: error?.details ?? null,
             errorHint: error?.hint ?? null,
-            matchedRows: data ? 1 : 0,
+            matchedRows: updatedMessage ? 1 : 0,
         })
 
         if (error) {
@@ -414,7 +444,7 @@ export const useRoomChat = (
         //  - the message id isn't in the DB (legacy fake id slipped through)
         //  - RLS policy blocks UPDATE for this user
         //  - sender_id mismatch (editing someone else's message)
-        if (!data) {
+        if (!updatedMessage) {
             console.warn(
                 "[useRoomChat] editMessage: update matched 0 rows. Check RLS policies on live_podcast_messages (UPDATE) and that id=",
                 message.id,
@@ -558,6 +588,55 @@ export const useRoomChat = (
         setMessages(prev => [...prev, systemMessage])
     }, [podcastId])
 
+    /** Persist a room event. Only the host should call this so reconnecting
+     * clients see one durable, chronological event rather than duplicates. */
+    const sendSystemMessage = useCallback(async (content: string, eventKey?: string): Promise<ChatActionResult> => {
+        if (!room) return { ok: false, error: "Not connected to the live room." }
+        const key = eventKey ?? content
+        const now = Date.now()
+        const lastSentAt = recentSystemEventsRef.current.get(key)
+        // LiveKit can emit a disconnect alongside a track cleanup event. Keep
+        // one durable room event for a participant transition, not two.
+        if (lastSentAt && now - lastSentAt < 5_000) {
+            console.log('[useRoomChat] Deduplicated system room event', { key, content })
+            return { ok: true }
+        }
+        recentSystemEventsRef.current.set(key, now)
+        const { data: inserted, error } = await supabase
+            .from('live_podcast_messages')
+            .insert({
+                podcast_id: podcastId,
+                sender_id: currentUserId,
+                sender_name: 'System',
+                sender_avartar_url: null,
+                content,
+                message_type: 'system',
+            })
+            .select('*')
+            .single()
+
+        if (error || !inserted) {
+            console.error('[useRoomChat] Could not persist system message', {
+                podcastId, currentUserId, content, error: error?.message, code: error?.code, details: error?.details,
+            })
+            return { ok: false, error: error?.message ?? 'Could not save room event.' }
+        }
+
+        const message: LiveMessage = { ...inserted, reply_preview: null, isLocal: false }
+        setMessages(prev => prev.some(item => item.id === message.id) ? prev : [...prev, message])
+        try {
+            await room.localParticipant.publishData(
+                new TextEncoder().encode(JSON.stringify({ type: 'CHAT', ...message })),
+                { reliable: true }
+            )
+        } catch (broadcastError) {
+            // Persistence succeeded; history is still correct even if a peer
+            // misses the immediate LiveKit notification.
+            console.error('[useRoomChat] System message saved but broadcast failed', broadcastError)
+        }
+        return { ok: true }
+    }, [room, podcastId, currentUserId])
+
     return {
         messages,
         isLoading,
@@ -568,5 +647,6 @@ export const useRoomChat = (
         canDeleteMessage,
         canEditMessage,
         addSystemMessage,
+        sendSystemMessage,
     }
 }

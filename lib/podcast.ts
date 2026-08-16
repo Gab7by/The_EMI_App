@@ -119,6 +119,15 @@ export const endLiveSession = async (
   return true
 }
 
+export const closeLiveKitRoom = async (roomName: string, podcastId: string): Promise<boolean> => {
+  const { error } = await supabase.functions.invoke('livekit-close-room', { body: { roomName, podcastId } })
+  if (error) {
+    console.error('closeLiveKitRoom:', error.message)
+    return false
+  }
+  return true
+}
+
 
 export async function getParticipantCount(
   podcastId: string,

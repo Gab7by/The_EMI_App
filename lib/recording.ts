@@ -35,7 +35,11 @@ export const stopRecording = async (
 
 }
 
-export const getRecordings = async (isAdmin: boolean = false): Promise<Recording[]> => {
+export const getRecordings = async (
+    isAdmin: boolean = false,
+    limit: number = 10,
+    offset: number = 0
+): Promise<Recording[]> => {
     let query = supabase
         .from("podcast_recordings")
         .select(`
@@ -51,6 +55,7 @@ export const getRecordings = async (isAdmin: boolean = false): Promise<Recording
 
     const { data, error} = await query
         .order("started_at", { ascending: false })
+        .range(offset, offset + limit - 1)
 
     if (error) {
         console.error("Error fetching recordings:", error)
@@ -85,6 +90,19 @@ export const toggleRecordingPublish = async (
         return false
     }
 
+    return true
+}
+
+export const deleteRecording = async (recording: Recording): Promise<boolean> => {
+    const { error } = await supabase.from("podcast_recordings").delete().eq("id", recording.id)
+    if (error) {
+        console.error("Error deleting recording:", error)
+        return false
+    }
+    if (recording.file_path) {
+        const { error: storageError } = await supabase.storage.from("recordings").remove([recording.file_path])
+        if (storageError) console.warn("Recording row deleted but storage cleanup failed:", storageError)
+    }
     return true
 }
 
