@@ -14,15 +14,18 @@ const GivingScreen = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerClassName="pt-4 gap-6"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
       >
         <PodcastProfileBar />
 
         <View className="gap-1">
-          <Text className="text-menorah-primary text-3xl font-bold">Giving</Text>
-          <Text className="text-white text-base">
-            Support the ministry
-          </Text>
+          <Text className="text-3xl font-bold text-menorah-primary">Giving</Text>
+          <Text className="text-menorah-muted text-base">Support the ministry</Text>
         </View>
+
+        <Text className="text-menorah-primary text-lg font-bold">
+          Become a partner
+        </Text>
 
         <GivingRow
           icon={Wallet}

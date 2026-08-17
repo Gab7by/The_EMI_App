@@ -28,26 +28,37 @@ export const tabStyles = StyleSheet.create({
   },
   container: {
     flexDirection: 'row',
-    backgroundColor: Colors.menorah.darkGreen,
-    borderRadius: 32,
-    padding: 5,
+    backgroundColor: '#102B18',
+    borderRadius: 28,
+    padding: 6,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    shadowColor: '#000',
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
   },
   tabButtonInactive: {
     width: 50,
-    height: 50,
+    height: 52,
     borderRadius: 24,
     justifyContent: "center",
     alignItems: "center"
   },
   tabButtonActive: {
     flex: 1,
-    height: 50,
+    height: 52,
     borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: Colors.menorah.primary
+    backgroundColor: Colors.menorah.primary,
+    shadowColor: Colors.menorah.primary,
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 4,
   },
   tabRow: {
     flexDirection: 'row',
@@ -57,7 +68,7 @@ export const tabStyles = StyleSheet.create({
     paddingHorizontal: 10
   },
   label: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '700',
     color: '#014421',
     overflow: 'hidden',

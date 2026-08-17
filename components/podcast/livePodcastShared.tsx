@@ -1,6 +1,6 @@
 import LivePeople from "@/assets/svgs/live_people_icon.svg";
-import { hapticMedium } from "@/lib/haptics";
-import { LiveMessage, PodcastBackgroundProps } from "@/types/podcast-types";
+import { hapticHeavy, hapticLight, hapticMedium } from "@/lib/haptics";
+import { ChatActionResult, LiveMessage, PodcastBackgroundProps } from "@/types/podcast-types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Image } from "expo-image";
@@ -11,6 +11,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode
 import {
     ActivityIndicator,
     Alert,
+    Animated,
     Keyboard,
     Modal,
     Platform,
@@ -18,6 +19,7 @@ import {
     Image as RNImage,
     StyleSheet,
     Text,
+    TextInput,
     useWindowDimensions,
     View,
     type LayoutChangeEvent,
@@ -26,6 +28,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+// ─────────────────────────────────────────────────────────────────────
+// Dummy data (kept for backward compatibility with the existing export)
+// ─────────────────────────────────────────────────────────────────────
 export const podcastComments = [
   {
     id: "1",
@@ -79,6 +84,9 @@ export const podcastComments = [
   },
 ];
 
+// ─────────────────────────────────────────────────────────────────────
+// Types exposed to the screen
+// ─────────────────────────────────────────────────────────────────────
 export type PodcastPaymentMethod = {
   id: "card" | "transfer" | "paypal" | "zelle" | "crypto";
   title: string;
@@ -133,6 +141,9 @@ export const renderPaymentMethodIcon = (iconKey: PodcastPaymentMethod["iconKey"]
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────
+// HostAvatar
+// ─────────────────────────────────────────────────────────────────────
 type HostAvatarProps = {
   hostName: string;
   hostPictureUrl?: string | null;
@@ -169,6 +180,9 @@ export const HostAvatar = memo(({
 });
 HostAvatar.displayName = "HostAvatar";
 
+// ─────────────────────────────────────────────────────────────────────
+// PodcastHeader
+// ─────────────────────────────────────────────────────────────────────
 type PodcastHeaderProps = {
   playlist: string;
   hostName: string;
@@ -221,6 +235,9 @@ export const PodcastHeader = ({
   </View>
 );
 
+// ─────────────────────────────────────────────────────────────────────
+// PodcastParticipantsGrid
+// ─────────────────────────────────────────────────────────────────────
 type PodcastParticipantsGridProps = {
   participants: {
     id: string;
@@ -320,11 +337,26 @@ export const PodcastParticipantsGrid = memo(({
 });
 PodcastParticipantsGrid.displayName = "PodcastParticipantsGrid";
 
+// ─────────────────────────────────────────────────────────────────────
+// PodcastComments – types & component
+// ─────────────────────────────────────────────────────────────────────
 type PodcastCommentsProps = {
   footerPadding: number;
   messages: LiveMessage[]
+  isLoading?: boolean
+  currentUserId?: string
+  onEditMessage?: (message: LiveMessage, newContent: string) => Promise<ChatActionResult>
+  onDeleteMessage?: (message: LiveMessage) => Promise<ChatActionResult>
+  canDeleteMessage?: (message: LiveMessage) => boolean
+  canEditMessage?: (message: LiveMessage) => boolean
+  onReplyToMessage?: (messageId: string, senderName: string) => void
+  replyingTo?: { messageId: string; senderName: string } | null
+  onCancelReply?: () => void
 };
 
+// ─────────────────────────────────────────────────────────────────────
+// ImageViewer
+// ─────────────────────────────────────────────────────────────────────
 type ImageViewerProps = {
   visible: boolean;
   imageUri: string | null;
@@ -381,6 +413,65 @@ export const ImageViewer = memo(({ visible, imageUri, onClose, onDownload }: Ima
 });
 ImageViewer.displayName = "ImageViewer";
 
+// ─────────────────────────────────────────────────────────────────────
+// ProfileViewer
+// ─────────────────────────────────────────────────────────────────────
+type ProfileViewerProps = {
+  visible: boolean;
+  imageUrl: string | null;
+  userName: string;
+  onClose: () => void;
+};
+
+export const ProfileViewer = memo(({ visible, imageUrl, userName, onClose }: ProfileViewerProps) => {
+  const insets = useSafeAreaInsets();
+
+  if (!visible || !imageUrl) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent={false}
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <View className="flex-1 bg-black">
+        <Pressable
+          onPress={onClose}
+          className="absolute right-4 z-10 h-12 w-12 items-center justify-center rounded-full bg-black/50"
+          style={{ top: insets.top + 8 }}
+        >
+          <MaterialCommunityIcons
+            name="close"
+            size={28}
+            color="white"
+          />
+        </Pressable>
+
+        <Image
+          source={{ uri: imageUrl }}
+          style={{ width: '100%', height: '100%' }}
+          contentFit="contain"
+        />
+
+        <View
+          className="absolute bottom-0 left-0 right-0 items-center justify-center rounded-t-[24px] bg-black/60 px-6 py-4"
+          style={{ paddingBottom: Math.max(insets.bottom, 16) + 16 }}
+        >
+          <Text className="text-[15px] font-semibold text-white">
+            {userName}
+          </Text>
+        </View>
+      </View>
+    </Modal>
+  );
+});
+ProfileViewer.displayName = "ProfileViewer";
+
+// ─────────────────────────────────────────────────────────────────────
+// ChatImage — inline image with size constraint
+// ─────────────────────────────────────────────────────────────────────
 const getBoundedImageSize = (
   sourceWidth: number,
   sourceHeight: number,
@@ -399,15 +490,11 @@ const getBoundedImageSize = (
 
 const ChatImage = memo(({ uri, maxWidth, onPress }: { uri: string; maxWidth: number; onPress?: (uri: string) => void }) => {
   const maxHeight = Math.min(maxWidth * 1.45, 360);
-  const [imageSize, setImageSize] = useState(() => ({
-    width: maxWidth,
-    height: Math.min(maxWidth, maxHeight),
-  }));
+  const [imageSize, setImageSize] = useState({ width: maxWidth, height: Math.min(maxWidth, maxHeight) });
   const [isPressed, setIsPressed] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
-
     RNImage.getSize(
       uri,
       (sourceWidth, sourceHeight) => {
@@ -416,16 +503,10 @@ const ChatImage = memo(({ uri, maxWidth, onPress }: { uri: string; maxWidth: num
       },
       () => {
         if (!isMounted) return;
-        setImageSize({
-          width: maxWidth,
-          height: Math.min(maxWidth, maxHeight),
-        });
+        setImageSize({ width: maxWidth, height: Math.min(maxWidth, maxHeight) });
       }
     );
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [maxHeight, maxWidth, uri]);
 
   return (
@@ -454,53 +535,343 @@ const ChatImage = memo(({ uri, maxWidth, onPress }: { uri: string; maxWidth: num
 });
 ChatImage.displayName = "ChatImage";
 
-export const PodcastComments = memo(({ footerPadding, messages }: PodcastCommentsProps) => {
+// ─────────────────────────────────────────────────────────────────────
+// ReplyPreviewBanner — WhatsApp-style minimal reply indicator.
+// Shown inside a message bubble when it's a reply to another message:
+// a small colored left bar + sender name + truncated content preview.
+// Tapping it scrolls to the original message.
+// ─────────────────────────────────────────────────────────────────────
+const ReplyPreviewBanner = memo(({
+  replyPreview,
+  onTap,
+  isOwn,
+}: {
+  replyPreview: { sender_name: string; content: string; message_type: string }
+  onTap?: () => void
+  isOwn?: boolean
+}) => {
+  // The chip always sits on an opaque dark surface, so it remains legible on
+  // lime own-message bubbles and arbitrary podcast cover images alike.
+  const accentColor = isOwn ? "#FFFFFF" : "#D7FF00"
+  return (
+    <Pressable
+      onPress={onTap}
+      hitSlop={6}
+      className="mb-1 flex-row items-center self-start rounded-full border border-white/20 bg-[#08130A]/85 px-2 py-1"
+    >
+      <MaterialCommunityIcons name="reply" size={13} color={accentColor} />
+      <Text className="ml-1 text-[10px] font-bold" style={{ color: accentColor }} numberOfLines={1}>
+        Replying to {replyPreview.sender_name}
+      </Text>
+    </Pressable>
+  )
+})
+ReplyPreviewBanner.displayName = "ReplyPreviewBanner"
+
+// ─────────────────────────────────────────────────────────────────────
+// EditMessageInput — inline editor with Save/Cancel
+// ─────────────────────────────────────────────────────────────────────
+const EditMessageInput = memo(({
+  initialContent,
+  onSave,
+  onCancel,
+  isLoading,
+}: {
+  initialContent: string
+  onSave: (newContent: string) => void
+  onCancel: () => void
+  isLoading: boolean
+}) => {
+  const [editText, setEditText] = useState(initialContent)
+  const inputRef = useRef<TextInput>(null)
+  const canSave = editText.trim().length > 0 && editText !== initialContent && !isLoading
+
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 100)
+  }, [])
+
+  return (
+    <View className="rounded-2xl bg-white/10 px-3.5 py-2.5">
+      <TextInput
+        ref={inputRef}
+        value={editText}
+        onChangeText={setEditText}
+        className="text-[13px] font-semibold leading-5 text-menorah-whiteSoft min-h-[44px]"
+        multiline
+        selectionColor="#D7FF00"
+        returnKeyType="default"
+        editable={!isLoading}
+      />
+      <View className="mt-2 flex-row justify-end gap-2">
+        <Pressable
+          onPress={(event) => { event.stopPropagation(); onCancel() }}
+          disabled={isLoading}
+          className="rounded-lg bg-white/10 px-4 py-2"
+        >
+          <Text className="text-[12px] font-semibold text-white/60">Cancel</Text>
+        </Pressable>
+        <Pressable
+          onPress={(event) => { event.stopPropagation(); onSave(editText) }}
+          disabled={!canSave}
+          className="rounded-lg bg-[#D7FF00] px-4 py-2 flex-row items-center gap-1.5"
+        >
+          {isLoading && (
+            <ActivityIndicator size="small" color="#143703" />
+          )}
+          <Text className={`text-[12px] font-semibold ${canSave ? 'text-[#143703]' : 'text-[#143703]/40'}`}>
+            Save
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  )
+})
+EditMessageInput.displayName = "EditMessageInput"
+
+// ─────────────────────────────────────────────────────────────────────
+// Snackbar — animated toast for success/error/info feedback
+// ─────────────────────────────────────────────────────────────────────
+type SnackbarState = {
+  message: string
+  type: 'success' | 'error' | 'info'
+} | null
+
+const Snackbar = memo(({ state, onDismiss }: { state: SnackbarState; onDismiss: () => void }) => {
+  const opacity = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    if (!state) {
+      Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }).start()
+      return
+    }
+    Animated.sequence([
+      Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+    ]).start(() => onDismiss())
+  }, [state, opacity, onDismiss])
+
+  if (!state) return null
+
+  const bgColor = state.type === 'error' ? '#F3523C' : state.type === 'success' ? '#143703' : '#0F2A08'
+  const borderColor = state.type === 'error' ? '#FF8A7A' : '#D7FF00'
+
+  return (
+    <Animated.View
+      className="absolute bottom-0 left-0 right-0 z-50 mx-4 mb-2 rounded-xl border px-4 py-3"
+      style={{
+        opacity: opacity,
+        backgroundColor: bgColor,
+        borderColor: borderColor,
+        borderWidth: 1,
+        marginBottom: 8,
+      }}
+    >
+      <Text className="text-[12px] font-semibold text-white text-center">
+        {state.message}
+      </Text>
+    </Animated.View>
+  )
+})
+Snackbar.displayName = "Snackbar"
+
+// ─────────────────────────────────────────────────────────────────────
+// MessageActionMenu — anchored directly under the selected message bubble
+// (iMessage / Telegram style). No bottom-modal noise: the actions belong
+// to the message you tapped, so they appear right beneath it.
+// ─────────────────────────────────────────────────────────────────────
+type MessageActionMenuProps = {
+  canEdit: boolean
+  canDelete: boolean
+  isBusy: boolean
+  isDeleteArmed: boolean
+  onReply: () => void
+  onEdit: () => void
+  onDeleteTap: () => void
+  onCancel: () => void
+}
+
+const MessageActionMenu = memo(({
+  canEdit,
+  canDelete,
+  isBusy,
+  isDeleteArmed,
+  onReply,
+  onEdit,
+  onDeleteTap,
+  onCancel,
+}: MessageActionMenuProps) => {
+  const scale = useRef(new Animated.Value(0.92)).current
+  const opacity = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 120, friction: 14 }),
+      Animated.timing(opacity, { toValue: 1, duration: 120, useNativeDriver: true }),
+    ]).start()
+  }, [opacity, scale])
+
+  return (
+    <Animated.View
+      className="mt-2 flex-row flex-wrap items-center gap-2"
+      style={{ opacity, transform: [{ scale }] }}
+    >
+      {/* Reply — always available */}
+      <MenuPill
+        icon="reply"
+        label="Reply"
+        color="#D7FF00"
+        onPress={onReply}
+        disabled={isBusy}
+      />
+
+      {/* Edit — own messages only */}
+      {canEdit && (
+        <MenuPill
+          icon="pencil"
+          label="Edit"
+          color="#87CEEB"
+          onPress={onEdit}
+          disabled={isBusy}
+        />
+      )}
+
+      {/* Delete — own or admin. Two-tap armed: first tap turns it into a
+          solid red "Confirm", the second tap actually deletes. No system
+          dialog is shown, so the flow stays in the message context. */}
+      {canDelete && (
+        <MenuPill
+          icon={isDeleteArmed ? "check" : "delete-outline"}
+          label={isDeleteArmed ? "Confirm" : "Delete"}
+          color={isDeleteArmed ? "#FFFFFF" : "#FF6B6B"}
+          solid={isDeleteArmed}
+          onPress={onDeleteTap}
+          disabled={isBusy}
+        />
+      )}
+    </Animated.View>
+  )
+})
+MessageActionMenu.displayName = "MessageActionMenu"
+
+type MenuPillProps = {
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name']
+  label: string
+  color: string
+  onPress: () => void
+  disabled?: boolean
+  solid?: boolean
+}
+const MenuPill = memo(({ icon, label, color, onPress, disabled, solid }: MenuPillProps) => (
+  <Pressable
+    // Action pills live inside a selectable message Pressable. Without
+    // stopping propagation, tapping Edit also triggers the parent handler,
+    // which dismisses the keyboard and immediately clears editingMessageId.
+    onPress={(event) => { event.stopPropagation(); hapticLight(); onPress() }}
+    disabled={disabled}
+    className="flex-row items-center gap-1 rounded-full px-2.5 py-1.5"
+    style={{
+      backgroundColor: solid ? "#FF3B30" : `${color}22`,
+      borderWidth: 1,
+      borderColor: solid ? "#FF3B30" : `${color}44`,
+      minHeight: 30,
+      opacity: disabled ? 0.5 : 1,
+    }}
+  >
+    <MaterialCommunityIcons name={icon} size={12} color={disabled ? "#6F7C73" : color} />
+    <Text className="text-[10px] font-bold" style={{ color: disabled ? "#6F7C73" : color }}>
+      {label}
+    </Text>
+  </Pressable>
+))
+MenuPill.displayName = "MenuPill"
+
+// ─────────────────────────────────────────────────────────────────────
+// Main PodcastComments Component
+// ─────────────────────────────────────────────────────────────────────
+export const PodcastComments = memo(({
+  footerPadding,
+  messages,
+  isLoading = false,
+  currentUserId,
+  onEditMessage,
+  onDeleteMessage,
+  canDeleteMessage,
+  canEditMessage,
+  onReplyToMessage,
+  replyingTo,
+  onCancelReply,
+}: PodcastCommentsProps) => {
   const { width } = useWindowDimensions()
   const listRef = useRef<FlashListRef<LiveMessage>>(null)
   const shouldScrollToLatestRef = useRef(true)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [canScroll, setCanScroll] = useState(false)
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [editLoading, setEditLoading] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [deleteArmedMessageId, setDeleteArmedMessageId] = useState<string | null>(null)
+  // Tracks which message is currently being saved/deleted. Deliberately
+  // separate from editingMessageId/actionLoading so the spinner survives
+  // the keyboard-hide listener (which clears editingMessageId).
+  const [busyMessageId, setBusyMessageId] = useState<string | null>(null)
+  const [snackbar, setSnackbar] = useState<SnackbarState>(null)
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null)
   const [isImageViewerVisible, setIsImageViewerVisible] = useState(false)
+  const [profileViewerVisible, setProfileViewerVisible] = useState(false)
+  const [profileViewerImageUrl, setProfileViewerImageUrl] = useState<string | null>(null)
+  const [profileViewerName, setProfileViewerName] = useState('')
   const imageWidth = Math.min(width * 0.72, 280)
   const latestMessageId = messages[messages.length - 1]?.id
   const scrollButtonIcon = isAtBottom ? "chevron-up" : "chevron-down"
   const scrollButtonLabel = isAtBottom ? "Go to first message" : "Go to latest message"
 
+  // Build a map of messageId → index for scroll-to-reply navigation
+  const messageIndexMap = useMemo(() => {
+    const map = new Map<string, number>()
+    messages.forEach((msg, index) => map.set(msg.id, index))
+    return map
+  }, [messages])
+
+  // ── Scroll helpers ──────────────────────────────────────────────────
   const scrollToLatestMessage = useCallback((animated = true) => {
-    requestAnimationFrame(() => {
-      listRef.current?.scrollToEnd({ animated })
-    })
+    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated }))
   }, [])
 
   const scrollToFirstMessage = useCallback(() => {
     listRef.current?.scrollToOffset({ offset: 0, animated: true })
   }, [])
 
+  const scrollToMessage = useCallback((messageId: string) => {
+    const index = messageIndexMap.get(messageId)
+    if (index !== undefined) {
+      try {
+        listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 })
+      } catch {
+        // fallback
+      }
+    }
+  }, [messageIndexMap])
+
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
     const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height)
     const nextIsAtBottom = distanceFromBottom <= 64
     const nextCanScroll = contentSize.height > layoutMeasurement.height + 64
-
     setIsAtBottom(nextIsAtBottom)
     setCanScroll(nextCanScroll)
   }, [])
 
   const handleScrollButtonPress = useCallback(() => {
     hapticMedium()
-
-    if (isAtBottom) {
-      scrollToFirstMessage()
-      return
-    }
-
+    if (isAtBottom) { scrollToFirstMessage(); return }
     scrollToLatestMessage()
   }, [isAtBottom, scrollToFirstMessage, scrollToLatestMessage])
 
+  // ── Auto-scroll on new messages ────────────────────────────────────
   const handleContentSizeChange = useCallback(() => {
     if (!messages.length) return
-
     if (shouldScrollToLatestRef.current || isAtBottom) {
       scrollToLatestMessage(false)
       shouldScrollToLatestRef.current = false
@@ -514,86 +885,106 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
       setCanScroll(false)
       return
     }
-
     if (shouldScrollToLatestRef.current || isAtBottom) {
       scrollToLatestMessage(!shouldScrollToLatestRef.current)
       shouldScrollToLatestRef.current = false
     }
   }, [isAtBottom, latestMessageId, messages.length, scrollToLatestMessage])
 
-  const listHeader = useMemo(() => (
-    <View className="mb-5 rounded-2xl bg-menorah-bg/90 px-3.5 py-3">
-      <Text className="text-[11px] leading-4 text-[#FFD700]">
-        Please keep comments respectful and uplifting. "Let your words edify and
-        bring grace to those who hear." - Ephesians 4:29.
-      </Text>
-    </View>  
-  ), [])
-  const listEmpty = useMemo(() => (
-    <View className="mx-2 mt-8 items-center rounded-[24px] border border-white/10 bg-[#0F2A08]/80 px-6 py-8">
-      <View className="h-[58px] w-[58px] items-center justify-center rounded-full bg-[#D7FF00]/15">
-        <MaterialCommunityIcons
-          name="message-text-outline"
-          size={26}
-          color="#D7FF00"
-        />
-      </View>
-      <Text className="mt-4 text-[15px] font-semibold text-[#F4F5F0]">
-        No messages yet
-      </Text>
-      <Text className="mt-2 text-center text-[12px] leading-5 text-[#B7C0BC]">
-        Start the conversation with an encouraging message for everyone in the room.
-      </Text>
-    </View>
-  ), [])
-  const renderMessage = useCallback(({item}: { item: LiveMessage }) => (
-    <View
-      className={`mb-3.5 flex-row ${item.isLocal ? "justify-end" : "items-start"}`}
-    >
-      {!item.isLocal && (
-        item.sender_avartar_url ? (
-          <Image
-            source={{uri: item.sender_avartar_url}}
-            style={{ width: 30, height: 30, borderRadius: 15 }}
-            contentFit="cover"
-          />
-        ) : (
-          <View
-            style={{width: 30, height: 30, borderRadius: 15}}
-            className="items-center justify-center bg-menorah-primary"
-          >
-            <Text className="text-base font-bold text-menorah-bg">
-              {item.sender_name.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-        )
-      )}
-      <View className={`${item.isLocal ? "items-end" : "ml-3"}`} style={{ maxWidth: width * 0.74, alignSelf: item.isLocal ? 'flex-end' : 'flex-start' }}>
-        {!item.isLocal && (
-          <Text className="mb-1.5 text-[10px] font-medium text-menorah-whiteSoft/90">
-            {item.sender_name}
-          </Text>
-        )}
-        {
-          item.message_type === 'image' ? (
-            <ChatImage uri={item.content} maxWidth={imageWidth} onPress={handleImagePress} />
-          ) : (
-            <View
-              className={`rounded-2xl px-3.5 py-2.5 ${
-                item.isLocal ? "bg-[#D7FF00]" : "self-start bg-white/20"
-              }`}
-              style={{ maxWidth: width * 0.68 }}
-            >
-              <Text className={`text-[11px] font-semibold leading-4 ${item.isLocal ? 'text-[#143703]' : 'text-menorah-whiteSoft'}`}>
-                {item.content}
-              </Text>
-            </View>
-          )
-        }
-      </View>
-    </View>
-  ), [imageWidth, width])
+  // ── Dismiss selections when keyboard hides ─────────────────────────
+  useEffect(() => {
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      setSelectedMessageId(null)
+    })
+    return () => hideSubscription.remove()
+  }, [])
 
+  // ── Snackbar auto-dismiss ──────────────────────────────────────────
+  const handleSnackbarDismiss = useCallback(() => setSnackbar(null), [])
+
+  // ── Message press handler (select / deselect) ──────────────────────
+  const handleMessagePress = useCallback((messageId: string) => {
+    hapticLight()
+    Keyboard.dismiss()
+    setSelectedMessageId(prev => prev === messageId ? null : messageId)
+    setEditingMessageId(null)
+  }, [])
+
+  // ── Edit ───────────────────────────────────────────────────────────
+  const handleEditStart = useCallback((messageId: string) => {
+    hapticLight()
+    console.log('[PodcastComments] Opening editor', { messageId })
+    setSelectedMessageId(messageId)
+    setEditingMessageId(messageId)
+  }, [])
+
+  const handleEditSave = useCallback(async (messageId: string, newContent: string) => {
+    const message = messages.find(m => m.id === messageId)
+    if (!message) return
+
+    console.log('[PodcastComments] Saving edit', { messageId, contentLength: newContent.trim().length })
+    setEditLoading(true)
+    let result: ChatActionResult | undefined
+    try {
+      result = await onEditMessage?.(message, newContent)
+    } catch (error) {
+      console.error('[PodcastComments] Edit callback threw', { messageId, error })
+      result = { ok: false, error: 'Edit request failed before it reached the server.' }
+    } finally {
+      setEditLoading(false)
+    }
+
+    if (result?.ok) {
+      setEditingMessageId(null)
+      setSelectedMessageId(null)
+      setSnackbar({ message: 'Message edited', type: 'success' })
+    } else if (result?.error) {
+      setSnackbar({ message: result.error, type: 'error' })
+    }
+  }, [messages, onEditMessage])
+
+  const handleEditCancel = useCallback(() => {
+    setEditingMessageId(null)
+  }, [])
+
+  // ── Delete (two-tap armed, no system modal) ────────────────────────
+  const handleDeleteTap = useCallback((messageId: string) => {
+    const message = messages.find(m => m.id === messageId)
+    if (!message) return
+
+    // First tap: arm the confirm state for THIS message
+    if (deleteArmedMessageId !== messageId) {
+      hapticMedium()
+      setDeleteArmedMessageId(messageId)
+      setSelectedMessageId(messageId)
+      return
+    }
+
+    // Second tap: actually delete
+    hapticHeavy()
+    setDeleteArmedMessageId(null)
+    setActionLoading(true)
+    setSelectedMessageId(messageId)
+    const result = onDeleteMessage?.(message)
+    Promise.resolve(result).then((res) => {
+      setActionLoading(false)
+      if (res?.ok) {
+        setSelectedMessageId(null)
+        setSnackbar({ message: 'Message deleted', type: 'info' })
+      } else if (res?.error) {
+        setSnackbar({ message: res.error, type: 'error' })
+      }
+    })
+  }, [messages, onDeleteMessage, deleteArmedMessageId])
+
+  // ── Reply ──────────────────────────────────────────────────────────
+  const handleReplyTap = useCallback((messageId: string, senderName: string) => {
+    hapticLight()
+    onReplyToMessage?.(messageId, senderName)
+    setSelectedMessageId(null)
+  }, [onReplyToMessage])
+
+  // ── Image viewer ───────────────────────────────────────────────────
   const handleImagePress = useCallback((uri: string) => {
     setSelectedImageUri(uri)
     setIsImageViewerVisible(true)
@@ -605,58 +996,253 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
   }, [])
 
   const handleDownloadImage = useCallback(async () => {
-    if (!selectedImageUri) return;
-
+    if (!selectedImageUri) return
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const { status } = await MediaLibrary.requestPermissionsAsync()
       if (status !== 'granted') {
-        Alert.alert('Permission required', 'Please grant permission to save images to your device.');
-        return;
+        Alert.alert('Permission required', 'Please grant permission to save images to your device.')
+        return
       }
-
-      Alert.alert('Downloading', 'Saving image to your device...');
-
-      const fileExtension = selectedImageUri.split('.').pop() || 'jpg';
-      const fileName = `EMI_Image_${Date.now()}.${fileExtension}`;
-      
-      // Create destination directory
-      const destinationDir = new Directory(Paths.document, 'downloads');
-      
-      // Create directory if it doesn't exist
-      if (!destinationDir.exists) {
-        destinationDir.create();
-      }
-
-      // Download file
-      const downloadedFile = await File.downloadFileAsync(
-        selectedImageUri,
-        destinationDir
-      );
-
-      await MediaLibrary.saveToLibraryAsync(downloadedFile.uri);
-      Alert.alert('Success', 'Image saved to your device gallery!');
+      const fileExtension = selectedImageUri.split('.').pop() || 'jpg'
+      const fileName = `EMI_Image_${Date.now()}.${fileExtension}`
+      const destinationDir = new Directory(Paths.document, 'downloads')
+      if (!destinationDir.exists) destinationDir.create()
+      const downloadedFile = await File.downloadFileAsync(selectedImageUri, destinationDir)
+      await MediaLibrary.saveToLibraryAsync(downloadedFile.uri)
+      Alert.alert('Success', 'Image saved to your device gallery!')
     } catch (error) {
-      Alert.alert('Error', 'Failed to download image. Please try again.');
-      console.error('Download error:', error);
+      Alert.alert('Error', 'Failed to download image. Please try again.')
+      console.error('Download error:', error)
     }
   }, [selectedImageUri])
 
+  // ── List header / empty ────────────────────────────────────────────
+  const listHeader = useMemo(() => (
+    <View className="mb-5 rounded-2xl bg-menorah-bg/90 px-3.5 py-3">
+      <Text className="text-[11px] leading-4 text-[#FFD700]">
+        Please keep comments respectful and uplifting. "Let your words edify and
+        bring grace to those who hear." - Ephesians 4:29.
+      </Text>
+    </View>
+  ), [])
+
+  const listEmpty = useMemo(() => (
+    <View className="mx-2 mt-8 items-center rounded-[24px] border border-white/10 bg-[#0F2A08]/80 px-6 py-8">
+      <View className="h-[58px] w-[58px] items-center justify-center rounded-full bg-[#D7FF00]/15">
+        <MaterialCommunityIcons name="message-text-outline" size={26} color="#D7FF00" />
+      </View>
+      <Text className="mt-4 text-[15px] font-semibold text-[#F4F5F0]">
+        No messages yet
+      </Text>
+      <Text className="mt-2 text-center text-[12px] leading-5 text-[#B7C0BC]">
+        Start the conversation with an encouraging message for everyone in the room.
+      </Text>
+    </View>
+  ), [])
+
+  const listLoading = useMemo(() => (
+    <View className="mx-2 mt-8 items-center rounded-[24px] border border-white/10 bg-[#0F2A08]/80 px-6 py-10">
+      <ActivityIndicator size="large" color="#D7FF00" />
+      <Text className="mt-4 text-[13px] font-semibold text-[#F4F5F0]">
+        Loading messages...
+      </Text>
+    </View>
+  ), [])
+
+  // ── Render a single message ─────────────────────────────────────────
+  const renderMessage = useCallback(({ item }: { item: LiveMessage }) => {
+    // System messages (join/leave notifications)
+    if (item.message_type === 'system') {
+      return (
+        <View className="mb-3 items-center">
+          <View className="rounded-full bg-white/5 px-4 py-1.5">
+            <Text className="text-[10px] text-white/40 italic">{item.content}</Text>
+          </View>
+        </View>
+      )
+    }
+
+    const isOwn = item.isLocal ?? false
+    const isSelected = selectedMessageId === item.id
+    const isEditing = editingMessageId === item.id
+    const userCanDelete = canDeleteMessage?.(item) ?? false
+    const userCanEdit = canEditMessage?.(item) ?? false
+    const hasReply = item.reply_to_id && item.reply_preview
+    const isBusy = actionLoading && selectedMessageId === item.id
+    const isEditingInFlight = editLoading && isEditing
+
+    return (
+      <Pressable
+        onPress={() => handleMessagePress(item.id)}
+        className={`mb-3.5 ${isOwn ? "items-end" : "items-start"}`}
+      >
+        <View className={`flex-row ${isOwn ? "flex-row-reverse" : ""}`}>
+          {/* Avatar */}
+          <Pressable
+            onPress={() => {
+              if (item.sender_avartar_url) {
+                setProfileViewerImageUrl(item.sender_avartar_url)
+                setProfileViewerName(item.sender_name)
+                setProfileViewerVisible(true)
+              }
+            }}
+            disabled={!item.sender_avartar_url}
+          >
+            {item.sender_avartar_url ? (
+              <Image
+                source={{ uri: item.sender_avartar_url }}
+                style={{ width: 30, height: 30, borderRadius: 15 }}
+                contentFit="cover"
+              />
+            ) : (
+              <View
+                style={{ width: 30, height: 30, borderRadius: 15 }}
+                className="items-center justify-center bg-menorah-primary"
+              >
+                <Text className="text-base font-bold text-menorah-bg">
+                  {item.sender_name.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+
+          {/* Content */}
+          <View
+            className={`${isOwn ? "items-end mr-3" : "items-start ml-3"}`}
+            style={{ maxWidth: width * 0.74 }}
+          >
+            {/* Sender name */}
+            <Text className="mb-1.5 text-[10px] font-medium text-menorah-whiteSoft/90">
+              {item.sender_name}
+            </Text>
+
+            {/* Reply Preview Banner */}
+            {hasReply && item.reply_preview && (
+              <ReplyPreviewBanner
+                replyPreview={item.reply_preview}
+                onTap={() => scrollToMessage(item.reply_to_id!)}
+                isOwn={isOwn}
+              />
+            )}
+
+            <View className="flex-row items-end">
+              {/* Message Bubble / Edit Input */}
+              <View style={{ opacity: isBusy ? 0.45 : 1 }}>
+                {isEditing ? (
+                  <EditMessageInput
+                    initialContent={item.content}
+                    onSave={(newContent) => handleEditSave(item.id, newContent)}
+                    onCancel={handleEditCancel}
+                    isLoading={editLoading}
+                  />
+                ) : (
+                  <>
+                    {item.message_type === 'image' ? (
+                      <View>
+                        <ChatImage uri={item.content} maxWidth={imageWidth} onPress={handleImagePress} />
+                        {item.edited_at && (
+                          <Text className={`text-[9px] mt-1 ${isOwn ? 'text-[#143703]/60' : 'text-white/40'}`}>
+                            (edited)
+                          </Text>
+                        )}
+                      </View>
+                    ) : (
+                      <View
+                        className={`rounded-2xl px-4 py-3 ${
+                          isOwn ? "bg-[#D7FF00]" : "self-start bg-white/20"
+                        } ${isSelected ? 'border-2 border-[#D7FF00]' : ''}`}
+                        style={{ maxWidth: width * 0.68, minHeight: 44 }}
+                      >
+                        <Text className={`text-[13px] font-semibold leading-5 ${isOwn ? 'text-[#143703]' : 'text-menorah-whiteSoft'}`}>
+                          {item.content}
+                        </Text>
+                        {item.edited_at && (
+                          <Text className={`text-[9px] mt-1 ${isOwn ? 'text-[#143703]/60' : 'text-white/40'}`}>
+                            (edited)
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </>
+                )}
+              </View>
+
+              {/* In-flight indicator — shown while editing or deleting this message */}
+              {(isBusy || isEditingInFlight) && (
+                <View className="ml-2 mb-1 h-7 w-7 items-center justify-center rounded-full bg-[#0F2A08]/90 border border-[#D7FF00]/30">
+                  <ActivityIndicator size="small" color="#D7FF00" />
+                </View>
+              )}
+            </View>
+
+            {/* Anchored action menu — appears directly under the bubble */}
+            {isSelected && !isEditing && (
+              <MessageActionMenu
+                canEdit={userCanEdit}
+                canDelete={userCanDelete}
+                isBusy={isBusy}
+                isDeleteArmed={deleteArmedMessageId === item.id}
+                onReply={() => handleReplyTap(item.id, item.sender_name)}
+                onEdit={() => handleEditStart(item.id)}
+                onDeleteTap={() => handleDeleteTap(item.id)}
+                onCancel={() => {
+                  hapticLight()
+                  setDeleteArmedMessageId(null)
+                  setSelectedMessageId(null)
+                }}
+              />
+            )}
+          </View>
+        </View>
+      </Pressable>
+    )
+  }, [
+    imageWidth,
+    width,
+    selectedMessageId,
+    editingMessageId,
+    editLoading,
+    actionLoading,
+    deleteArmedMessageId,
+    canDeleteMessage,
+    canEditMessage,
+    handleMessagePress,
+    handleEditSave,
+    handleEditCancel,
+    handleDeleteTap,
+    handleReplyTap,
+    handleImagePress,
+    scrollToMessage,
+  ])
+
+  // ── Render ─────────────────────────────────────────────────────────
   return (
     <View className="relative min-h-[220px] flex-1">
+      {/* Tap backdrop to deselect message */}
+      {selectedMessageId && !editingMessageId && (
+        <Pressable
+          onPress={() => setSelectedMessageId(null)}
+          className="absolute inset-0 z-0"
+        />
+      )}
+
       <FlashList
         ref={listRef}
         data={messages}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={listEmpty}
+        ListEmptyComponent={isLoading ? listLoading : listEmpty}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: footerPadding }}
+        contentContainerStyle={{ paddingBottom: footerPadding + (selectedMessageId ? 80 : 0) }}
         ListHeaderComponent={listHeader}
         onContentSizeChange={handleContentSizeChange}
         onLoad={() => scrollToLatestMessage(false)}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         renderItem={renderMessage}
+        extraData={{ selectedMessageId, editingMessageId, editLoading, actionLoading, deleteArmedMessageId }}
       />
+
+      {/* Scroll-to-top / latest button */}
       {messages.length > 0 && canScroll ? (
         <Pressable
           accessibilityRole="button"
@@ -673,60 +1259,82 @@ export const PodcastComments = memo(({ footerPadding, messages }: PodcastComment
         </Pressable>
       ) : null}
 
+      {/* Snackbar feedback */}
+      <Snackbar state={snackbar} onDismiss={handleSnackbarDismiss} />
+
+      {/* Image Viewer */}
       <ImageViewer
         visible={isImageViewerVisible}
         imageUri={selectedImageUri}
         onClose={handleCloseImageViewer}
         onDownload={handleDownloadImage}
       />
-    </View>
-  );
-});
-PodcastComments.displayName = "PodcastComments";
 
+      {/* Profile Viewer */}
+      <ProfileViewer
+        visible={profileViewerVisible}
+        imageUrl={profileViewerImageUrl}
+        userName={profileViewerName}
+        onClose={() => {
+          setProfileViewerVisible(false)
+          setProfileViewerImageUrl(null)
+          setProfileViewerName('')
+        }}
+      />
+    </View>
+  )
+})
+PodcastComments.displayName = "PodcastComments"
+
+// ─────────────────────────────────────────────────────────────────────
+// usePodcastFooterLayout
+// ─────────────────────────────────────────────────────────────────────
 export const usePodcastFooterLayout = () => {
-  const insets = useSafeAreaInsets();
-  const [footerHeight, setFooterHeight] = useState(0);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const insets = useSafeAreaInsets()
+  const [footerHeight, setFooterHeight] = useState(0)
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
 
   useEffect(() => {
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow"
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide"
 
     const showSubscription = Keyboard.addListener(showEvent, (event) => {
-      setKeyboardHeight(event.endCoordinates.height);
-    });
+      setKeyboardHeight(event.endCoordinates.height)
+    })
     const hideSubscription = Keyboard.addListener(hideEvent, () => {
-      setKeyboardHeight(0);
-    });
+      setKeyboardHeight(0)
+    })
 
     return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
+      showSubscription.remove()
+      hideSubscription.remove()
+    }
+  }, [])
 
   const footerBottom = useMemo(
     () => keyboardHeight > 0 ? Math.max(0, keyboardHeight - insets.bottom) : 0,
     [insets.bottom, keyboardHeight]
-  );
+  )
   const scrollPaddingBottom = useMemo(
     () => footerHeight + footerBottom + 24,
     [footerBottom, footerHeight]
-  );
+  )
 
   const handleFooterLayout = useCallback((event: LayoutChangeEvent) => {
-    setFooterHeight(event.nativeEvent.layout.height);
-  }, []);
+    setFooterHeight(event.nativeEvent.layout.height)
+  }, [])
 
   return {
     footerBottom,
     footerPaddingBottom: insets.bottom > 0 ? insets.bottom : 16,
     scrollPaddingBottom,
     handleFooterLayout,
-  };
-};
+  }
+}
 
+// ─────────────────────────────────────────────────────────────────────
+// PodcastBottomDock
+// ─────────────────────────────────────────────────────────────────────
 type PodcastBottomDockProps = {
   bottom: number;
   paddingBottom: number;
@@ -749,6 +1357,9 @@ export const PodcastBottomDock = ({
   </View>
 );
 
+// ─────────────────────────────────────────────────────────────────────
+// PodcastBottomSheet
+// ─────────────────────────────────────────────────────────────────────
 type PodcastBottomSheetProps = {
   visible: boolean;
   onClose: () => void;
@@ -785,8 +1396,11 @@ export const PodcastBottomSheet = ({
       </View>
     </Modal>
   )
-};
+}
 
+// ─────────────────────────────────────────────────────────────────────
+// PodcastDialog
+// ─────────────────────────────────────────────────────────────────────
 type PodcastDialogProps = {
   visible: boolean;
   onClose: () => void;
@@ -812,6 +1426,9 @@ export const PodcastDialog = ({
   </Modal>
 );
 
+// ─────────────────────────────────────────────────────────────────────
+// PodcastNotesDialog
+// ─────────────────────────────────────────────────────────────────────
 type PodcastNotesDialogProps = {
   visible: boolean;
   onClose: () => void;
@@ -829,28 +1446,19 @@ export const PodcastNotesDialog = ({
     <View className="w-full max-w-[320px] overflow-hidden rounded-[20px] border border-[#D7FF00]/20 bg-[#0E2B08]">
       <View className="px-5 py-4">
         <View className="rounded-[16px] bg-white/5 px-3 py-3 mb-3">
-          <Text className="text-[10px] uppercase tracking-[1px] text-[#D7FF00]">
-            Playlist
-          </Text>
+          <Text className="text-[10px] uppercase tracking-[1px] text-[#D7FF00]">Playlist</Text>
           <Text className="mt-1 text-[15px] font-semibold text-[#F4F5F0]" numberOfLines={2}>
             {playlist}
           </Text>
         </View>
-
         <View className="rounded-[16px] bg-white/5 px-3 py-3">
-          <Text className="text-[10px] uppercase tracking-[1px] text-[#D7FF00]">
-            Title
-          </Text>
+          <Text className="text-[10px] uppercase tracking-[1px] text-[#D7FF00]">Title</Text>
           <Text className="mt-1 text-[15px] font-semibold text-[#F4F5F0]" numberOfLines={3}>
             {title}
           </Text>
         </View>
-
         <Pressable
-          onPress={() => {
-            hapticMedium()
-            onClose()
-          }}
+          onPress={() => { hapticMedium(); onClose() }}
           className="mt-5 items-center rounded-[16px] bg-[#D7FF00] px-4 py-3"
         >
           <Text className="text-[14px] font-semibold text-[#143703]">Close</Text>
@@ -860,6 +1468,9 @@ export const PodcastNotesDialog = ({
   </PodcastDialog>
 );
 
+// ─────────────────────────────────────────────────────────────────────
+// PodcastConnectingOverlay
+// ─────────────────────────────────────────────────────────────────────
 type PodcastConnectingOverlayProps = {
   visible: boolean;
 };
@@ -876,9 +1487,7 @@ export const PodcastConnectingOverlay = ({
         <View className="h-[74px] w-[74px] items-center justify-center rounded-full border border-[#D7FF00]/25 bg-[#0E2B08]">
           <ActivityIndicator size="large" color="#D7FF00" />
         </View>
-        <Text className="mt-6 text-[20px] font-semibold text-[#F4F5F0]">
-          Connecting...
-        </Text>
+        <Text className="mt-6 text-[20px] font-semibold text-[#F4F5F0]">Connecting...</Text>
         <Text className="mt-2 text-center text-[13px] leading-5 text-[#B7C0BC]">
           Joining the live podcast room. Please hold on for a moment.
         </Text>
@@ -887,6 +1496,9 @@ export const PodcastConnectingOverlay = ({
   ) : null
 );
 
+// ─────────────────────────────────────────────────────────────────────
+// PodcastFullScreenModal
+// ─────────────────────────────────────────────────────────────────────
 type PodcastFullScreenModalProps = {
   visible: boolean;
   onClose: () => void;
@@ -908,31 +1520,35 @@ export const PodcastFullScreenModal = ({
   </Modal>
 );
 
+// ─────────────────────────────────────────────────────────────────────
+// PodcastBackground
+// ─────────────────────────────────────────────────────────────────────
 export const PodcastBackground = ({
   coverUrl,
   children,
 }: PodcastBackgroundProps) => (
   <View className="flex-1">
     <LinearGradient
-          colors={["#0B1F0E", "#31560A", "#0B1F0E"]}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 0.9, y: 1 }}
+      colors={["#0B1F0E", "#31560A", "#0B1F0E"]}
+      start={{ x: 0.1, y: 0 }}
+      end={{ x: 0.9, y: 1 }}
+      style={StyleSheet.absoluteFill}
+    />
+    {
+      coverUrl && (
+        <Image
+          source={{ uri: coverUrl }}
           style={StyleSheet.absoluteFill}
+          contentFit="cover"
         />
-      {
-        coverUrl && (
-          <Image
-            source={{ uri: coverUrl }}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-          />
-        )
-      }
-      {coverUrl && (
-        <View 
-          style={[StyleSheet.absoluteFill, 
-            { backgroundColor: "rgba(0, 0, 0, 0.42)" }]}
-        />)}
-      {children}
+      )
+    }
+    {coverUrl && (
+      <View
+        style={[StyleSheet.absoluteFill,
+          { backgroundColor: "rgba(0, 0, 0, 0.42)" }]}
+      />
+    )}
+    {children}
   </View>
 );

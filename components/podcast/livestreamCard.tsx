@@ -1,8 +1,8 @@
-import Sun from "@/assets/svgs/sun-icon.svg"
 import { hapticMedium } from "@/lib/haptics"
 import { useAuthStore } from "@/store/authStore"
 import { LiveStreamCardType } from "@/types/podcast-types"
 import { Image } from "expo-image"
+import { LinearGradient } from "expo-linear-gradient"
 import { useRouter } from "expo-router"
 import { memo, useCallback } from "react"
 import { Pressable, Text, View } from "react-native"
@@ -59,25 +59,29 @@ const LiveStreamCard = ({
     }, [coverImageUrl, hostId, hostName, hostPictureUrl, id, isAdmin, livekitRoomName, playlist, router, title])
 
     return (
-        <Pressable onPress={goToLiveStream}>
-            <View className="rounded-lg bg-menorah-darkGreen pt-6 px-5 pb-4 gap-10">
-                <View className="gap-2">
-                    <Text className="text-menorah-primary text-2xl font-bold">{playlist}</Text>
-                    <View className="gap-2 flex-row">
-                        <Text className="text-menorah-gray text-sm">Title: {title}</Text>
-                        <Sun />
-                    </View>
-                </View>
-                <View className="gap-4">
-                    <HostIcon hostName={hostName} hostPictureUrl={hostPictureUrl} />
-                    <Text className="text-white text-sm">Host: {hostName}</Text>
-                </View>
-            </View>
+        <Pressable onPress={goToLiveStream} className="overflow-hidden rounded-[24px] border border-white/10 bg-[#10321D] active:opacity-90">
             <Image
-                source={require("@/assets/pictures/podcast-livestream-image.png")}
-                style={{width: 170, height: 100, position: "absolute", right: 0, bottom: 0}}
+                source={coverImageUrl ? { uri: coverImageUrl } : require("@/assets/pictures/podcast-livestream-image.png")}
+                style={{ width: '100%', height: 176, position: 'absolute', top: 0, left: 0 }}
                 contentFit="cover"
             />
+            <LinearGradient colors={['rgba(7,22,11,0.18)', 'rgba(7,22,11,0.96)']} style={{ minHeight: 176, padding: 18, justifyContent: 'space-between' }}>
+                <View className="self-start flex-row items-center rounded-full border border-[#C6FF00]/35 bg-[#07160B]/75 px-2.5 py-1">
+                    <View className="mr-1.5 h-1.5 w-1.5 rounded-full bg-[#C6FF00]" />
+                    <Text className="text-[10px] font-bold uppercase tracking-[1px] text-[#C6FF00]">Live now</Text>
+                </View>
+                <View>
+                    <Text className="text-[11px] font-bold uppercase tracking-[1px] text-[#C6FF00]" numberOfLines={1}>{playlist}</Text>
+                    <Text className="mt-1 text-[19px] font-bold text-white" numberOfLines={2}>{title}</Text>
+                    <View className="mt-3 flex-row items-center justify-between">
+                        <View className="flex-row items-center">
+                            <HostIcon hostName={hostName} hostPictureUrl={hostPictureUrl} />
+                            <Text className="ml-2 text-xs font-semibold text-white/85" numberOfLines={1}>{hostName}</Text>
+                        </View>
+                        <View className="rounded-full bg-[#C6FF00] px-3 py-1.5"><Text className="text-[10px] font-bold text-[#0B1F0E]">Join</Text></View>
+                    </View>
+                </View>
+            </LinearGradient>
         </Pressable>
     )
 }

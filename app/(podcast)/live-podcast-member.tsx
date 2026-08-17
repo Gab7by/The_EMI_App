@@ -70,6 +70,7 @@ const MemberLivePodcast = () => {
   const [isCallActionLoading, setIsCallActionLoading] = useState(false)
   const [hasHungUpSpeaker, setHasHungUpSpeaker] = useState(false)
   const [speakerLimitMessage, setSpeakerLimitMessage] = useState<string | null>(null)
+  const [replyingTo, setReplyingTo] = useState<{ messageId: string; senderName: string } | null>(null)
 
   const selectedCurrency = useMemo(
     () =>
@@ -80,7 +81,6 @@ const MemberLivePodcast = () => {
 
   const clearRoom = useLiveKitStore(state => state.clearRoom)
   const room = useLiveKitStore(state => state.room)
-  const { participants: roomParticipants } = useLiveRoomSnapshot(room)
   const connectionState = useLiveKitStore(state => state.connectionState)
   const isMuted = useLiveKitStore(state => state.isMuted)
   const setIsMuted = useLiveKitStore(state => state.setIsMuted)
@@ -90,8 +90,22 @@ const MemberLivePodcast = () => {
   const [hasRaisedHand, setHasRaisedHand] = useState<boolean>(false)
   const canSpeak = isApprovedToSpeak && !hasHungUpSpeaker
   const isConnecting = connectionState !== "connected"
-  const participantCount = roomParticipants.filter((participant) => participant.id !== hostId).length
 
+  useAudienceRoom(livekitRoomName, id)
+
+  const {messages, isLoading: isChatLoading, sendMessage, editMessage, deleteMessage, canDeleteMessage, canEditMessage} = useRoomChat(
+    room,
+    id,
+    profile?.id ?? '',
+    profile?.role
+  )
+
+  // The host persists join/leave events. Members only render the resulting
+  // CHAT event, avoiding a duplicate system message from every client.
+  const handleParticipantChange = useCallback((_action: 'joined' | 'left', _participantId: string, _participantName: string) => {}, [])
+
+  const { participants: roomParticipants } = useLiveRoomSnapshot(room, handleParticipantChange)
+  const participantCount = roomParticipants.filter((participant) => participant.id !== hostId).length
   const activeCoverUrl = backgroundUrl ?? coverImageUrl ?? null
   const hostSnapshot = roomParticipants.find((participant) => participant.id === hostId)
 
@@ -145,8 +159,6 @@ const MemberLivePodcast = () => {
     return Array.from(byId.values()).sort((a, b) => a.createdAt - b.createdAt)
   }, [localLoveBursts, loveBursts])
 
-  useAudienceRoom(livekitRoomName, id)
-
   useEffect(() => {
     const showSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
       setKeyboardHeight(event.endCoordinates.height)
@@ -187,16 +199,13 @@ const MemberLivePodcast = () => {
     }, [id, profile?.id, clearRoom, router])
   )
 
-  const {messages, sendMessage} = useRoomChat(
-      room,
-      id,
-      profile?.id ?? ''
-    )
-
   const handleSendMessage = async () => {
     if (!message.trim()) return
-    await sendMessage(message, profile?.full_name ?? "User", profile?.avatar_url ?? null)
-    setMessage('')
+    const result = await sendMessage(message, profile?.full_name ?? "User", profile?.avatar_url ?? null, replyingTo?.messageId)
+    if (result.ok) {
+      setMessage('')
+      setReplyingTo(null)
+    }
   }
   const canSendMessage = message.trim().length > 0
 
@@ -391,7 +400,21 @@ const MemberLivePodcast = () => {
             participants={speakerGridParticipants}
           />
 
-          <PodcastComments messages={messages} footerPadding={scrollPaddingBottom} />
+          <PodcastComments
+            messages={messages}
+            isLoading={isChatLoading}
+            footerPadding={scrollPaddingBottom}
+            currentUserId={profile?.id}
+            onEditMessage={editMessage}
+            onDeleteMessage={deleteMessage}
+            canDeleteMessage={canDeleteMessage}
+            canEditMessage={canEditMessage}
+            onReplyToMessage={(messageId, senderName) => {
+              setReplyingTo({ messageId, senderName })
+            }}
+            replyingTo={replyingTo}
+            onCancelReply={() => setReplyingTo(null)}
+          />
         </View>
 
         <PodcastBottomDock

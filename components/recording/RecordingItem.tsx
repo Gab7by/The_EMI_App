@@ -1,24 +1,18 @@
-// components/RecordingItem.tsx
-import { View, Text, Pressable, ActivityIndicator } from 'react-native'
-import { Play, Pause, Square, Globe, GlobeOff } from 'lucide-react-native'
-import { formatRecordingDate, formatDuration } from '@/lib/formatters'
-import {type Recording } from '@/types/podcast-types'
-import AudioProgressBar from './AudioProgressBar'
+import { formatDuration, formatRecordingDate } from '@/lib/formatters'
+import { type Recording } from '@/types/podcast-types'
+import { Globe, GlobeOff, Pause, Play, Trash2 } from 'lucide-react-native'
+import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 
 interface RecordingItemProps {
     recording: Recording
     isActive: boolean
-    // isActive = this is the recording currently loaded in the player
     isPlaying: boolean
     isLoading: boolean
-    currentTime: number
-    duration: number
     isAdmin: boolean
     onPlay: () => void
     onToggle: () => void
-    onStop: () => void
-    onSeek: (seconds: number) => void
     onPublishToggle?: () => void
+    onDelete?: () => void
 }
 
 export default function RecordingItem({
@@ -26,32 +20,52 @@ export default function RecordingItem({
     isActive,
     isPlaying,
     isLoading,
-    currentTime,
-    duration,
     isAdmin,
     onPlay,
     onToggle,
-    onStop,
-    onSeek,
     onPublishToggle,
+    onDelete,
 }: RecordingItemProps) {
-    return (
-        <View className={`rounded-2xl px-4 py-4 mb-3 ${
-            isActive ? 'bg-[#1a3a10]' : 'bg-[#143703]'
-            // slightly different background when this item is active
-            // gives visual feedback on which recording is loaded
-        }`}>
+    const playlistColor = recording.playlist ? getPlaylistColor(recording.playlist) : '#D7FF00'
 
-            {/* Recording info */}
-            <View className="flex-row items-start justify-between mb-3">
-                <View className="flex-1 mr-3">
+    return (
+        <Pressable
+            onPress={isActive ? onToggle : onPlay}
+            disabled={isLoading}
+            className={`mb-3 rounded-[20px] px-4 py-4 ${
+                isActive ? 'bg-[#1a3a10]' : 'bg-[#143703]'
+            }`}
+        >
+            <View className="flex-row items-start justify-between">
+                <View className="flex-1 mr-3 min-w-0">
                     <Text className="text-[14px] font-semibold text-[#F2F5EE]" numberOfLines={1}>
                         {recording.podcast_title || formatRecordingDate(recording.started_at)}
                     </Text>
-                    <Text className="text-[12px] text-[#B7C0BC] mt-0.5">
+                    <Text className="text-[12px] text-[#B7C0BC] mt-0.5" numberOfLines={1}>
                         {recording.podcast_title ? formatRecordingDate(recording.started_at) : null}
-                        {recording.duration_seconds ? `${recording.podcast_title ? ' · ' : ''}${formatDuration(recording.duration_seconds)}` : ''}
                     </Text>
+
+                    {/* Playlist tag */}
+                    {recording.playlist ? (
+                        <View
+                            className="mt-1.5 self-start rounded-full px-2.5 py-1"
+                            style={{ backgroundColor: `${playlistColor}20` }}
+                        >
+                            <Text
+                                className="text-[10px] font-semibold"
+                                style={{ color: playlistColor }}
+                            >
+                                {recording.playlist}
+                            </Text>
+                        </View>
+                    ) : null}
+
+                    {/* Duration */}
+                    {recording.duration_seconds ? (
+                        <Text className="mt-1 text-[11px] text-[#B7C0BC]">
+                            {formatDuration(recording.duration_seconds)}
+                        </Text>
+                    ) : null}
                 </View>
 
                 <View className="flex-row items-center gap-2">
@@ -60,6 +74,7 @@ export default function RecordingItem({
                         <Pressable
                             onPress={onPublishToggle}
                             className="w-10 h-10 rounded-full bg-[#184832] items-center justify-center"
+                            hitSlop={8}
                         >
                             {recording.publish ? (
                                 <GlobeOff size={16} color="#D7FF00" />
@@ -68,14 +83,18 @@ export default function RecordingItem({
                             )}
                         </Pressable>
                     )}
+                    {isAdmin && onDelete && (
+                        <Pressable onPress={onDelete} className="h-10 w-10 items-center justify-center rounded-full bg-[#5A2020]" hitSlop={8}>
+                            <Trash2 size={16} color="#FFB4A9" />
+                        </Pressable>
+                    )}
 
                     {/* Play/Pause button */}
                     <Pressable
                         onPress={isActive ? onToggle : onPlay}
-                        // if this item is already loaded, toggle play/pause
-                        // if it is not loaded, start playing it
                         disabled={isLoading}
                         className="w-10 h-10 rounded-full bg-[#D7FF00] items-center justify-center"
+                        hitSlop={8}
                     >
                         {isLoading ? (
                             <ActivityIndicator size="small" color="#143703" />
@@ -87,26 +106,22 @@ export default function RecordingItem({
                     </Pressable>
                 </View>
             </View>
-
-            {/* Progress bar — only show when this recording is active */}
-            {isActive && (
-                <>
-                    <AudioProgressBar
-                        currentTime={currentTime}
-                        duration={duration}
-                        onSeek={onSeek}
-                    />
-
-                    {/* Stop button */}
-                    <Pressable
-                        onPress={onStop}
-                        className="mt-3 flex-row items-center justify-center gap-2 py-2 rounded-xl bg-[#184832]"
-                    >
-                        <Square size={13} color="#B7C0BC" />
-                        <Text className="text-[12px] text-[#B7C0BC]">Stop</Text>
-                    </Pressable>
-                </>
-            )}
-        </View>
+        </Pressable>
     )
+}
+
+const PLAYLIST_COLORS: Record<string, string> = {
+    'Lunch Prayer Fire': '#FF6B35',
+    'Priesthood Time': '#4D96FF',
+    'School of the Prophets': '#9B51E0',
+    'School of Spiritual Mysteries': '#00C9A6',
+    'Mega One Word From the Lord': '#FFD700',
+    '45 minutes in Tongues': '#FF4B5F',
+    'Prophetic Training': '#8A2BE2',
+    'Prophetic Prayers': '#32CD32',
+    'Prophetic Crossover Service': '#FF8C00',
+}
+
+function getPlaylistColor(playlist: string): string {
+    return PLAYLIST_COLORS[playlist] ?? '#D7FF00'
 }

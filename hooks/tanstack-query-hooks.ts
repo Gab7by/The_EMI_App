@@ -2,12 +2,12 @@ import { getMusicTracks } from "@/lib/music";
 import { getActiveLivePodcastParticipants, getLiveSessions, getParticipantCount } from "@/lib/podcast";
 import { useQuery } from "@tanstack/react-query";
 
-export const useLivePodcastSessions = () => {
+export const useLivePodcastSessions = (hostId?: string) => {
     return useQuery({
-    queryKey: ["live-podcast-sessions"],
-    queryFn: () => getLiveSessions(),
-    staleTime: 1000 * 60 * 5
-})
+        queryKey: ["live-podcast-sessions", hostId ?? 'public'],
+        queryFn: () => getLiveSessions(hostId),
+        staleTime: 1000 * 60 * 5
+    })
 }
 
 export const useLivePodcastParticipants = (hostId: string, podcastId: string) => {

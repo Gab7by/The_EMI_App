@@ -47,6 +47,9 @@ export type Playlist =
   | 'School of Spiritual Mysteries'
   | 'Mega One Word From the Lord'
   | '45 minutes in Tongues'
+  | 'Prophetic Training'
+  | 'Prophetic Prayers'
+  | 'Prophetic Crossover Service'
 
 export type PlaylistOption = {
     label: string
@@ -59,7 +62,10 @@ export const PLAYLISTS: Playlist[] = [
   'School of the Prophets',
   'School of Spiritual Mysteries',
   'Mega One Word From the Lord',
-  '45 minutes in Tongues'
+  '45 minutes in Tongues',
+  'Prophetic Training',
+  'Prophetic Prayers',
+  'Prophetic Crossover Service'
 ]
 
 export type LivePodcastParticipant = {
@@ -112,7 +118,13 @@ export const PLAYLIST_OPTIONS = PLAYLISTS.map((playlist) => ({
   value: playlist,
 }))
 
-export type MessageType = 'text' | 'image'
+export type MessageType = 'text' | 'image' | 'system'
+
+export type ReplyPreview = {
+  sender_name: string
+  content: string
+  message_type: MessageType
+}
 
 export type LiveMessage = {
   id: string
@@ -123,7 +135,33 @@ export type LiveMessage = {
   content: string 
   message_type: MessageType
   created_at: string
+  reply_to_id: string | null
+  reply_preview: ReplyPreview | null
+  edited_at: string | null
   isLocal?: boolean
+}
+
+/**
+ * Result of an asynchronous chat mutation (send / edit / delete).
+ * `ok` is `false` when the operation failed so the UI can show an
+ * error snackbar instead of silently pretending everything worked.
+ */
+export type ChatActionResult = {
+  ok: boolean
+  error?: string | null
+}
+
+export type LivePodcastInvitationStatus = 'pending' | 'accepted' | 'expired' | 'revoked'
+
+export type LivePodcastInvitation = {
+  id: string
+  podcast_id: string
+  inviter_id: string
+  invitee_id: string
+  status: LivePodcastInvitationStatus
+  created_at: string
+  expires_at: string | null
+  accepted_at: string | null
 }
 
 export type PodcastBackgroundProps = {
@@ -155,4 +193,5 @@ export type Recording = {
   started_at: string
   duration_seconds: number | null
   podcast_title?: string
+  playlist?: string
 }

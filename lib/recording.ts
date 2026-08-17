@@ -5,7 +5,7 @@ export const startRecording = async (
     roomName: string,
     podcastId: string): Promise<string | null> => {
 
-        const {data, error} = await supabase.functions.invoke("livekit-start-recording", {
+        const { data, error} = await supabase.functions.invoke("livekit-start-recording", {
             body: {roomName, podcastId}
         })
 
@@ -35,12 +35,16 @@ export const stopRecording = async (
 
 }
 
-export const getRecordings = async (isAdmin: boolean = false): Promise<Recording[]> => {
+export const getRecordings = async (
+    isAdmin: boolean = false,
+    limit: number = 10,
+    offset: number = 0
+): Promise<Recording[]> => {
     let query = supabase
         .from("podcast_recordings")
         .select(`
             *,
-            live_podcasts!inner(title)
+            live_podcasts!inner(title, playlist)
         `)
         .eq("status", "completed")
 
@@ -49,8 +53,9 @@ export const getRecordings = async (isAdmin: boolean = false): Promise<Recording
         query = query.eq("publish", true)
     }
 
-    const {data, error} = await query
+    const { data, error} = await query
         .order("started_at", { ascending: false })
+        .range(offset, offset + limit - 1)
 
     if (error) {
         console.error("Error fetching recordings:", error)
@@ -67,6 +72,7 @@ export const getRecordings = async (isAdmin: boolean = false): Promise<Recording
         started_at: item.started_at,
         duration_seconds: item.duration_seconds,
         podcast_title: item.live_podcasts?.title ?? null,
+        playlist: item.live_podcasts?.playlist ?? null,
     })) as Recording[]
 }
 
@@ -84,6 +90,19 @@ export const toggleRecordingPublish = async (
         return false
     }
 
+    return true
+}
+
+export const deleteRecording = async (recording: Recording): Promise<boolean> => {
+    const { error } = await supabase.from("podcast_recordings").delete().eq("id", recording.id)
+    if (error) {
+        console.error("Error deleting recording:", error)
+        return false
+    }
+    if (recording.file_path) {
+        const { error: storageError } = await supabase.storage.from("recordings").remove([recording.file_path])
+        if (storageError) console.warn("Recording row deleted but storage cleanup failed:", storageError)
+    }
     return true
 }
 

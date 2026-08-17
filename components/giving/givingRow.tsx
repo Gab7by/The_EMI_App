@@ -16,10 +16,13 @@ const GivingRow = ({ icon, title, description, iconColor, onPress }: GivingRowPr
     const backgroundColor = iconColor ?? Colors.menorah.primary
 
     return (
-        <Pressable onPress={onPress} className="p-4 bg-menorah-darkGreen rounded-xl active:bg-white/5">
+        <Pressable onPress={onPress} className="rounded-[22px] border border-white/10 bg-[#10321D] p-4 active:bg-white/5">
             <View className="flex-row items-center">
-                <View className="rounded-full p-2 justify-center mr-4" style={{ backgroundColor }}>
+                <View className="mr-4 rounded-2xl p-3 justify-center" style={{ backgroundColor }}>
                     <Icon as={icon} size={24} className="text-menorah-bg" />
+                </View>
+                <View className="h-8 w-8 items-center justify-center rounded-full bg-white/5">
+                    <Text className="text-lg text-menorah-primary">›</Text>
                 </View>
                 <View className="flex-1 justify-center gap-0.5">
                     <Text className="text-white font-bold text-base">{title}</Text>

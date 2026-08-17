@@ -1,4 +1,5 @@
 import { getLiveKitToken } from "@/lib/livekit";
+import { startLiveForegroundService, stopForegroundService } from "@/lib/foreground-service";
 import { PODCAST_MIC_CAPTURE_OPTIONS, PODCAST_ROOM_AUDIO_CAPTURE_DEFAULTS } from "@/lib/livekit-audio";
 import type { LiveKitRoomRole, LiveKitStore } from "@/types/livekit-types";
 import type { ConnectionState, Room } from "livekit-client";
@@ -85,6 +86,8 @@ export const useLiveKitStore = create<LiveKitStore>(
                     return
                 }
 
+                // Ensure Android's foreground service is alive before WebRTC starts.
+                await startLiveForegroundService(role === "host" ? "microphone" : "mediaPlayback")
                 const wsUrl = process.env.EXPO_PUBLIC_LIVEKIT_URL!
                 await room.connect(wsUrl, token)
 
@@ -130,6 +133,7 @@ export const useLiveKitStore = create<LiveKitStore>(
             connectTarget = null
             const {room} = get()
             disconnectRoom(room)
+            void stopForegroundService()
 
             set({
                 room: null,
