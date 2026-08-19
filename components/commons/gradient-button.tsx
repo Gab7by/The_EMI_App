@@ -5,12 +5,12 @@ import {LinearGradient} from "expo-linear-gradient"
 const GradientButton = ({colors, text, end, start, textColor}: GradientButtonProps) => {
     return (
         <Pressable className="w-full">
-            <LinearGradient
-                colors={colors}
-                start={start}
-                end={end}
-                className="rounded-xl"
-            >
+                <LinearGradient
+                    colors={colors}
+                    start={start}
+                    end={end}
+                    style={{ borderRadius: 12 }}
+                >
                 <Text className="font-bold" style={{color: textColor}}>
                     {text}
                 </Text>

@@ -3,28 +3,28 @@ import { hapticHeavy, hapticLight, hapticMedium } from "@/lib/haptics";
 import { ChatActionResult, LiveMessage, PodcastBackgroundProps } from "@/types/podcast-types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
+import { Directory, File, Paths } from 'expo-file-system';
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { Directory, File, Paths } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Keyboard,
-    Modal,
-    Platform,
-    Pressable,
-    Image as RNImage,
-    StyleSheet,
-    Text,
-    TextInput,
-    useWindowDimensions,
-    View,
-    type LayoutChangeEvent,
-    type NativeScrollEvent,
-    type NativeSyntheticEvent
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Keyboard,
+  Modal,
+  Platform,
+  Pressable,
+  Image as RNImage,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -1020,8 +1020,7 @@ export const PodcastComments = memo(({
   const listHeader = useMemo(() => (
     <View className="mb-5 rounded-2xl bg-menorah-bg/90 px-3.5 py-3">
       <Text className="text-[11px] leading-4 text-[#FFD700]">
-        Please keep comments respectful and uplifting. "Let your words edify and
-        bring grace to those who hear." - Ephesians 4:29.
+        Please keep comments respectful and uplifting. Let your words edify and bring grace to those who hear. — Ephesians 4:29.
       </Text>
     </View>
   ), [])
