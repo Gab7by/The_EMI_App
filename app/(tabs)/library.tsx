@@ -1,20 +1,18 @@
 import RecordingItem from '@/components/recording/RecordingItem'
 import RecordingPlayerScreen from '@/components/recording/RecordingPlayerScreen'
 import { useRecordingPlayer } from '@/hooks/useRecordingPlayer'
-import { hapticMedium } from '@/lib/haptics'
 import { deleteRecording, getRecordings, toggleRecordingPublish } from '@/lib/recording'
 import { useAuthStore } from '@/store/authStore'
-import { PLAYLISTS } from '@/types/podcast-types'
+// playlist filters removed per request; search-only
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useCallback, useMemo, useState } from 'react'
-import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
-const INITIAL_LIMIT = 10
-const ADMIN_INITIAL_LIMIT = 15
-const PAGE_SIZE = 10
+const USER_PAGE_SIZE = 15
+const ADMIN_PAGE_SIZE = 20
 
 export default function LibraryScreen() {
     const profile = useAuthStore((state) => state.profile)
@@ -23,12 +21,12 @@ export default function LibraryScreen() {
     const queryClient = useQueryClient()
     const [showDisclaimer, setShowDisclaimer] = useState(!isAdmin)
     const [disclaimerAccepted, setDisclaimerAccepted] = useState(false)
-    const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null)
+    const [searchQuery, setSearchQuery] = useState('')
     const [playerVisible, setPlayerVisible] = useState(false)
     const [activeRecording, setActiveRecording] = useState<any>(null)
-    const [visibleCount, setVisibleCount] = useState(isAdmin ? ADMIN_INITIAL_LIMIT : INITIAL_LIMIT)
+    const [visibleCount, setVisibleCount] = useState(isAdmin ? ADMIN_PAGE_SIZE : USER_PAGE_SIZE)
     const [isLoadingMore, setIsLoadingMore] = useState(false)
-    const [searchQuery, setSearchQuery] = useState('')
+    
 
     const { data: recordings = [], isLoading, refetch, isRefetching } = useQuery({
         queryKey: ['recordings', isAdmin ? 'admin' : 'member'],
@@ -59,13 +57,12 @@ export default function LibraryScreen() {
     const filteredRecordings = useMemo(() => {
         const query = searchQuery.trim().toLowerCase()
         return recordings.filter((recording) => {
-            const matchesPlaylist = !selectedPlaylist || recording.playlist === selectedPlaylist
             const matchesSearch = !query || [recording.podcast_title, recording.playlist]
                 .filter(Boolean)
                 .some((value) => value!.toLowerCase().includes(query))
-            return matchesPlaylist && matchesSearch
+            return matchesSearch
         })
-    }, [recordings, selectedPlaylist, searchQuery])
+    }, [recordings, searchQuery])
 
     // Update the player's recordings list when filtered recordings change
     const handlePlay = useCallback(async (recording: any, index: number) => {
@@ -116,17 +113,15 @@ export default function LibraryScreen() {
         setDisclaimerAccepted(true)
     }, [])
 
-    const handlePlaylistSelect = useCallback((playlist: string | null) => {
-        hapticMedium()
-        setSelectedPlaylist(playlist)
-    }, [])
+    // playlist filters removed; only search is used
 
     const handleLoadMore = useCallback(async () => {
         if (isLoadingMore) return
         setIsLoadingMore(true)
         try {
-            const nextCount = visibleCount + PAGE_SIZE
-            const more = await getRecordings(isAdmin, PAGE_SIZE, visibleCount)
+            const pageSize = isAdmin ? ADMIN_PAGE_SIZE : USER_PAGE_SIZE
+            const nextCount = visibleCount + pageSize
+            const more = await getRecordings(isAdmin, pageSize, visibleCount)
             if (more.length > 0) {
                 setVisibleCount(nextCount)
                 queryClient.setQueryData(
@@ -161,17 +156,7 @@ export default function LibraryScreen() {
                                 Sermons, books, and teachings
                             </Text>
                         </View>
-                        {selectedPlaylist && (
-                            <Pressable
-                                onPress={() => handlePlaylistSelect(null)}
-                                className="rounded-full bg-white/10 px-3 py-1.5"
-                                hitSlop={8}
-                            >
-                                <Text className="text-[11px] font-semibold text-[#B7C0BC]">
-                                    Clear Filter
-                                </Text>
-                            </Pressable>
-                        )}
+                        
                     </View>
 
                     {/* Sermons primary text */}
@@ -197,41 +182,7 @@ export default function LibraryScreen() {
                         ) : null}
                     </View>
 
-                    {/* Playlist Filter Chips */}
-                    <View className="mb-5 flex-row flex-wrap gap-2">
-                        <TouchableOpacity
-                            onPress={() => handlePlaylistSelect(null)}
-                            className={`rounded-full px-4 py-2 ${
-                                !selectedPlaylist ? 'bg-[#D7FF00]/20' : 'bg-white/5'
-                            }`}
-                            activeOpacity={0.7}
-                        >
-                            <Text className={`text-[12px] font-medium ${
-                                !selectedPlaylist ? 'text-[#D7FF00]' : 'text-[#B7C0BC]'
-                            }`}>
-                                All
-                            </Text>
-                        </TouchableOpacity>
-                        {PLAYLISTS.map((playlist) => {
-                            const isSelected = selectedPlaylist === playlist
-                            return (
-                                <TouchableOpacity
-                                    key={playlist}
-                                    onPress={() => handlePlaylistSelect(playlist)}
-                                    className={`rounded-full px-4 py-2 ${
-                                        isSelected ? 'bg-[#D7FF00]/20' : 'bg-white/5'
-                                    }`}
-                                    activeOpacity={0.7}
-                                >
-                                    <Text className={`text-[12px] font-medium ${
-                                        isSelected ? 'text-[#D7FF00]' : 'text-[#B7C0BC]'
-                                    }`}>
-                                        {playlist}
-                                    </Text>
-                                </TouchableOpacity>
-                            )
-                        })}
-                    </View>
+                                    {/* Playlist filters removed — search-only UI */}
 
                     {/* Disclaimer Modal for members */}
                     <Modal
@@ -256,7 +207,7 @@ export default function LibraryScreen() {
                                 </Text>
 
                                 <Text className="text-[13px] leading-6 text-[#B7C0BC] text-center mb-6">
-                                    The recordings feature is still under development. Some recordings may not play correctly or may have limited functionality. If you'd like to test it out, feel free to proceed.
+                                    The recordings feature is still under development. Some recordings may not play correctly or may have limited functionality. If you would like to test it out, feel free to proceed.
                                 </Text>
 
                                 <Pressable

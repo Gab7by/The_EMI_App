@@ -25,9 +25,14 @@ const Home = () => {
         <ImageSlider items={imageItems} height={196} />
         <View className="gap-4">
           <View><Text className="text-[11px] font-bold uppercase tracking-[1.5px] text-menorah-primary">Welcome home</Text><Text className="mt-1 text-2xl font-bold text-white">The Menorah</Text></View>
-          <LinearGradient colors={["#D8FF37", "#B7EC00"]} start={{x:0,y:0}} end={{x:1,y:1}} className="justify-center overflow-hidden rounded-[28px] p-6">
+          <LinearGradient
+            colors={["#D8FF37", "#B7EC00"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ overflow: 'hidden', borderRadius: 28, padding: 24, alignItems: 'flex-start' }}
+          >
             <View className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/20" />
-            <View className="mb-6">
+            <View className="mb-6 self-start">
               <Sparkling width={25} height={25} />
             </View>
             <Text className="mb-2 text-[11px] font-bold uppercase tracking-[1px] text-[#0B1F0E]/70">Featured teaching</Text>
