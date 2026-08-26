@@ -153,12 +153,13 @@ const AdminLivePodcast = () => {
     profile?.role
   )
 
-  const handleParticipantChange = useCallback((action: 'joined' | 'left', _participantId: string, participantName: string) => {
-    if (action === 'joined') {
-      void sendSystemMessage(`${participantName} joined the live room`, `joined:${_participantId}`)
-    } else {
-      void sendSystemMessage(`${participantName} left the live room`, `left:${_participantId}`)
-    }
+  // Only "joined" gets a durable room event. "left" is intentionally not
+  // persisted - it added noise (people dropping in and out during a long
+  // live session) without being useful history, and doubled the row count
+  // every session was writing to Supabase.
+  const handleParticipantChange = useCallback((action: 'joined' | 'left', participantId: string, participantName: string) => {
+    if (action !== 'joined') return
+    void sendSystemMessage(`${participantName} joined the live room`, `joined:${participantId}`)
   }, [sendSystemMessage])
 
   const { participants: roomParticipants } = useLiveRoomSnapshot(room, handleParticipantChange)

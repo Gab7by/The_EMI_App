@@ -1050,12 +1050,15 @@ export const PodcastComments = memo(({
 
   // ── Render a single message ─────────────────────────────────────────
   const renderMessage = useCallback(({ item }: { item: LiveMessage }) => {
-    // System messages (join/leave notifications)
+    // System messages (room events, e.g. "X joined the live room")
     if (item.message_type === 'system') {
       return (
-        <View className="mb-3 items-center">
-          <View className="rounded-full bg-white/5 px-4 py-1.5">
-            <Text className="text-[10px] text-white/40 italic">{item.content}</Text>
+        <View className="mb-2 items-center">
+          <View className="flex-row items-center rounded-full bg-white/[0.06] px-2.5 py-1">
+            <MaterialCommunityIcons name="account-check-outline" size={10} color="rgba(255,255,255,0.35)" />
+            <Text className="ml-1 text-[9px] font-medium tracking-wide text-white/35">
+              {item.content}
+            </Text>
           </View>
         </View>
       )
@@ -1137,29 +1140,23 @@ export const PodcastComments = memo(({
                 ) : (
                   <>
                     {item.message_type === 'image' ? (
-                      <View>
-                        <ChatImage uri={item.content} maxWidth={imageWidth} onPress={handleImagePress} />
-                        {item.edited_at && (
-                          <Text className={`text-[9px] mt-1 ${isOwn ? 'text-[#143703]/60' : 'text-white/40'}`}>
-                            (edited)
-                          </Text>
-                        )}
-                      </View>
+                      <ChatImage uri={item.content} maxWidth={imageWidth} onPress={handleImagePress} />
                     ) : (
                       <View
-                        className={`rounded-2xl px-4 py-3 ${
-                          isOwn ? "bg-[#D7FF00]" : "self-start bg-white/20"
-                        } ${isSelected ? 'border-2 border-[#D7FF00]' : ''}`}
-                        style={{ maxWidth: width * 0.68, minHeight: 44 }}
+                        className={`rounded-2xl px-4 py-3 ${isOwn ? "rounded-br-md bg-[#D7FF00]" : "self-start rounded-bl-md bg-white/20"} ${isSelected ? 'border-2 border-[#D7FF00]' : ''}`}
+                        style={{
+                          maxWidth: width * 0.68,
+                          minHeight: 44,
+                          shadowColor: '#000',
+                          shadowOpacity: 0.18,
+                          shadowRadius: 5,
+                          shadowOffset: { width: 0, height: 2 },
+                          elevation: 2,
+                        }}
                       >
                         <Text className={`text-[13px] font-semibold leading-5 ${isOwn ? 'text-[#143703]' : 'text-menorah-whiteSoft'}`}>
                           {item.content}
                         </Text>
-                        {item.edited_at && (
-                          <Text className={`text-[9px] mt-1 ${isOwn ? 'text-[#143703]/60' : 'text-white/40'}`}>
-                            (edited)
-                          </Text>
-                        )}
                       </View>
                     )}
                   </>
@@ -1173,6 +1170,14 @@ export const PodcastComments = memo(({
                 </View>
               )}
             </View>
+
+            {/* Timestamp, plus an "edited" marker when applicable */}
+            {!isEditing && (
+              <Text className="mt-1 text-[9px] text-white/35">
+                {new Date(item.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                {item.edited_at ? " · edited" : ""}
+              </Text>
+            )}
 
             {/* Anchored action menu — appears directly under the bubble */}
             {isSelected && !isEditing && (
