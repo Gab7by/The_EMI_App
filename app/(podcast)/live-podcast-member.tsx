@@ -27,6 +27,7 @@ import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { hapticMedium } from "@/lib/haptics";
 import { PODCAST_MIC_CAPTURE_OPTIONS } from "@/lib/livekit-audio";
+import { ensureMicrophonePermission } from "@/lib/permissions";
 import { lowerHand, raiseHand, revokeOwnSpeaker, sendLoveSignal } from "@/lib/livekit-signals";
 import { getLivePodcastStatus, joinLivePodcastParticipant, leaveLivePodcastParticipant, updateParticipantCalledIn } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
@@ -211,19 +212,34 @@ const MemberLivePodcast = () => {
 
   useEffect(() => {
     if (!isApprovedToSpeak || !room || hasHungUpSpeaker) return
-    
-    room.localParticipant
-      .setMicrophoneEnabled(true, PODCAST_MIC_CAPTURE_OPTIONS)
-      .then(() => {
-        setIsMuted(false)
-        setForegroundServiceType("microphone")
-        setHasRaisedHand(false)
-        setHasHungUpSpeaker(false)
-        queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
-      })
-      .catch((error) => {
-        console.error("Failed to enable speaker microphone", error)
-      })
+
+    let cancelled = false
+
+    ensureMicrophonePermission().then((granted) => {
+      if (cancelled) return
+
+      if (!granted) {
+        console.error("Microphone permission denied - cannot enable speaker microphone")
+        return
+      }
+
+      return room.localParticipant
+        .setMicrophoneEnabled(true, PODCAST_MIC_CAPTURE_OPTIONS)
+        .then(() => {
+          if (cancelled) return
+          setIsMuted(false)
+          setForegroundServiceType("microphone")
+          setHasRaisedHand(false)
+          setHasHungUpSpeaker(false)
+          queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+        })
+    }).catch((error) => {
+      console.error("Failed to enable speaker microphone", error)
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [hasHungUpSpeaker, id, isApprovedToSpeak, room, setForegroundServiceType, setIsMuted])
 
   useEffect(() => {
@@ -276,6 +292,15 @@ const MemberLivePodcast = () => {
     try {
       if (canSpeak) {
         const nextMutedState = !isMuted
+
+        if (!nextMutedState) {
+          const granted = await ensureMicrophonePermission()
+          if (!granted) {
+            console.error("Microphone permission denied - cannot unmute")
+            return
+          }
+        }
+
         await room.localParticipant.setMicrophoneEnabled(
           !nextMutedState,
           !nextMutedState ? PODCAST_MIC_CAPTURE_OPTIONS : undefined

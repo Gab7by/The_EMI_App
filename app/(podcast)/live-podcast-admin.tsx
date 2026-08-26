@@ -27,6 +27,7 @@ import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { hapticMedium } from "@/lib/haptics";
 import { BACKGROUND_MUSIC_DEFAULT_VOLUME, BACKGROUND_MUSIC_VOLUME_STEP, PODCAST_MIC_CAPTURE_OPTIONS } from "@/lib/livekit-audio";
 import { approveSpeaker, muteSpeaker, revokeSpeaker, sendBackgroundChangedSignal, sendSessionEnded } from "@/lib/livekit-signals";
+import { ensureMicrophonePermission } from "@/lib/permissions";
 import { closeLiveKitRoom, endLiveSession, updateParticipantCalledIn } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { startRecording, stopRecording } from "@/lib/recording";
@@ -285,9 +286,17 @@ const AdminLivePodcast = () => {
 }
 
   const handleToggleMic = async () => {
-    if (!room) return 
+    if (!room) return
 
     const newMutedState = !isMuted
+
+    if (!newMutedState) {
+      const granted = await ensureMicrophonePermission()
+      if (!granted) {
+        console.error("Microphone permission denied - cannot unmute")
+        return
+      }
+    }
 
     await room.localParticipant.setMicrophoneEnabled(
       !newMutedState,
