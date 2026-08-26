@@ -117,7 +117,11 @@ export const podcastCurrencies: PodcastCurrencyOption[] = [
   { id: "zar", label: "South African Rand", flag: "ZA" },
 ];
 
-export const MAX_GUEST_SPEAKERS = 10;
+// Total people who can be "on mic" at once, host included. Every call site
+// counts guest speakers only (host is tracked separately), so the guest cap
+// is one less than the total.
+export const MAX_TOTAL_SPEAKERS = 10;
+export const MAX_GUEST_SPEAKERS = MAX_TOTAL_SPEAKERS - 1;
 export const SPEAKER_LIMIT_MESSAGE = "Speaker slots are full. Please try again shortly.";
 
 export const renderPaymentMethodIcon = (iconKey: PodcastPaymentMethod["iconKey"]) => {
@@ -265,77 +269,150 @@ export const PodcastParticipantsGrid = memo(({
 
   return (
     <View className={layout.containerStyle}>
-      {participants.map((participant) => {
-        const isSpeaking = !!participant.isSpeaking;
-        const glowOpacity = Math.min(0.75, 0.28 + (participant.audioLevel ?? 0) * 1.4);
-        const glowScale = 1.08 + Math.min(0.12, (participant.audioLevel ?? 0) * 0.2);
-
-        return (
-          <View
-            key={participant.id}
-            className={layout.isFewParticipants ? "mb-4 items-center" : "mb-1 items-center px-0.5"}
-            style={layout.isFewParticipants ? undefined : { width: "20%" }}
-          >
-            <View
-              className="items-center justify-center rounded-full"
-              style={{ height: layout.avatarSize + 10, width: layout.avatarSize + 10 }}
-            >
-              {isSpeaking ? (
-                <>
-                  <View
-                    pointerEvents="none"
-                    className="absolute rounded-full bg-[#D7FF00]"
-                    style={{
-                      height: layout.avatarSize + 10,
-                      width: layout.avatarSize + 10,
-                      opacity: glowOpacity,
-                      transform: [{ scale: glowScale }],
-                    }}
-                  />
-                  <View
-                    pointerEvents="none"
-                    className="absolute rounded-full border-2 border-[#D7FF00]"
-                    style={{
-                      height: layout.avatarSize + 8,
-                      width: layout.avatarSize + 8,
-                      shadowColor: "#D7FF00",
-                      shadowOpacity: 0.9,
-                      shadowRadius: 14,
-                      shadowOffset: { width: 0, height: 0 },
-                      elevation: 10,
-                    }}
-                  />
-                </>
-              ) : null}
-              <View
-                className={`items-center justify-center rounded-full border bg-[#C8D2BC] ${
-                  isSpeaking ? "border-[#D7FF00]" : "border-white/40"
-                }`}
-                style={{ height: layout.avatarSize, width: layout.avatarSize }}
-              >
-                <HostAvatar
-                  hostName={participant.name}
-                  hostPictureUrl={participant.pictureUrl}
-                  size={layout.avatarSize - 4}
-                  textClassName="text-2xl font-bold text-menorah-primary"
-                />
-              </View>
-            </View>
-            <Text
-              className={`mt-1 text-center text-[10px] ${
-                isSpeaking ? "font-semibold text-[#D7FF00]" : "text-menorah-whiteSoft/85"
-              }`}
-              numberOfLines={1}
-            >
-              {participant.name}
-            </Text>
-          </View>
-        );
-      })}
+      {participants.map((participant) => (
+        <ParticipantBubble
+          key={participant.id}
+          name={participant.name}
+          pictureUrl={participant.pictureUrl}
+          isSpeaking={!!participant.isSpeaking}
+          audioLevel={participant.audioLevel ?? 0}
+          avatarSize={layout.avatarSize}
+          isFewParticipants={layout.isFewParticipants}
+        />
+      ))}
     </View>
   );
 });
 PodcastParticipantsGrid.displayName = "PodcastParticipantsGrid";
+
+// ─────────────────────────────────────────────────────────────────────
+// ParticipantBubble — a single avatar in the grid, with a smooth "breathing"
+// halo while the participant is speaking. Modeled on the ring-style speaking
+// indicator common to live-audio apps (Clubhouse/Twitter Spaces/Discord): a
+// soft, continuously-pulsing glow reads as "live audio" far better than a
+// static disc that just snaps on/off with each state update.
+// ─────────────────────────────────────────────────────────────────────
+type ParticipantBubbleProps = {
+  name: string;
+  pictureUrl?: string | null;
+  isSpeaking: boolean;
+  audioLevel: number;
+  avatarSize: number;
+  isFewParticipants: boolean;
+};
+
+const ParticipantBubble = memo(({
+  name,
+  pictureUrl,
+  isSpeaking,
+  audioLevel,
+  avatarSize,
+  isFewParticipants,
+}: ParticipantBubbleProps) => {
+  // 0 → 1, eased in/out whenever speaking starts/stops - this is what makes
+  // the ring fade smoothly instead of popping in the instant a snapshot
+  // update flips isSpeaking.
+  const presence = useRef(new Animated.Value(0)).current
+  // A slow, continuous breathing loop, only running while speaking.
+  const pulse = useRef(new Animated.Value(0)).current
+  const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null)
+
+  useEffect(() => {
+    Animated.timing(presence, {
+      toValue: isSpeaking ? 1 : 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start()
+
+    if (isSpeaking) {
+      pulseLoopRef.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 0, duration: 900, useNativeDriver: true }),
+        ])
+      )
+      pulseLoopRef.current.start()
+    } else {
+      pulseLoopRef.current?.stop()
+      pulse.setValue(0)
+    }
+
+    return () => {
+      pulseLoopRef.current?.stop()
+    }
+  }, [isSpeaking, presence, pulse])
+
+  const haloSize = avatarSize + 22
+  const ringSize = avatarSize + 8
+
+  return (
+    <View
+      className={isFewParticipants ? "mb-4 items-center" : "mb-1 items-center px-0.5"}
+      style={isFewParticipants ? undefined : { width: "20%" }}
+    >
+      <View className="items-center justify-center" style={{ height: haloSize, width: haloSize }}>
+        {/* Outer halo - soft, low-opacity, breathes slowly while speaking */}
+        <Animated.View
+          pointerEvents="none"
+          className="absolute rounded-full bg-[#D7FF00]"
+          style={{
+            height: haloSize,
+            width: haloSize,
+            opacity: Animated.multiply(
+              presence,
+              pulse.interpolate({ inputRange: [0, 1], outputRange: [0.14, 0.3] })
+            ),
+            transform: [
+              {
+                scale: Animated.add(
+                  0.9,
+                  Animated.multiply(presence, pulse.interpolate({ inputRange: [0, 1], outputRange: [0, 0.14] }))
+                ),
+              },
+            ],
+          }}
+        />
+        {/* Inner ring - crisp, audio-level reactive glow right at the avatar edge */}
+        <Animated.View
+          pointerEvents="none"
+          className="absolute rounded-full border-2 border-[#D7FF00]"
+          style={{
+            height: ringSize,
+            width: ringSize,
+            opacity: presence,
+            shadowColor: "#D7FF00",
+            shadowOpacity: 0.5 + Math.min(0.4, audioLevel * 0.6),
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 0 },
+            elevation: 8,
+          }}
+        />
+        <View
+          className={`items-center justify-center rounded-full border bg-[#C8D2BC] ${
+            isSpeaking ? "border-[#D7FF00]" : "border-white/40"
+          }`}
+          style={{ height: avatarSize, width: avatarSize }}
+        >
+          <HostAvatar
+            hostName={name}
+            hostPictureUrl={pictureUrl}
+            size={avatarSize - 4}
+            textClassName="text-2xl font-bold text-menorah-primary"
+          />
+        </View>
+      </View>
+      <Text
+        className={`mt-1 text-center text-[10px] ${
+          isSpeaking ? "font-semibold text-[#D7FF00]" : "text-menorah-whiteSoft/85"
+        }`}
+        numberOfLines={1}
+      >
+        {name}
+      </Text>
+    </View>
+  );
+});
+ParticipantBubble.displayName = "ParticipantBubble";
 
 // ─────────────────────────────────────────────────────────────────────
 // PodcastComments – types & component

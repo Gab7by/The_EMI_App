@@ -754,12 +754,11 @@ const MemberLivePodcast = () => {
           </View>
         ) : null}
 
-        <View pointerEvents="none" className="absolute bottom-24 right-8 h-[220px] w-[96px] overflow-visible">
-          {visibleLoveBursts.map((love, index) => (
+        <View pointerEvents="none" className="absolute bottom-24 right-6 h-[240px] w-[160px] overflow-visible">
+          {visibleLoveBursts.map((love) => (
             <FloatingLove
               key={love.id}
               burstId={love.id}
-              index={index}
               onDone={dismissVisibleLoveBurst}
             />
           ))}
@@ -769,58 +768,82 @@ const MemberLivePodcast = () => {
   );
 };
 
+// A warm, varied palette so a burst of hearts reads as a lively shower
+// rather than identical icons stamped out one after another.
+const LOVE_HEART_COLORS = ["#FF4B1F", "#FF6F91", "#FFA53D", "#FF3D68"]
+
 const FloatingLove = ({
   burstId,
-  index,
   onDone,
 }: {
   burstId: string
-  index: number
   onDone: (burstId: string) => void
 }) => {
   const progress = useRef(new Animated.Value(0)).current
-  const drift = useMemo(() => ((index % 5) - 2) * 9, [index])
+
+  // Randomized once per burst (stable for this component's lifetime, since
+  // burstId never changes) so each heart takes its own path, speed, size and
+  // tilt - and, critically, so an in-flight heart's trajectory never shifts
+  // just because an earlier heart finished and the list re-indexed.
+  const flight = useMemo(() => ({
+    originX: (Math.random() - 0.5) * 28,
+    driftMid: (Math.random() - 0.5) * 100,
+    driftEnd: (Math.random() - 0.5) * 70,
+    rotate: (Math.random() - 0.5) * 34,
+    size: 24 + Math.random() * 18,
+    color: LOVE_HEART_COLORS[Math.floor(Math.random() * LOVE_HEART_COLORS.length)],
+    duration: 1500 + Math.random() * 600,
+    peakOpacity: 0.55 + Math.random() * 0.25,
+    rise: 190 + Math.random() * 60,
+  }), [])
 
   useEffect(() => {
     Animated.timing(progress, {
       toValue: 1,
-      duration: 1500,
+      duration: flight.duration,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start(() => onDone(burstId))
-  }, [burstId, onDone, progress])
+  }, [burstId, onDone, progress, flight.duration])
 
   return (
     <Animated.View
-      className="absolute bottom-0 right-3"
+      className="absolute bottom-0"
       style={{
+        right: 16 + flight.originX,
         opacity: progress.interpolate({
-          inputRange: [0, 0.2, 0.78, 1],
-          outputRange: [0, 1, 1, 0],
+          inputRange: [0, 0.15, 0.75, 1],
+          outputRange: [0, flight.peakOpacity, flight.peakOpacity, 0],
         }),
         transform: [
           {
             translateY: progress.interpolate({
               inputRange: [0, 1],
-              outputRange: [0, -176],
+              outputRange: [0, -flight.rise],
             }),
           },
           {
             translateX: progress.interpolate({
               inputRange: [0, 0.5, 1],
-              outputRange: [0, drift, drift * -0.3],
+              outputRange: [0, flight.driftMid, flight.driftEnd],
+            }),
+          },
+          {
+            rotate: progress.interpolate({
+              inputRange: [0, 1],
+              outputRange: ["0deg", `${flight.rotate}deg`],
             }),
           },
           {
             scale: progress.interpolate({
-              inputRange: [0, 0.35, 1],
-              outputRange: [0.55, 1.18, 1.55],
+              inputRange: [0, 0.3, 1],
+              outputRange: [0.4, 1.15, 1],
             }),
           },
         ],
       }}
     >
-      <MaterialCommunityIcons name="heart" size={30} color="#FF4B1F" />
+      <MaterialCommunityIcons name="heart" size={flight.size} color={flight.color} />
     </Animated.View>
   )
 }
