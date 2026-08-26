@@ -18,6 +18,7 @@ import {
   SPEAKER_LIMIT_MESSAGE,
   usePodcastFooterLayout,
 } from "@/components/podcast/livePodcastShared";
+import { BibleReader } from "@/components/podcast/bibleReader";
 import { Icon } from "@/components/ui/icon";
 import { Colors } from "@/constants/theme";
 import { useHostRooom } from "@/hooks/useHostRoom";
@@ -26,7 +27,7 @@ import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { hapticMedium } from "@/lib/haptics";
 import { BACKGROUND_MUSIC_DEFAULT_VOLUME, BACKGROUND_MUSIC_VOLUME_STEP, PODCAST_MIC_CAPTURE_OPTIONS } from "@/lib/livekit-audio";
-import { approveSpeaker, muteSpeaker, revokeSpeaker, sendBackgroundChangedSignal, sendSessionEnded } from "@/lib/livekit-signals";
+import { approveSpeaker, muteSpeaker, revokeSpeaker, sendBackgroundChangedSignal, sendBibleNavigation, sendSessionEnded } from "@/lib/livekit-signals";
 import { ensureMicrophonePermission } from "@/lib/permissions";
 import { closeLiveKitRoom, endLiveSession, updateParticipantCalledIn } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
@@ -39,7 +40,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { AlertCircle, CheckCircle2, ChevronRight, FileAudio, Loader2, Mic, MicOff, Minus, Music2, Pause, Play, Plus, Power, RefreshCw, Share2, Square, Trash2, Upload, X } from "lucide-react-native";
+import { AlertCircle, BookOpen, CheckCircle2, ChevronRight, FileAudio, Loader2, Mic, MicOff, Minus, Music2, Pause, Play, Plus, Power, RefreshCw, Share2, Square, Trash2, Upload, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -77,6 +78,9 @@ const AdminLivePodcast = () => {
 
   const [isExitPromptVisible, setIsExitPromptVisible] = useState(false);
   const [isNotesVisible, setIsNotesVisible] = useState(false);
+  const [isBibleVisible, setIsBibleVisible] = useState(false);
+  const [bibleBookId, setBibleBookId] = useState<string | null>(null);
+  const [bibleChapter, setBibleChapter] = useState<number | null>(null);
   const [activeSheet, setActiveSheet] = useState<AdminSheet>("none");
   const [isMessageComposerVisible, setIsMessageComposerVisible] = useState(false);
   const [message, setMessage] = useState("");
@@ -803,6 +807,11 @@ const AdminLivePodcast = () => {
                     <HugeIcon width={21} height={21} />
                   </Pressable>
                 </View>
+                <View className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
+                  <Pressable onPress={() => { hapticMedium(); setIsBibleVisible(true) }} hitSlop={10}>
+                    <BookOpen size={19} color="#F3F6E7" strokeWidth={1.4} />
+                  </Pressable>
+                </View>
                 <Pressable
                   onPress={() => {hapticMedium(); shareLivePodcast({
                     hostName, title, podcastId: id, playlist
@@ -1526,6 +1535,24 @@ const AdminLivePodcast = () => {
           onClose={() => setIsNotesVisible(false)}
           playlist={playlist}
           title={title}
+        />
+
+        <BibleReader
+          visible={isBibleVisible}
+          onClose={() => setIsBibleVisible(false)}
+          bookId={bibleBookId}
+          chapter={bibleChapter}
+          onNavigate={(nextBookId, nextChapter) => {
+            setBibleBookId(nextBookId)
+            setBibleChapter(nextChapter)
+          }}
+          isHost
+          onShare={
+            room && profile
+              ? (sharedBookId, sharedChapter) =>
+                  sendBibleNavigation(room, profile.id, profile.full_name ?? "Host", sharedBookId, sharedChapter, "web")
+              : undefined
+          }
         />
 
       <PodcastConnectingOverlay

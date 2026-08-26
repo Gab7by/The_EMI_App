@@ -21,6 +21,7 @@ import {
   usePodcastFooterLayout,
   type PodcastCurrencyOption
 } from "@/components/podcast/livePodcastShared";
+import { BibleReader } from "@/components/podcast/bibleReader";
 import { useAudienceRoom } from "@/hooks/useAudienceRoom";
 import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useRoomChat } from "@/hooks/useRoomChat";
@@ -37,7 +38,7 @@ import { useLiveKitStore } from "@/store/livekit-store";
 import type { LoveBurst } from "@/types/livekit-types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, ChevronDown, ChevronRight, Power, Share2, X } from "lucide-react-native";
+import { ArrowLeft, BookOpen, ChevronDown, ChevronRight, Power, Share2, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Animated, Easing, Keyboard, Linking, Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -60,6 +61,9 @@ const MemberLivePodcast = () => {
 
   const [isExitPromptVisible, setIsExitPromptVisible] = useState(false);
   const [isNotesVisible, setIsNotesVisible] = useState(false);
+  const [isBibleVisible, setIsBibleVisible] = useState(false);
+  const [bibleBookId, setBibleBookId] = useState<string | null>(null);
+  const [bibleChapter, setBibleChapter] = useState<number | null>(null);
   const [isPaymentMethodsVisible, setIsPaymentMethodsVisible] = useState(false);
   const [isCurrencySheetVisible, setIsCurrencySheetVisible] = useState(false);
   const [selectedCurrencyId, setSelectedCurrencyId] =
@@ -87,7 +91,7 @@ const MemberLivePodcast = () => {
   const setIsMuted = useLiveKitStore(state => state.setIsMuted)
   const setForegroundServiceType = useLiveKitStore(state => state.setForegroundServiceType)
   const profile = useAuthStore(state => state.profile)
-  const {isApprovedToSpeak, sessionEnded, isSpeakerRevoked, backgroundUrl, loveBursts, dismissLoveBurst} = useRoomSignals(room, profile?.id ?? "")
+  const {isApprovedToSpeak, sessionEnded, isSpeakerRevoked, backgroundUrl, loveBursts, bibleNavigation, dismissLoveBurst} = useRoomSignals(room, profile?.id ?? "")
   const [hasRaisedHand, setHasRaisedHand] = useState<boolean>(false)
   const canSpeak = isApprovedToSpeak && !hasHungUpSpeaker
   const isConnecting = connectionState !== "connected"
@@ -260,6 +264,14 @@ const MemberLivePodcast = () => {
   }, [isSpeakerRevoked, room, setForegroundServiceType, setIsMuted, id])
 
   useEffect(() => {
+    if (!bibleNavigation) return
+
+    setBibleBookId(bibleNavigation.bookId)
+    setBibleChapter(bibleNavigation.chapter)
+    setIsBibleVisible(true)
+  }, [bibleNavigation])
+
+  useEffect(() => {
     if (connectionState !== "connected" || !profile?.id) return
 
     joinLivePodcastParticipant(id, profile.id).then(() => {
@@ -401,6 +413,13 @@ const MemberLivePodcast = () => {
                     <HugeIcon width={21} height={21} />
                   </Pressable>
                 </View>
+                <Pressable
+                  onPress={() => { hapticMedium(); setIsBibleVisible(true) }}
+                  hitSlop={10}
+                  className="h-9 w-9 items-center justify-center rounded-full bg-white/10"
+                >
+                  <BookOpen size={19} color="#F3F6E7" strokeWidth={1.4} />
+                </Pressable>
                 <Pressable
                   onPress={() => {
                     hapticMedium()
@@ -572,6 +591,18 @@ const MemberLivePodcast = () => {
           onClose={() => setIsNotesVisible(false)}
           playlist={playlist}
           title={title}
+        />
+
+        <BibleReader
+          visible={isBibleVisible}
+          onClose={() => setIsBibleVisible(false)}
+          bookId={bibleBookId}
+          chapter={bibleChapter}
+          onNavigate={(nextBookId, nextChapter) => {
+            setBibleBookId(nextBookId)
+            setBibleChapter(nextChapter)
+          }}
+          isHost={false}
         />
 
         {/* <PodcastFullScreenModal
