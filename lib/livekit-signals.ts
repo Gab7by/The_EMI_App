@@ -345,3 +345,25 @@ export const sendLoveSignal = async (
 
     return id
 }
+
+// Host-only: pushes everyone's Bible reader open to the same book/chapter.
+export const sendBibleNavigation = async (
+    room: Room,
+    hostId: string,
+    hostName: string,
+    bookId: string,
+    chapter: number,
+    translation: string
+) => {
+    const id = `${hostId}-${Date.now()}`
+
+    await sendSignal(room, {
+        type: 'BIBLE_NAVIGATE',
+        id,
+        fromId: hostId,
+        fromName: hostName,
+        bibleBookId: bookId,
+        bibleChapter: chapter,
+        bibleTranslation: translation,
+    })
+}

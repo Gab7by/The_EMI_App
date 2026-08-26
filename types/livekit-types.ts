@@ -17,9 +17,9 @@ export type LiveKitStore = {
     clearRoom: () => void
 }
 
-export type SignalType = 
-  | 'RAISE_HAND'      
-  | 'LOWER_HAND'    
+export type SignalType =
+  | 'RAISE_HAND'
+  | 'LOWER_HAND'
   | 'HAND_APPROVED'
   | 'SPEAKER_REVOKED'
   | 'SESSION_ENDED'
@@ -27,6 +27,7 @@ export type SignalType =
   | 'LOVE'
   | 'EDIT_MESSAGE'
   | 'DELETE_MESSAGE'
+  | 'BIBLE_NAVIGATE'
 
 export type RoomSignal = {
     type: SignalType
@@ -37,6 +38,9 @@ export type RoomSignal = {
     messageId?: string
     newContent?: string
     editedAt?: string
+    bibleBookId?: string
+    bibleChapter?: number
+    bibleTranslation?: string
 }
 
 export type LoveBurst = {
