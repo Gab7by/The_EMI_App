@@ -274,9 +274,18 @@ export const updateParticipantCalledIn = async (
 export const getActiveLivePodcastParticipants = async (podcastId: string): Promise<LivePodcastParticipant[]> => {
   const { data, error } = await supabase
     .from("live_podcast_participants")
+    // Only the columns the participant sheet actually renders (name,
+    // avatar, join time, speaker badge) - this query used to pull every
+    // column on both tables, including whatever else `profiles` carries,
+    // and was doing it on a 2-second poll for the full length of every
+    // live session.
     .select(`
-      *,
-      profile:profiles(*)
+      id,
+      podcast_id,
+      is_called_in,
+      joined_at,
+      left_at,
+      profile:profiles!profile_id(id, full_name, avatar_url, role)
     `)
     .eq("podcast_id", podcastId)
     .is("left_at", null)
@@ -287,5 +296,9 @@ export const getActiveLivePodcastParticipants = async (podcastId: string): Promi
     return []
   }
 
-  return data as LivePodcastParticipant[]
+  // supabase-js infers a to-one FK select (profile:profiles!profile_id(...))
+  // as an array when it can't resolve real cardinality without generated
+  // Database types (which this project doesn't use) - PostgREST itself
+  // still returns a single object per row at runtime.
+  return data as unknown as LivePodcastParticipant[]
 }

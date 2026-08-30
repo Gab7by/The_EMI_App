@@ -157,10 +157,20 @@ const AdminLivePodcast = () => {
   // persisted - it added noise (people dropping in and out during a long
   // live session) without being useful history, and doubled the row count
   // every session was writing to Supabase.
+  //
+  // Both actions still refresh the DB-backed participant list, though - this
+  // LiveKit event fires in real time and at zero Supabase cost, on every
+  // connected client including the host's. Using it to invalidate
+  // active-live-podcast-participants is what let us take that query's
+  // refetchInterval from every 2s down to a long safety-net interval below:
+  // the host learns about joins/leaves instantly via LiveKit instead of
+  // waiting on (or depending on) the poll to notice.
   const handleParticipantChange = useCallback((action: 'joined' | 'left', participantId: string, participantName: string) => {
-    if (action !== 'joined') return
-    void sendSystemMessage(`${participantName} joined the live room`, `joined:${participantId}`)
-  }, [sendSystemMessage])
+    if (action === 'joined') {
+      void sendSystemMessage(`${participantName} joined the live room`, `joined:${participantId}`)
+    }
+    queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+  }, [sendSystemMessage, id])
 
   const { participants: roomParticipants } = useLiveRoomSnapshot(room, handleParticipantChange)
   const latestRaisedHand = raisedHands[raisedHands.length - 1]
