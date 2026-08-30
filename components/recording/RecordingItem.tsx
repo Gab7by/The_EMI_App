@@ -1,8 +1,9 @@
+import { useRecordingDownload } from '@/hooks/useRecordingDownload'
 import { formatDuration, formatRecordingDate } from '@/lib/formatters'
 import { getPlaylistColor } from '@/lib/recording-ui'
 import { type Recording } from '@/types/podcast-types'
 import { Image } from 'expo-image'
-import { Globe, GlobeOff, Pause, Play, Trash2 } from 'lucide-react-native'
+import { Check, Globe, GlobeOff, Pause, Play, Trash2 } from 'lucide-react-native'
 import { memo, useEffect, useRef } from 'react'
 import { Animated, Easing, ActivityIndicator, Pressable, Text, View } from 'react-native'
 
@@ -37,6 +38,10 @@ function RecordingItem({
 }: RecordingItemProps) {
     const playlistColor = getPlaylistColor(recording.playlist)
     const handlePress = () => (isActive ? onToggle() : onPlay(recording, index))
+    // Visual-only here - a quiet reminder of what's already offline. The
+    // actual download/share/remove controls live in the full player screen,
+    // so this dense list doesn't get another tap target per row.
+    const { status: downloadStatus } = useRecordingDownload(recording)
 
     return (
         <Pressable
@@ -68,6 +73,12 @@ function RecordingItem({
                     {isActive && isPlaying ? (
                         <View className="absolute inset-0 items-center justify-center bg-black/40">
                             <PlayingBars color="#D7FF00" />
+                        </View>
+                    ) : null}
+
+                    {downloadStatus === 'downloaded' ? (
+                        <View className="absolute bottom-0.5 right-0.5 h-4 w-4 items-center justify-center rounded-full bg-[#0B1F0E]">
+                            <Check size={10} color="#D7FF00" />
                         </View>
                     ) : null}
                 </View>

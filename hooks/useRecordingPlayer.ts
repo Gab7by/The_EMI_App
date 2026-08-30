@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio"
 import { getRecordingSignedUrl } from "@/lib/recording"
+import { cacheRecordingInBackground, getLocalPlaybackUri } from "@/lib/recording-downloads"
 import { Recording } from "@/types/podcast-types"
 
 export const useRecordingPlayer = () => {
@@ -12,32 +13,26 @@ export const useRecordingPlayer = () => {
     const player = useAudioPlayer(currentUrl ? { uri: currentUrl } : null)
     const status = useAudioPlayerStatus(player)
 
-    const playRecording = useCallback(async (recordingId: string, filePath: string) => {
-        setLoadingId(recordingId)
-
-        const signedUrl = await getRecordingSignedUrl(filePath)
-        if (!signedUrl) {
-            setLoadingId(null)
-            return
-        }
-
-        await setAudioModeAsync({
-            playsInSilentMode: true,
-            shouldPlayInBackground: true
-        })
-
-        setCurrentUrl(signedUrl)
-        setLoadingId(null)
-        player.play()
-    }, [player])
-
     const loadRecording = useCallback(async (recording: Recording, index: number) => {
         setLoadingId(recording.id)
 
-        const signedUrl = await getRecordingSignedUrl(recording.file_path)
-        if (!signedUrl) {
-            setLoadingId(null)
-            return false
+        // A local copy (an explicit download, or a cache left over from a
+        // previous play) skips the network entirely - no signed-url round
+        // trip, no streaming buffer, works offline. This is what stops the
+        // "loading almost every time" experience for anything already played.
+        const localUri = await getLocalPlaybackUri(recording)
+
+        let playbackUrl = localUri
+        if (!playbackUrl) {
+            const signedUrl = await getRecordingSignedUrl(recording.file_path)
+            if (!signedUrl) {
+                setLoadingId(null)
+                return false
+            }
+            playbackUrl = signedUrl
+            // Not blocking playback on this - silently warm the cache in the
+            // background so the *next* play of this recording is local too.
+            cacheRecordingInBackground(recording, signedUrl)
         }
 
         await setAudioModeAsync({
@@ -45,12 +40,12 @@ export const useRecordingPlayer = () => {
             shouldPlayInBackground: true
         })
 
-        setCurrentUrl(signedUrl)
+        setCurrentUrl(playbackUrl)
         setCurrentIndex(index)
         setLoadingId(null)
 
         // Use replace to change the source on the existing player
-        player.replace({ uri: signedUrl })
+        player.replace({ uri: playbackUrl })
         player.play()
         return true
     }, [player])
@@ -125,7 +120,6 @@ export const useRecordingPlayer = () => {
     }, [status.didJustFinish, playNext])
 
     return {
-        playRecording,
         loadRecording,
         togglePlayPause,
         seekTo,

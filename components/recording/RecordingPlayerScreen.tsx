@@ -9,6 +9,7 @@ import { useEffect, useRef } from 'react'
 import { Animated, Modal, Pressable, Text, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import AudioProgressBar from './AudioProgressBar'
+import DownloadButton from './DownloadButton'
 
 interface RecordingPlayerScreenProps {
     visible: boolean
@@ -117,7 +118,7 @@ export default function RecordingPlayerScreen({
                             </Text>
                         </View>
 
-                        <View className="h-10 w-10" />
+                        <DownloadButton recording={recording} />
                     </View>
 
                     <View className="flex-1 items-center justify-center px-6">
