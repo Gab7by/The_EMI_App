@@ -20,6 +20,15 @@ export const LABELS = {
 
 export const ACTIVE_COLOR = "#014421"
 
+// The floating tab bar is absolutely positioned and does not reserve layout
+// space, so any screen content (or an overlay like a mini player) that needs
+// to sit just above it has to account for its height itself. Derived from
+// tabStyles below: container padding (6*2) + tab button height (52).
+export const TAB_BAR_HEIGHT = 64
+// Matches CustomTab's own `bottom: Math.max(insets.bottom, 16) + 8` offset.
+export const getTabBarBottomOffset = (safeAreaBottomInset: number) =>
+    Math.max(safeAreaBottomInset, 16) + 8
+
 export const tabStyles = StyleSheet.create({
   wrapper: {
     position: 'absolute',

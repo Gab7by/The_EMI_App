@@ -1,9 +1,11 @@
 import { formatDuration, formatRecordingDate } from '@/lib/formatters'
-import { hapticMedium } from '@/lib/haptics'
+import { hapticLight, hapticMedium } from '@/lib/haptics'
+import { getPlaylistColor } from '@/lib/recording-ui'
 import { Recording } from '@/types/podcast-types'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Modal, Pressable, Text, TouchableOpacity, View } from 'react-native'
+import { useEffect, useRef } from 'react'
+import { Animated, Modal, Pressable, Text, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import AudioProgressBar from './AudioProgressBar'
 
@@ -28,18 +30,6 @@ interface RecordingPlayerScreenProps {
 
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2]
 
-const PLAYLIST_COLORS: Record<string, string> = {
-    'Lunch Prayer Fire': '#FF6B35',
-    'Priesthood Time': '#4D96FF',
-    'School of the Prophets': '#9B51E0',
-    'School of Spiritual Mysteries': '#00C9A6',
-    'Mega One Word From the Lord': '#FFD700',
-    '45 minutes in Tongues': '#FF4B5F',
-    'Prophetic Training': '#8A2BE2',
-    'Prophetic Prayers': '#32CD32',
-    'Prophetic Crossover Service': '#FF8C00',
-}
-
 export default function RecordingPlayerScreen({
     visible,
     recording,
@@ -60,17 +50,27 @@ export default function RecordingPlayerScreen({
 }: RecordingPlayerScreenProps) {
     const hasPrevious = currentIndex > 0
     const hasNext = currentIndex < recordings.length - 1
+    const playlistColor = getPlaylistColor(recording.playlist)
 
-    const playlistColor = recording.playlist
-        ? (PLAYLIST_COLORS[recording.playlist] ?? '#D7FF00')
-        : '#D7FF00'
-
-    const handleSpeedPress = () => {
-        hapticMedium()
-        const currentIndex = SPEED_OPTIONS.indexOf(playbackRate)
-        const nextIndex = (currentIndex + 1) % SPEED_OPTIONS.length
-        onSetPlaybackRate(SPEED_OPTIONS[nextIndex])
-    }
+    // A slow breathing glow behind the artwork while playing - the same
+    // "this is live audio" cue used on the live-podcast speaker bubbles,
+    // reused here for a consistent, quieter version of the same idea.
+    const breathe = useRef(new Animated.Value(0)).current
+    useEffect(() => {
+        if (!isPlaying) {
+            breathe.stopAnimation()
+            breathe.setValue(0)
+            return
+        }
+        const loop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(breathe, { toValue: 1, duration: 1400, useNativeDriver: true }),
+                Animated.timing(breathe, { toValue: 0, duration: 1400, useNativeDriver: true }),
+            ])
+        )
+        loop.start()
+        return () => loop.stop()
+    }, [isPlaying, breathe])
 
     const handleClose = () => {
         hapticMedium()
@@ -78,11 +78,18 @@ export default function RecordingPlayerScreen({
         onClose()
     }
 
+    const handleSpeedSelect = (rate: number) => {
+        if (rate === playbackRate) return
+        hapticLight()
+        onSetPlaybackRate(rate)
+    }
+
     return (
         <Modal
             visible={visible}
             transparent={false}
-            animationType="fade"
+            animationType="slide"
+            presentationStyle="fullScreen"
             onRequestClose={handleClose}
             statusBarTranslucent
         >
@@ -92,23 +99,19 @@ export default function RecordingPlayerScreen({
                 end={{ x: 0.5, y: 1 }}
                 style={{ flex: 1 }}
             >
-                <SafeAreaView className="flex-1">
+                <SafeAreaView className="flex-1" edges={["top", "bottom"]}>
                     {/* Header */}
-                    <View className="flex-row items-center justify-between px-4 pt-2 pb-4">
+                    <View className="flex-row items-center justify-between px-4 pt-2 pb-2">
                         <Pressable
                             onPress={handleClose}
                             className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
                             hitSlop={12}
                         >
-                            <MaterialCommunityIcons
-                                name="chevron-down"
-                                size={24}
-                                color="#D7FF00"
-                            />
+                            <MaterialCommunityIcons name="chevron-down" size={24} color="#D7FF00" />
                         </Pressable>
 
                         <View className="flex-1 items-center">
-                            <Text className="text-[16px] font-bold text-[#F4F5F0]" numberOfLines={1}>
+                            <Text className="text-[11px] font-semibold uppercase tracking-[1.5px] text-[#8FA396]">
                                 Now Playing
                             </Text>
                         </View>
@@ -116,162 +119,167 @@ export default function RecordingPlayerScreen({
                         <View className="h-10 w-10" />
                     </View>
 
-                    {/* Cover Art Area */}
-                    <View className="items-center px-6 py-8">
-                        <View
-                            className="items-center justify-center rounded-[28px] bg-[#1a3a10] px-8 py-10"
-                            style={{
-                                width: 200,
-                                height: 200,
-                                shadowColor: playlistColor,
-                                shadowOpacity: 0.3,
-                                shadowRadius: 20,
-                                shadowOffset: { width: 0, height: 0 },
-                                elevation: 15,
-                            }}
-                        >
-                            <MaterialCommunityIcons
-                                name="music-note"
-                                size={72}
-                                color={playlistColor}
+                    <View className="flex-1 items-center justify-center px-6">
+                        {/* Artwork */}
+                        <View className="items-center justify-center" style={{ height: 232, width: 232 }}>
+                            <Animated.View
+                                pointerEvents="none"
+                                className="absolute rounded-[36px]"
+                                style={{
+                                    height: 232,
+                                    width: 232,
+                                    backgroundColor: playlistColor,
+                                    opacity: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.24] }),
+                                    transform: [{ scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1.04] }) }],
+                                }}
                             />
+                            <View
+                                className="items-center justify-center rounded-[28px] bg-[#132A19]"
+                                style={{
+                                    height: 208,
+                                    width: 208,
+                                    shadowColor: '#000',
+                                    shadowOpacity: 0.35,
+                                    shadowRadius: 16,
+                                    shadowOffset: { width: 0, height: 8 },
+                                    elevation: 10,
+                                }}
+                            >
+                                <MaterialCommunityIcons name="waveform" size={64} color={playlistColor} />
+                            </View>
                         </View>
 
                         {/* Playlist tag */}
                         {recording.playlist ? (
                             <View
-                                className="mt-4 rounded-full px-4 py-1.5"
-                                style={{ backgroundColor: `${playlistColor}20` }}
+                                className="mt-5 self-center rounded-full px-3.5 py-1.5"
+                                style={{ backgroundColor: `${playlistColor}22` }}
                             >
-                                <Text
-                                    className="text-[11px] font-semibold"
-                                    style={{ color: playlistColor }}
-                                >
+                                <Text className="text-[11px] font-semibold" style={{ color: playlistColor }}>
                                     {recording.playlist}
                                 </Text>
                             </View>
                         ) : null}
 
                         {/* Title */}
-                        <Text className="mt-3 text-center text-[18px] font-bold text-[#F4F5F0]" numberOfLines={2}>
+                        <Text className="mt-3 text-center text-[19px] font-bold text-[#F4F5F0]" numberOfLines={2}>
                             {recording.podcast_title || 'Untitled Recording'}
                         </Text>
 
-                        {/* Date */}
-                        <Text className="mt-1 text-[13px] text-[#B7C0BC]">
+                        {/* Date + duration */}
+                        <Text className="mt-1.5 text-[12px] text-[#8FA396]">
                             {formatRecordingDate(recording.started_at)}
+                            {recording.duration_seconds ? `  ·  ${formatDuration(recording.duration_seconds)}` : ''}
                         </Text>
 
-                        {/* Duration */}
-                        {recording.duration_seconds ? (
-                            <Text className="mt-1 text-[12px] text-[#B7C0BC]">
-                                {formatDuration(recording.duration_seconds)}
-                            </Text>
-                        ) : null}
-                    </View>
+                        {/* Progress */}
+                        <View className="mt-8 w-full">
+                            <AudioProgressBar currentTime={currentTime} duration={duration} onSeek={onSeek} />
+                        </View>
 
-                    {/* Progress Bar */}
-                    <View className="px-6">
-                        <AudioProgressBar
-                            currentTime={currentTime}
-                            duration={duration}
-                            onSeek={onSeek}
-                        />
-                    </View>
-
-                    {/* Playback Controls */}
-                    <View className="mt-6 items-center">
-                        {/* Speed indicator */}
-                        <TouchableOpacity
-                            onPress={handleSpeedPress}
-                            className="mb-4 rounded-full bg-white/10 px-4 py-1.5"
-                            activeOpacity={0.7}
-                        >
-                            <Text className="text-[12px] font-semibold text-[#D7FF00]">
-                                {playbackRate.toFixed(2)}x
-                            </Text>
-                        </TouchableOpacity>
+                        {/* Speed picker - a persistent, always-visible segmented row
+                            instead of a single badge you had to blind-tap-cycle
+                            through six values to discover. */}
+                        <View className="mt-5 flex-row items-center justify-center gap-1.5 rounded-full bg-black/20 p-1">
+                            {SPEED_OPTIONS.map((rate) => {
+                                const isActive = rate === playbackRate
+                                return (
+                                    <Pressable
+                                        key={rate}
+                                        onPress={() => handleSpeedSelect(rate)}
+                                        className="rounded-full px-2.5 py-1.5"
+                                        style={{ backgroundColor: isActive ? '#D7FF00' : 'transparent' }}
+                                    >
+                                        <Text
+                                            className="text-[11px] font-semibold"
+                                            style={{ color: isActive ? '#143703' : '#B7C0BC' }}
+                                        >
+                                            {rate}x
+                                        </Text>
+                                    </Pressable>
+                                )
+                            })}
+                        </View>
 
                         {/* Main controls */}
-                        <View className="flex-row items-center justify-center gap-8">
-                            <TouchableOpacity onPress={() => onSeek(Math.max(0, currentTime - 15))} className="h-11 w-11 items-center justify-center rounded-full bg-white/10" activeOpacity={0.7}>
+                        <View className="mt-7 flex-row items-center justify-center gap-6">
+                            <TouchableOpacity
+                                onPress={() => { hapticLight(); onSeek(Math.max(0, currentTime - 15)) }}
+                                className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
+                                activeOpacity={0.7}
+                            >
                                 <MaterialCommunityIcons name="rewind-15" size={22} color="#F4F5F0" />
                             </TouchableOpacity>
-                            {/* Previous */}
+
                             <TouchableOpacity
                                 onPress={onPrevious}
                                 disabled={!hasPrevious}
-                                className={`h-14 w-14 items-center justify-center rounded-full ${
-                                    hasPrevious ? 'bg-[#D7FF00]' : 'bg-white/10'
-                                }`}
+                                className="h-14 w-14 items-center justify-center rounded-full"
+                                style={{ backgroundColor: hasPrevious ? 'rgba(255,255,255,0.1)' : 'transparent' }}
                                 activeOpacity={0.7}
                             >
                                 <MaterialCommunityIcons
                                     name="skip-backward"
-                                    size={22}
-                                    color={hasPrevious ? "#143703" : "#6F7C73"}
+                                    size={24}
+                                    color={hasPrevious ? '#F4F5F0' : '#4C5A50'}
                                 />
                             </TouchableOpacity>
 
-                            {/* Play/Pause */}
                             <TouchableOpacity
                                 onPress={onToggle}
                                 disabled={!isLoaded}
-                                className="h-18 w-18 items-center justify-center rounded-full bg-[#D7FF00]"
-                                activeOpacity={0.8}
+                                className="h-20 w-20 items-center justify-center rounded-full bg-[#D7FF00]"
+                                activeOpacity={0.85}
+                                style={{
+                                    shadowColor: '#D7FF00',
+                                    shadowOpacity: 0.4,
+                                    shadowRadius: 14,
+                                    shadowOffset: { width: 0, height: 4 },
+                                    elevation: 8,
+                                }}
                             >
-                                {isPlaying ? (
-                                    <MaterialCommunityIcons
-                                        name="pause"
-                                        size={32}
-                                        color="#143703"
-                                    />
+                                {!isLoaded ? (
+                                    <MaterialCommunityIcons name="dots-horizontal" size={30} color="#143703" />
                                 ) : (
-                                    <MaterialCommunityIcons
-                                        name="play"
-                                        size={32}
-                                        color="#143703"
-                                    />
+                                    <MaterialCommunityIcons name={isPlaying ? 'pause' : 'play'} size={34} color="#143703" />
                                 )}
                             </TouchableOpacity>
 
-                            {/* Next */}
                             <TouchableOpacity
                                 onPress={onNext}
                                 disabled={!hasNext}
-                                className={`h-14 w-14 items-center justify-center rounded-full ${
-                                    hasNext ? 'bg-[#D7FF00]' : 'bg-white/10'
-                                }`}
+                                className="h-14 w-14 items-center justify-center rounded-full"
+                                style={{ backgroundColor: hasNext ? 'rgba(255,255,255,0.1)' : 'transparent' }}
                                 activeOpacity={0.7}
                             >
                                 <MaterialCommunityIcons
                                     name="skip-forward"
-                                    size={22}
-                                    color={hasNext ? "#143703" : "#6F7C73"}
+                                    size={24}
+                                    color={hasNext ? '#F4F5F0' : '#4C5A50'}
                                 />
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={() => onSeek(Math.min(duration, currentTime + 15))} className="h-11 w-11 items-center justify-center rounded-full bg-white/10" activeOpacity={0.7}>
+
+                            <TouchableOpacity
+                                onPress={() => { hapticLight(); onSeek(Math.min(duration, currentTime + 15)) }}
+                                className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
+                                activeOpacity={0.7}
+                            >
                                 <MaterialCommunityIcons name="fast-forward-15" size={22} color="#F4F5F0" />
                             </TouchableOpacity>
                         </View>
 
-                        {/* Stop button */}
+                        {/* Stop */}
                         <TouchableOpacity
-                            onPress={onStop}
-                            className="mt-6 flex-row items-center gap-2 rounded-full bg-[#184832] px-6 py-2.5"
+                            onPress={() => { hapticLight(); onStop() }}
+                            className="mt-8 flex-row items-center gap-2 rounded-full bg-white/[0.06] px-5 py-2.5"
                             activeOpacity={0.7}
                         >
-                            <MaterialCommunityIcons
-                                name="stop"
-                                size={16}
-                                color="#B7C0BC"
-                            />
-                            <Text className="text-[13px] font-semibold text-[#B7C0BC]">
-                                Stop
+                            <MaterialCommunityIcons name="stop" size={14} color="#8FA396" />
+                            <Text className="text-[12px] font-semibold text-[#8FA396]">
+                                Stop playback
                             </Text>
                         </TouchableOpacity>
                     </View>
-
                 </SafeAreaView>
             </LinearGradient>
         </Modal>

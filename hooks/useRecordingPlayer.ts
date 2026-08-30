@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio"
 import { getRecordingSignedUrl } from "@/lib/recording"
 import { Recording } from "@/types/podcast-types"
@@ -64,7 +64,16 @@ export const useRecordingPlayer = () => {
     }, [player, status.playing])
 
     const seekTo = useCallback((seconds: number) => {
-        player.seekTo(seconds)
+        // expo-audio's iOS backend defaults toleranceBefore/After to
+        // CMTime.positiveInfinity when they're omitted, which tells AVPlayer
+        // "snap to whatever sync sample is cheapest to reach" - on audio with
+        // sparse sync points that can land many seconds away from the
+        // requested time. That's the "seeking jumps forward on its own"
+        // behavior reported on iOS. A tight (but non-zero, for performance)
+        // tolerance keeps the seek within ~100ms of the requested position.
+        // Android's ExoPlayer-backed implementation ignores these params
+        // entirely, so this is a no-op cost there.
+        player.seekTo(seconds, 100, 100)
     }, [player])
 
     const setPlaybackRate = useCallback((rate: number) => {
@@ -97,6 +106,23 @@ export const useRecordingPlayer = () => {
         setCurrentUrl(null)
         setCurrentIndex(null)
     }, [player])
+
+    // Auto-advance to the next recording when the current one finishes,
+    // matching how any podcast/media app behaves with a loaded queue.
+    // `didJustFinish` stays true across several status ticks until the next
+    // load resets it, so a ref guards against calling playNext() repeatedly
+    // for what is really a single completion event.
+    const hasHandledFinishRef = useRef(false)
+    useEffect(() => {
+        if (status.didJustFinish) {
+            if (!hasHandledFinishRef.current) {
+                hasHandledFinishRef.current = true
+                playNext()
+            }
+        } else {
+            hasHandledFinishRef.current = false
+        }
+    }, [status.didJustFinish, playNext])
 
     return {
         playRecording,

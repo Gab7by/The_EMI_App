@@ -1,8 +1,11 @@
+import MiniPlayerBar from '@/components/recording/MiniPlayerBar'
 import RecordingItem from '@/components/recording/RecordingItem'
 import RecordingPlayerScreen from '@/components/recording/RecordingPlayerScreen'
+import { getTabBarBottomOffset, TAB_BAR_HEIGHT } from '@/constants/tabs'
 import { useRecordingPlayer } from '@/hooks/useRecordingPlayer'
 import { deleteRecording, getRecordings, toggleRecordingPublish } from '@/lib/recording'
 import { useAuthStore } from '@/store/authStore'
+import type { Recording } from '@/types/podcast-types'
 // playlist filters removed per request; search-only
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -20,13 +23,11 @@ export default function LibraryScreen() {
     const insets = useSafeAreaInsets()
     const queryClient = useQueryClient()
     const [showDisclaimer, setShowDisclaimer] = useState(!isAdmin)
-    const [disclaimerAccepted, setDisclaimerAccepted] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [playerVisible, setPlayerVisible] = useState(false)
-    const [activeRecording, setActiveRecording] = useState<any>(null)
+    const [activeRecording, setActiveRecording] = useState<Recording | null>(null)
     const [visibleCount, setVisibleCount] = useState(isAdmin ? ADMIN_PAGE_SIZE : USER_PAGE_SIZE)
     const [isLoadingMore, setIsLoadingMore] = useState(false)
-    
 
     const { data: recordings = [], isLoading, refetch, isRefetching } = useQuery({
         queryKey: ['recordings', isAdmin ? 'admin' : 'member'],
@@ -35,7 +36,6 @@ export default function LibraryScreen() {
     })
 
     const {
-        playRecording,
         loadRecording,
         togglePlayPause,
         seekTo,
@@ -53,7 +53,6 @@ export default function LibraryScreen() {
         setRecordings,
     } = useRecordingPlayer()
 
-    // Filter recordings by selected playlist
     const filteredRecordings = useMemo(() => {
         const query = searchQuery.trim().toLowerCase()
         return recordings.filter((recording) => {
@@ -64,13 +63,12 @@ export default function LibraryScreen() {
         })
     }, [recordings, searchQuery])
 
-    // Update the player's recordings list when filtered recordings change
-    const handlePlay = useCallback(async (recording: any, index: number) => {
+    const handlePlay = useCallback(async (recording: Recording, index: number) => {
         setActiveRecording(recording)
         setPlayerVisible(true)
         setRecordings(filteredRecordings)
         await loadRecording(recording, index)
-    }, [filteredRecordings, loadRecording])
+    }, [filteredRecordings, loadRecording, setRecordings])
 
     const handleToggle = useCallback(() => {
         togglePlayPause()
@@ -84,17 +82,20 @@ export default function LibraryScreen() {
 
     const handleClosePlayer = useCallback(() => {
         setPlayerVisible(false)
-        setActiveRecording(null)
     }, [])
 
-    const handlePublishToggle = useCallback(async (recordingId: string, currentPublish: boolean) => {
-        const success = await toggleRecordingPublish(recordingId, currentPublish)
+    const handleExpandPlayer = useCallback(() => {
+        setPlayerVisible(true)
+    }, [])
+
+    const handlePublishToggle = useCallback(async (recording: Recording) => {
+        const success = await toggleRecordingPublish(recording.id, recording.publish)
         if (success) {
             queryClient.invalidateQueries({ queryKey: ['recordings'] })
         }
     }, [queryClient])
 
-    const handleDelete = useCallback((recording: any) => {
+    const handleDelete = useCallback((recording: Recording) => {
         Alert.alert('Delete sermon?', 'This removes the recording from the library. This cannot be undone.', [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Delete', style: 'destructive', onPress: async () => {
@@ -110,10 +111,7 @@ export default function LibraryScreen() {
 
     const handleAcceptDisclaimer = useCallback(() => {
         setShowDisclaimer(false)
-        setDisclaimerAccepted(true)
     }, [])
-
-    // playlist filters removed; only search is used
 
     const handleLoadMore = useCallback(async () => {
         if (isLoadingMore) return
@@ -126,7 +124,7 @@ export default function LibraryScreen() {
                 setVisibleCount(nextCount)
                 queryClient.setQueryData(
                     ['recordings', isAdmin ? 'admin' : 'member'],
-                    (old: any[] = []) => [...old, ...more]
+                    (old: Recording[] = []) => [...old, ...more]
                 )
             }
         } finally {
@@ -136,6 +134,9 @@ export default function LibraryScreen() {
 
     const visibleRecordings = showDisclaimer ? [] : filteredRecordings
     const hasMore = visibleRecordings.length >= visibleCount
+    const activeProgress = duration > 0 ? currentTime / duration : 0
+    const showMiniPlayer = !!activeRecording && !playerVisible
+    const miniPlayerBottom = getTabBarBottomOffset(insets.bottom) + TAB_BAR_HEIGHT + 10
 
     return (
         <LinearGradient
@@ -145,44 +146,51 @@ export default function LibraryScreen() {
             style={{ flex: 1 }}
         >
             <SafeAreaView className="flex-1">
-                <View className="flex-1 px-4 pt-4">
+                <View className="flex-1 px-4 pt-3">
                     {/* Header */}
-                    <View className="mb-6 flex-row items-center justify-between">
+                    <View className="mb-5 flex-row items-center justify-between">
                         <View className="gap-1">
-                            <Text className="text-[22px] font-bold text-white">
+                            <Text className="text-[24px] font-bold text-white">
                                 Library
                             </Text>
-                            <Text className="text-[12px] text-menorah-muted">
+                            <Text className="text-[12.5px] text-[#8FA396]">
                                 Sermons, books, and teachings
                             </Text>
                         </View>
-                        
+
+                        <View className="h-11 w-11 items-center justify-center rounded-full bg-white/[0.06]">
+                            <MaterialCommunityIcons name="book-music-outline" size={20} color="#D7FF00" />
+                        </View>
                     </View>
 
-                    {/* Sermons primary text */}
-                    <Text className="mb-4 text-lg font-bold text-[#D7FF00]">
-                        Sermons
-                    </Text>
+                    <View className="mb-4 flex-row items-center justify-between">
+                        <Text className="text-[15px] font-bold text-[#D7FF00]">
+                            Sermons
+                        </Text>
+                        {!isLoading && filteredRecordings.length > 0 ? (
+                            <Text className="text-[11px] text-[#8FA396]">
+                                {filteredRecordings.length} {filteredRecordings.length === 1 ? 'recording' : 'recordings'}
+                            </Text>
+                        ) : null}
+                    </View>
 
-                    <View className="mb-4 flex-row items-center rounded-[16px] border border-white/10 bg-white/5 px-3">
-                        <MaterialCommunityIcons name="magnify" size={20} color="#B7C0BC" />
+                    <View className="mb-5 flex-row items-center rounded-[16px] border border-white/10 bg-white/[0.06] px-3.5">
+                        <MaterialCommunityIcons name="magnify" size={19} color="#8FA396" />
                         <TextInput
                             value={searchQuery}
                             onChangeText={setSearchQuery}
                             placeholder="Search sermons or playlists"
-                            placeholderTextColor="#7E8C83"
-                            className="h-11 flex-1 px-3 text-[13px] text-white"
+                            placeholderTextColor="#6B7A70"
+                            className="h-11 flex-1 px-3 text-[13.5px] text-white"
                             returnKeyType="search"
                             accessibilityLabel="Search sermons"
                         />
                         {searchQuery ? (
                             <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-                                <MaterialCommunityIcons name="close-circle" size={18} color="#B7C0BC" />
+                                <MaterialCommunityIcons name="close-circle" size={18} color="#8FA396" />
                             </Pressable>
                         ) : null}
                     </View>
-
-                                    {/* Playlist filters removed — search-only UI */}
 
                     {/* Disclaimer Modal for members */}
                     <Modal
@@ -223,14 +231,22 @@ export default function LibraryScreen() {
                     </Modal>
 
                     {isLoading ? (
-                        <View className="flex-1 items-center justify-center">
-                            <Text className="text-[#B7C0BC]">Loading recordings...</Text>
+                        <View className="flex-1 items-center justify-center gap-3">
+                            <ActivityIndicator size="small" color="#D7FF00" />
+                            <Text className="text-[13px] text-[#8FA396]">Loading recordings...</Text>
                         </View>
                     ) : visibleRecordings.length === 0 ? (
-                        <View className="flex-1 items-center justify-center">
-                            <Text className="text-[#B7C0BC] text-center">
-                                No recordings yet.{'\n'}
-                                Sessions will appear here after they are recorded.
+                        <View className="flex-1 items-center justify-center px-8">
+                            <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-white/[0.06]">
+                                <MaterialCommunityIcons name="waveform" size={28} color="#8FA396" />
+                            </View>
+                            <Text className="text-center text-[14px] font-semibold text-[#F2F5EE]">
+                                {searchQuery ? 'No matching recordings' : 'No recordings yet'}
+                            </Text>
+                            <Text className="mt-1.5 text-center text-[12.5px] text-[#8FA396]">
+                                {searchQuery
+                                    ? 'Try a different title or playlist name.'
+                                    : 'Sessions will appear here after they are recorded.'}
                             </Text>
                         </View>
                     ) : (
@@ -249,18 +265,19 @@ export default function LibraryScreen() {
                                 <RecordingItem
                                     key={recording.id}
                                     recording={recording}
+                                    index={index}
                                     isActive={currentIndex === index}
                                     isPlaying={currentIndex === index && isPlaying}
                                     isLoading={loadingId === recording.id}
                                     isAdmin={isAdmin}
-                                    onPlay={() => handlePlay(recording, index)}
+                                    progress={currentIndex === index ? activeProgress : undefined}
+                                    onPlay={handlePlay}
                                     onToggle={handleToggle}
-                                    onPublishToggle={isAdmin ? () => handlePublishToggle(recording.id, recording.publish) : undefined}
-                                    onDelete={isAdmin ? () => handleDelete(recording) : undefined}
+                                    onPublishToggle={isAdmin ? handlePublishToggle : undefined}
+                                    onDelete={isAdmin ? handleDelete : undefined}
                                 />
                             ))}
 
-                            {/* Load more indicator */}
                             {hasMore && (
                                 <Pressable
                                     onPress={handleLoadMore}
@@ -287,7 +304,18 @@ export default function LibraryScreen() {
                     )}
                 </View>
 
-                {/* Full-Screen Player */}
+                {showMiniPlayer && activeRecording ? (
+                    <MiniPlayerBar
+                        recording={activeRecording}
+                        isPlaying={isPlaying}
+                        progress={activeProgress}
+                        bottom={miniPlayerBottom}
+                        onExpand={handleExpandPlayer}
+                        onToggle={handleToggle}
+                        onStop={handleStop}
+                    />
+                ) : null}
+
                 {activeRecording && (
                     <RecordingPlayerScreen
                         visible={playerVisible}
