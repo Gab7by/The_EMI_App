@@ -1,6 +1,7 @@
 import { formatDuration, formatRecordingDate } from '@/lib/formatters'
 import { getPlaylistColor } from '@/lib/recording-ui'
 import { type Recording } from '@/types/podcast-types'
+import { Image } from 'expo-image'
 import { Globe, GlobeOff, Pause, Play, Trash2 } from 'lucide-react-native'
 import { memo, useEffect, useRef } from 'react'
 import { Animated, Easing, ActivityIndicator, Pressable, Text, View } from 'react-native'
@@ -45,19 +46,30 @@ function RecordingItem({
             style={{ backgroundColor: isActive ? '#1a3a10' : '#122a16' }}
         >
             <View className="flex-row items-center px-3.5 py-3.5">
-                {/* Leading icon - gives every row a visual anchor, like
-                    artwork does in Spotify/Podbean/Apple Podcasts lists. */}
-                <View
-                    className="mr-3 h-12 w-12 items-center justify-center rounded-2xl"
-                    style={{ backgroundColor: `${playlistColor}1f` }}
-                >
-                    {isActive && isPlaying ? (
-                        <PlayingBars color={playlistColor} />
+                {/* Leading artwork - the live session's background image when
+                    the host set one, falling back to a tinted note glyph for
+                    older sessions that never had a cover. */}
+                <View className="mr-3 h-12 w-12 overflow-hidden rounded-2xl" style={{ backgroundColor: `${playlistColor}1f` }}>
+                    {recording.coverImageUrl ? (
+                        <Image
+                            source={{ uri: recording.coverImageUrl }}
+                            style={{ height: '100%', width: '100%' }}
+                            contentFit="cover"
+                            transition={150}
+                        />
                     ) : (
-                        <Text style={{ color: playlistColor }} className="text-[20px]">
-                            ♪
-                        </Text>
+                        <View className="h-full w-full items-center justify-center">
+                            <Text style={{ color: playlistColor }} className="text-[20px]">
+                                ♪
+                            </Text>
+                        </View>
                     )}
+
+                    {isActive && isPlaying ? (
+                        <View className="absolute inset-0 items-center justify-center bg-black/40">
+                            <PlayingBars color="#D7FF00" />
+                        </View>
+                    ) : null}
                 </View>
 
                 <View className="mr-3 min-w-0 flex-1">

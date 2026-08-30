@@ -194,4 +194,6 @@ export type Recording = {
   duration_seconds: number | null
   podcast_title?: string
   playlist?: string
+  /** The live session's background image, reused as this recording's artwork. Null for older sessions that never had one set. */
+  coverImageUrl?: string | null
 }

@@ -1,6 +1,7 @@
 import { getPlaylistColor } from '@/lib/recording-ui'
 import { Recording } from '@/types/podcast-types'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { Image } from 'expo-image'
 import { Pause, Play, X } from 'lucide-react-native'
 import { Pressable, Text, View } from 'react-native'
 
@@ -40,11 +41,18 @@ export default function MiniPlayerBar({
             </View>
 
             <Pressable onPress={onExpand} className="flex-row items-center px-3 py-2.5">
-                <View
-                    className="mr-3 h-9 w-9 items-center justify-center rounded-xl"
-                    style={{ backgroundColor: `${playlistColor}25` }}
-                >
-                    <MaterialCommunityIcons name="waveform" size={18} color={playlistColor} />
+                <View className="mr-3 h-9 w-9 overflow-hidden rounded-xl" style={{ backgroundColor: `${playlistColor}25` }}>
+                    {recording.coverImageUrl ? (
+                        <Image
+                            source={{ uri: recording.coverImageUrl }}
+                            style={{ height: '100%', width: '100%' }}
+                            contentFit="cover"
+                        />
+                    ) : (
+                        <View className="h-full w-full items-center justify-center">
+                            <MaterialCommunityIcons name="waveform" size={18} color={playlistColor} />
+                        </View>
+                    )}
                 </View>
 
                 <View className="mr-2 min-w-0 flex-1">

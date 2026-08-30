@@ -44,7 +44,7 @@ export const getRecordings = async (
         .from("podcast_recordings")
         .select(`
             *,
-            live_podcasts!inner(title, playlist)
+            live_podcasts!inner(title, playlist, cover_image_url)
         `)
         .eq("status", "completed")
 
@@ -73,6 +73,7 @@ export const getRecordings = async (
         duration_seconds: item.duration_seconds,
         podcast_title: item.live_podcasts?.title ?? null,
         playlist: item.live_podcasts?.playlist ?? null,
+        coverImageUrl: item.live_podcasts?.cover_image_url ?? null,
     })) as Recording[]
 }
 

@@ -3,6 +3,7 @@ import { hapticLight, hapticMedium } from '@/lib/haptics'
 import { getPlaylistColor } from '@/lib/recording-ui'
 import { Recording } from '@/types/podcast-types'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useEffect, useRef } from 'react'
 import { Animated, Modal, Pressable, Text, TouchableOpacity, View } from 'react-native'
@@ -134,7 +135,7 @@ export default function RecordingPlayerScreen({
                                 }}
                             />
                             <View
-                                className="items-center justify-center rounded-[28px] bg-[#132A19]"
+                                className="items-center justify-center overflow-hidden rounded-[28px] bg-[#132A19]"
                                 style={{
                                     height: 208,
                                     width: 208,
@@ -145,7 +146,16 @@ export default function RecordingPlayerScreen({
                                     elevation: 10,
                                 }}
                             >
-                                <MaterialCommunityIcons name="waveform" size={64} color={playlistColor} />
+                                {recording.coverImageUrl ? (
+                                    <Image
+                                        source={{ uri: recording.coverImageUrl }}
+                                        style={{ height: '100%', width: '100%' }}
+                                        contentFit="cover"
+                                        transition={200}
+                                    />
+                                ) : (
+                                    <MaterialCommunityIcons name="waveform" size={64} color={playlistColor} />
+                                )}
                             </View>
                         </View>
 
