@@ -74,9 +74,16 @@ export default function RecordingPlayerScreen({
         return () => loop.stop()
     }, [isPlaying, breathe])
 
-    const handleClose = () => {
+    // "Minimize" (the chevron and the hardware back button) should only
+    // hide the full-screen player - playback keeps going and the mini
+    // player takes over, exactly like every other media app. It was
+    // previously calling onStop() first, which fully stopped playback and
+    // cleared the active recording - so there was nothing left for the mini
+    // player to show, and this button behaved like "stop" wearing a
+    // minimize icon. Actually stopping is now only ever the dedicated
+    // "Stop playback" button below.
+    const handleMinimize = () => {
         hapticMedium()
-        onStop()
         onClose()
     }
 
@@ -92,7 +99,7 @@ export default function RecordingPlayerScreen({
             transparent={false}
             animationType="slide"
             presentationStyle="fullScreen"
-            onRequestClose={handleClose}
+            onRequestClose={handleMinimize}
             statusBarTranslucent
         >
             <LinearGradient
@@ -105,7 +112,7 @@ export default function RecordingPlayerScreen({
                     {/* Header */}
                     <View className="flex-row items-center justify-between px-4 pt-2 pb-2">
                         <Pressable
-                            onPress={handleClose}
+                            onPress={handleMinimize}
                             className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
                             hitSlop={12}
                         >
@@ -212,26 +219,30 @@ export default function RecordingPlayerScreen({
                             })}
                         </View>
 
-                        {/* Main controls */}
-                        <View className="mt-7 flex-row items-center justify-center gap-6">
+                        {/* Main controls - justify-between + no fixed gap so this
+                            row can never overflow a narrow screen. It used to be
+                            justify-center with a fixed 24px gap between 5 fixed-size
+                            buttons, which added up to wider than a typical phone's
+                            available width and pushed rewind-15 off the left edge. */}
+                        <View className="mt-7 w-full flex-row items-center justify-between px-1">
                             <TouchableOpacity
                                 onPress={() => { hapticLight(); onSeek(Math.max(0, currentTime - 15)) }}
                                 className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
                                 activeOpacity={0.7}
                             >
-                                <MaterialCommunityIcons name="rewind-15" size={22} color="#F4F5F0" />
+                                <MaterialCommunityIcons name="rewind-15" size={20} color="#F4F5F0" />
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 onPress={onPrevious}
                                 disabled={!hasPrevious}
-                                className="h-14 w-14 items-center justify-center rounded-full"
+                                className="h-12 w-12 items-center justify-center rounded-full"
                                 style={{ backgroundColor: hasPrevious ? 'rgba(255,255,255,0.1)' : 'transparent' }}
                                 activeOpacity={0.7}
                             >
                                 <MaterialCommunityIcons
                                     name="skip-backward"
-                                    size={24}
+                                    size={22}
                                     color={hasPrevious ? '#F4F5F0' : '#4C5A50'}
                                 />
                             </TouchableOpacity>
@@ -239,7 +250,7 @@ export default function RecordingPlayerScreen({
                             <TouchableOpacity
                                 onPress={onToggle}
                                 disabled={!isLoaded}
-                                className="h-20 w-20 items-center justify-center rounded-full bg-[#D7FF00]"
+                                className="h-[72px] w-[72px] items-center justify-center rounded-full bg-[#D7FF00]"
                                 activeOpacity={0.85}
                                 style={{
                                     shadowColor: '#D7FF00',
@@ -249,23 +260,21 @@ export default function RecordingPlayerScreen({
                                     elevation: 8,
                                 }}
                             >
-                                {!isLoaded ? (
-                                    <MaterialCommunityIcons name="dots-horizontal" size={30} color="#143703" />
-                                ) : (
-                                    <MaterialCommunityIcons name={isPlaying ? 'pause' : 'play'} size={34} color="#143703" />
+                                {!isLoaded ? <LoadingDots /> : (
+                                    <MaterialCommunityIcons name={isPlaying ? 'pause' : 'play'} size={32} color="#143703" />
                                 )}
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 onPress={onNext}
                                 disabled={!hasNext}
-                                className="h-14 w-14 items-center justify-center rounded-full"
+                                className="h-12 w-12 items-center justify-center rounded-full"
                                 style={{ backgroundColor: hasNext ? 'rgba(255,255,255,0.1)' : 'transparent' }}
                                 activeOpacity={0.7}
                             >
                                 <MaterialCommunityIcons
                                     name="skip-forward"
-                                    size={24}
+                                    size={22}
                                     color={hasNext ? '#F4F5F0' : '#4C5A50'}
                                 />
                             </TouchableOpacity>
@@ -275,7 +284,7 @@ export default function RecordingPlayerScreen({
                                 className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
                                 activeOpacity={0.7}
                             >
-                                <MaterialCommunityIcons name="fast-forward-15" size={22} color="#F4F5F0" />
+                                <MaterialCommunityIcons name="fast-forward-15" size={20} color="#F4F5F0" />
                             </TouchableOpacity>
                         </View>
 
@@ -294,5 +303,47 @@ export default function RecordingPlayerScreen({
                 </SafeAreaView>
             </LinearGradient>
         </Modal>
+    )
+}
+
+/** A pulsating three-dot indicator for the center button while a recording
+ * is still loading - the old static dots-horizontal glyph didn't read as
+ * "busy," it just looked like a different icon had been swapped in. */
+function LoadingDots() {
+    const dots = [
+        useRef(new Animated.Value(0.3)).current,
+        useRef(new Animated.Value(0.3)).current,
+        useRef(new Animated.Value(0.3)).current,
+    ]
+
+    useEffect(() => {
+        const loops = dots.map((dot, i) =>
+            Animated.loop(
+                Animated.sequence([
+                    Animated.delay(i * 150),
+                    Animated.timing(dot, { toValue: 1, duration: 380, useNativeDriver: true }),
+                    Animated.timing(dot, { toValue: 0.3, duration: 380, useNativeDriver: true }),
+                    Animated.delay((2 - i) * 150),
+                ])
+            )
+        )
+        loops.forEach((loop) => loop.start())
+        return () => loops.forEach((loop) => loop.stop())
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
+    return (
+        <View className="flex-row items-center gap-1.5">
+            {dots.map((dot, i) => (
+                <Animated.View
+                    key={i}
+                    className="h-2.5 w-2.5 rounded-full bg-[#143703]"
+                    style={{
+                        opacity: dot,
+                        transform: [{ scale: dot.interpolate({ inputRange: [0.3, 1], outputRange: [0.7, 1] }) }],
+                    }}
+                />
+            ))}
+        </View>
     )
 }

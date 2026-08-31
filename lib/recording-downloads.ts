@@ -38,6 +38,16 @@ const getExtension = (filePath: string) => {
     return match ? `.${match[1]}` : ".m4a"
 }
 
+const MIME_TYPES: Record<string, string> = {
+    ".mp3": "audio/mpeg",
+    ".m4a": "audio/mp4",
+    ".aac": "audio/aac",
+    ".wav": "audio/wav",
+    ".ogg": "audio/ogg",
+}
+
+const getMimeType = (filePath: string): string => MIME_TYPES[getExtension(filePath)] ?? "audio/mp4"
+
 const cachePathFor = (recording: Recording) => `${CACHE_DIR}${recording.id}${getExtension(recording.file_path)}`
 const downloadPathFor = (recording: Recording) => `${DOWNLOAD_DIR}${recording.id}${getExtension(recording.file_path)}`
 
@@ -125,7 +135,16 @@ export const deleteDownloadedRecording = async (recording: Recording): Promise<v
     }
 }
 
-/** Hands the local file to the OS share sheet - "Save to Files", AirDrop, or open with any other app that accepts audio. */
+/**
+ * Hands the local file to the OS share sheet. On iOS this is genuinely how
+ * you "save to Files" - "Save to Files" is one of the built-in actions in
+ * the standard share sheet for a document-type file, and passing an
+ * explicit UTI is what makes iOS reliably recognize it as one instead of
+ * falling back to a generic, less-capable share entry. On Android there is
+ * no equivalent "save to storage" system action to hand a file to - a share
+ * intent there is genuinely only ever "send this to another app," which is
+ * why saveRecordingToDeviceStorage below exists as a separate action.
+ */
 export const shareDownloadedRecording = async (recording: Recording): Promise<void> => {
     const path = downloadPathFor(recording)
     if (!(await fileExists(path))) {
@@ -134,5 +153,56 @@ export const shareDownloadedRecording = async (recording: Recording): Promise<vo
     if (!(await Sharing.isAvailableAsync())) {
         throw new Error("Sharing is not available on this device.")
     }
-    await Sharing.shareAsync(path)
+    await Sharing.shareAsync(path, {
+        mimeType: getMimeType(recording.file_path),
+        UTI: "public.audio",
+        dialogTitle: recording.podcast_title ?? "Sermon recording",
+    })
+}
+
+// expo-file-system's SAF write only accepts a base64 string, held in memory
+// in full - there's no chunked/streamed write into a content:// URI. Above
+// this size, that string (33% bigger than the file itself, per base64) is
+// likely to blow the Android JS heap the way it did before - even with
+// largeHeap raising the ceiling (see plugins/with-android-large-heap.js),
+// there's still a limit. Failing fast with a clear reason beats an
+// OutOfMemoryError several seconds into the attempt.
+const MAX_SAF_SAVE_BYTES = 150 * 1024 * 1024
+
+/**
+ * Android only: writes the downloaded recording into a folder the user
+ * picks via the system's Storage Access Framework picker - a real, visible
+ * file in their own storage (e.g. Downloads), not just handed off to
+ * another app. This is the Android equivalent of iOS's "Save to Files."
+ * Prompts for folder access every call rather than persisting a granted
+ * URI - simpler, and Android's own picker remembers the last folder used.
+ */
+export const saveRecordingToDeviceStorage = async (recording: Recording): Promise<void> => {
+    const sourcePath = downloadPathFor(recording)
+    const sourceInfo = await FileSystem.getInfoAsync(sourcePath)
+    if (!sourceInfo.exists) {
+        throw new Error("This recording has not been downloaded yet.")
+    }
+    if (sourceInfo.size > MAX_SAF_SAVE_BYTES) {
+        throw new Error(
+            `This recording is too large to save this way (${(sourceInfo.size / (1024 * 1024)).toFixed(0)}MB). Use Share instead.`
+        )
+    }
+
+    const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync()
+    if (!permissions.granted) {
+        throw new Error("Storage access was not granted.")
+    }
+
+    const fileName = (recording.podcast_title || "sermon-recording").replace(/[^a-zA-Z0-9 _-]/g, "").trim() || "sermon-recording"
+    const mimeType = getMimeType(recording.file_path)
+
+    const destinationUri = await FileSystem.StorageAccessFramework.createFileAsync(
+        permissions.directoryUri,
+        fileName,
+        mimeType
+    )
+
+    const base64Content = await FileSystem.readAsStringAsync(sourcePath, { encoding: FileSystem.EncodingType.Base64 })
+    await FileSystem.writeAsStringAsync(destinationUri, base64Content, { encoding: FileSystem.EncodingType.Base64 })
 }

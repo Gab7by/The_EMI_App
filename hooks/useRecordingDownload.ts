@@ -2,6 +2,7 @@ import {
     deleteDownloadedRecording,
     downloadRecording,
     isRecordingDownloaded,
+    saveRecordingToDeviceStorage,
     shareDownloadedRecording,
     type DownloadProgress,
 } from "@/lib/recording-downloads"
@@ -66,5 +67,9 @@ export const useRecordingDownload = (recording: Recording) => {
         await shareDownloadedRecording(recording)
     }, [recording])
 
-    return { status, progress, download, remove, share }
+    const saveToDeviceStorage = useCallback(async () => {
+        await saveRecordingToDeviceStorage(recording)
+    }, [recording])
+
+    return { status, progress, download, remove, share, saveToDeviceStorage }
 }

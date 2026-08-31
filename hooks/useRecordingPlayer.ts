@@ -10,8 +10,28 @@ export const useRecordingPlayer = () => {
     const [recordings, setRecordings] = useState<Recording[]>([])
     const [currentIndex, setCurrentIndex] = useState<number | null>(null)
 
-    const player = useAudioPlayer(currentUrl ? { uri: currentUrl } : null)
+    // The source argument here must stay referentially the same (`null`) for
+    // the lifetime of this hook. Passing `currentUrl` in directly - which is
+    // how this used to be written - fed a *new* source into useAudioPlayer
+    // on every single track change. Its underlying useReleasingSharedObject
+    // reacts to that by constructing a brand new native AudioPlayer and
+    // releasing the old one, IN ADDITION to the explicit player.replace()
+    // call below that was already handling the source swap. Two competing
+    // mechanisms for the same thing meant: the manually .replace()'d and
+    // .play()'d instance could get released moments later when the
+    // useAudioPlayer-driven recreation kicked in, so the *real* surviving
+    // player never actually started playing (the "loading never finishes"
+    // and "seek lands on the previous track" reports), and any in-flight
+    // seek Promise still holding a reference to the old instance would
+    // reject with "Cannot use shared object that was already released" the
+    // moment it resolved.
+    //
+    // The fix is to construct exactly one player for the whole hook's
+    // lifetime and use player.replace() as the *only* way to change what's
+    // loaded - which is what it's for.
+    const player = useAudioPlayer(null)
     const status = useAudioPlayerStatus(player)
+    const hasConfiguredAudioModeRef = useRef(false)
 
     const loadRecording = useCallback(async (recording: Recording, index: number) => {
         setLoadingId(recording.id)
@@ -35,16 +55,21 @@ export const useRecordingPlayer = () => {
             cacheRecordingInBackground(recording, signedUrl)
         }
 
-        await setAudioModeAsync({
-            playsInSilentMode: true,
-            shouldPlayInBackground: true
-        })
+        // The audio session category/mode only needs setting up once, not
+        // re-applied on every track switch - doing it every time added a
+        // real native round trip to what should be an instant local replay.
+        if (!hasConfiguredAudioModeRef.current) {
+            hasConfiguredAudioModeRef.current = true
+            await setAudioModeAsync({
+                playsInSilentMode: true,
+                shouldPlayInBackground: true
+            })
+        }
 
         setCurrentUrl(playbackUrl)
         setCurrentIndex(index)
         setLoadingId(null)
 
-        // Use replace to change the source on the existing player
         player.replace({ uri: playbackUrl })
         player.play()
         return true
