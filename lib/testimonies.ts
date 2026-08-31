@@ -58,6 +58,62 @@ export const getTestimonyById = async (id: string): Promise<TestimonyWithImages 
   return data as unknown as TestimonyWithImages
 }
 
+const getTestimonyImageStoragePath = (imageUrl: string): string | null =>
+  imageUrl.split('/testimony-images/')[1]?.split('?')[0] ?? null
+
+/**
+ * Deletes a testimony and its photos. RLS is the real gate here (see the
+ * delete policies on `testimonies`/`testimony_images` - a user may only
+ * delete their own row, an admin may delete any) - this just performs the
+ * delete and reports whether it actually removed anything, so the caller
+ * can tell "not allowed" apart from "already gone."
+ */
+export const deleteTestimony = async (
+  id: string,
+  imageUrls: string[] = []
+): Promise<boolean> => {
+  const storagePaths = imageUrls
+    .map(getTestimonyImageStoragePath)
+    .filter((path): path is string => !!path)
+
+  if (storagePaths.length > 0) {
+    const { error: storageError } = await supabase.storage
+      .from('testimony-images')
+      .remove(storagePaths)
+
+    if (storageError) {
+      console.warn('deleteTestimony: storage cleanup failed:', storageError.message)
+    }
+  }
+
+  // Explicit even though the FK may already cascade - keeps this correct
+  // regardless of how that constraint is configured.
+  const { error: imagesError } = await supabase
+    .from('testimony_images')
+    .delete()
+    .eq('testimony_id', id)
+
+  if (imagesError) {
+    console.error('deleteTestimony images:', imagesError.message)
+    return false
+  }
+
+  const { data, error } = await supabase
+    .from('testimonies')
+    .delete()
+    .eq('id', id)
+    .select('id')
+
+  if (error) {
+    console.error('deleteTestimony:', error.message)
+    return false
+  }
+
+  // RLS silently filters out rows you're not allowed to touch rather than
+  // erroring - an empty result means the delete was blocked, not applied.
+  return (data?.length ?? 0) > 0
+}
+
 export const createTestimony = async (
   content: string,
   images: ImagePickerAsset[] = []

@@ -38,7 +38,10 @@ const AddTestimonyScreen = () => {
     if (images.length >= MAX_TESTIMONY_IMAGES) return
 
     hapticLight()
-    const asset = await pickImage({ allowsEditing: true, aspect: [1, 1] })
+    // No forced crop - the photo is uploaded as picked. The 88x88 preview
+    // below fills its box with contentFit="cover" for display only; that
+    // never touches the actual stored file.
+    const asset = await pickImage({ allowsEditing: false })
     if (!asset) return
 
     setImages((prev) => [...prev, asset])
