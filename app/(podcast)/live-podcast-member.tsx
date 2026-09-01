@@ -76,6 +76,10 @@ const MemberLivePodcast = () => {
   const [hasHungUpSpeaker, setHasHungUpSpeaker] = useState(false)
   const [speakerLimitMessage, setSpeakerLimitMessage] = useState<string | null>(null)
   const [replyingTo, setReplyingTo] = useState<{ messageId: string; senderName: string } | null>(null)
+  const handleReplyToMessage = useCallback((messageId: string, senderName: string) => {
+    setReplyingTo({ messageId, senderName })
+  }, [])
+  const handleCancelReply = useCallback(() => setReplyingTo(null), [])
 
   const selectedCurrency = useMemo(
     () =>
@@ -453,11 +457,9 @@ const MemberLivePodcast = () => {
             onDeleteMessage={deleteMessage}
             canDeleteMessage={canDeleteMessage}
             canEditMessage={canEditMessage}
-            onReplyToMessage={(messageId, senderName) => {
-              setReplyingTo({ messageId, senderName })
-            }}
+            onReplyToMessage={handleReplyToMessage}
             replyingTo={replyingTo}
-            onCancelReply={() => setReplyingTo(null)}
+            onCancelReply={handleCancelReply}
           />
         </View>
 
