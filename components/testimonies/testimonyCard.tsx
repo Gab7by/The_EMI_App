@@ -11,13 +11,17 @@ type TestimonyCardProps = {
   avatarUrl: string | null
   content: string
   createdAt?: string
-  onPressContent?: () => void
+  /** Receives this card's id - lets callers pass one stable top-level
+   * handler (e.g. from useCallback) instead of a fresh inline closure per
+   * card, which would otherwise defeat this component's memo(). */
+  onPress?: (id: string) => void
 }
 
 export const getInitial = (name: string) => name.trim().charAt(0).toUpperCase() || "?"
 
-const TestimonyCard = memo(({ fullName, avatarUrl, content, createdAt, onPressContent }: TestimonyCardProps) => {
+const TestimonyCard = memo(({ id, fullName, avatarUrl, content, createdAt, onPress }: TestimonyCardProps) => {
   const [viewerVisible, setViewerVisible] = useState(false)
+  const handlePressContent = onPress ? () => onPress(id) : undefined
 
   return (
     <View className="rounded-2xl bg-menorah-darkGreen p-4">
@@ -58,11 +62,11 @@ const TestimonyCard = memo(({ fullName, avatarUrl, content, createdAt, onPressCo
         </View>
       </View>
 
-      <Pressable onPress={onPressContent} className="mt-3" disabled={!onPressContent}>
+      <Pressable onPress={handlePressContent} className="mt-3" disabled={!handlePressContent}>
         <Text className="text-sm leading-5 text-white/85" numberOfLines={5}>
           {content}
         </Text>
-        {onPressContent && (
+        {handlePressContent && (
           <Text className="mt-2 text-xs font-bold text-menorah-goldDark">
             Read full testimony →
           </Text>

@@ -1,8 +1,10 @@
 import TestimonyCard from "@/components/testimonies/testimonyCard"
 import { useTestimonies } from "@/hooks/tanstack-query-hooks"
+import type { Testimony } from "@/types/testimony-types"
 import { FlashList } from "@shopify/flash-list"
 import { ArrowLeft, Plus } from "lucide-react-native"
 import { useRouter } from "expo-router"
+import { useCallback } from "react"
 import { ActivityIndicator, Pressable, Text, View } from "react-native"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -10,6 +12,22 @@ const TestimoniesScreen = () => {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const { data: testimonies, isLoading } = useTestimonies()
+
+  const handleOpenTestimony = useCallback(
+    (testimonyId: string) => router.push(`/(testimonies)/${testimonyId}`),
+    [router]
+  )
+
+  const renderItem = useCallback(({ item }: { item: Testimony }) => (
+    <TestimonyCard
+      id={item.id}
+      fullName={item.profiles?.full_name ?? "User"}
+      avatarUrl={item.profiles?.avatar_url ?? null}
+      content={item.content}
+      createdAt={item.created_at}
+      onPress={handleOpenTestimony}
+    />
+  ), [handleOpenTestimony])
 
   return (
     <SafeAreaView
@@ -64,16 +82,7 @@ const TestimoniesScreen = () => {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingTop: 20, paddingBottom: insets.bottom + 120 }}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-          renderItem={({ item }) => (
-            <TestimonyCard
-              id={item.id}
-              fullName={item.profiles?.full_name ?? "User"}
-              avatarUrl={item.profiles?.avatar_url ?? null}
-              content={item.content}
-              createdAt={item.created_at}
-              onPressContent={() => router.push(`/(testimonies)/${item.id}`)}
-            />
-          )}
+          renderItem={renderItem}
         />
       )}
     </SafeAreaView>
