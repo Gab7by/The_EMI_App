@@ -97,6 +97,7 @@ const AdminLivePodcast = () => {
   const [egressId, setEgressId] = useState<string | null>(null)
   const [isRecording, setIsRecording] = useState<boolean>(false)
   const [hasRequestedRecording, setHasRequestedRecording] = useState(false)
+  const [hasWarmedMusicBot, setHasWarmedMusicBot] = useState(false)
   const [isRecordingActionLoading, setIsRecordingActionLoading] = useState(false)
   const [selectedMusicAsset, setSelectedMusicAsset] = useState<AudioPickerAsset | null>(null)
   const [selectedMusicTrack, setSelectedMusicTrack] = useState<MusicTrack | null>(null)
@@ -210,6 +211,22 @@ const AdminLivePodcast = () => {
 
     startRecordingWhenConnected()
   }, [room, connectionState, isRecording, egressId, hasRequestedRecording, livekitRoomName, id])
+
+  // Almost every session ends up using background music, so warming the
+  // bot's connection here - the moment the host's own room connects,
+  // rather than waiting for them to open the music sheet - gives it the
+  // most possible lead time to finish its handshake before anyone goes
+  // looking for it. warmMusicBot()/connectBot() is idempotent and safe to
+  // call again later (from opening the sheet) - if this attempt fails
+  // (network blip, bot cold-starting, etc.) nothing is left half-set-up,
+  // so that later call - or Play itself - just retries the connection
+  // from scratch rather than getting stuck on a broken warm state.
+  useEffect(() => {
+    if (!room || connectionState !== 'connected' || hasWarmedMusicBot) return
+
+    setHasWarmedMusicBot(true)
+    void warmMusicBot(livekitRoomName)
+  }, [room, connectionState, hasWarmedMusicBot, livekitRoomName])
 
   const handleSendMessage = async () => {
     if (!message.trim()) return
