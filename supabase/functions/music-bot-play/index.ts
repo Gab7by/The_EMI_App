@@ -70,7 +70,7 @@ serve(async (req) => {
       })
     }
 
-    if (!['play', 'status', 'pause', 'resume', 'volume'].includes(action)) {
+    if (!['play', 'status', 'pause', 'resume', 'volume', 'warm'].includes(action)) {
       return new Response(JSON.stringify({ error: 'Invalid action' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

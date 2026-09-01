@@ -169,6 +169,38 @@ export const stopMusicTrack = async (roomName: string): Promise<boolean> => {
     return true
 }
 
+/**
+ * Pre-connects the bot to the room (WebSocket + track publish) without
+ * playing anything yet - the slow part of "play" isn't ffmpeg, it's this
+ * handshake. Call this as soon as the music sheet opens so the connection
+ * is already warm by the time the host actually picks Play, instead of
+ * paying that latency at the moment they're waiting on it. Safe to call
+ * repeatedly - a no-op if already connected.
+ */
+export const warmMusicBot = async (roomName: string): Promise<boolean> => {
+    return controlMusicBot(roomName, 'warm')
+}
+
+/**
+ * Fully disconnects the bot from the room, freeing the Fly.io process's
+ * LiveKit connection. Unlike stopMusicTrack (a soft stop that keeps the
+ * connection warm for a fast next Play), this is for when music is truly
+ * done for the session - call it when the live podcast itself ends.
+ */
+export const shutdownMusicBot = async (roomName: string): Promise<boolean> => {
+    const {error} = await supabase.functions.invoke('music-bot-stop', {
+        body: { roomName, hard: true },
+    })
+
+    if (error) {
+        const detail = await getFunctionErrorDetail(error)
+        console.error('Error shutting down music bot:', error, detail)
+        return false
+    }
+
+    return true
+}
+
 export const pauseMusicTrack = async (roomName: string): Promise<boolean> => {
     return controlMusicBot(roomName, 'pause')
 }
@@ -186,7 +218,7 @@ export const setMusicTrackVolume = async (
 
 const controlMusicBot = async (
     roomName: string,
-    action: 'pause' | 'resume' | 'volume',
+    action: 'pause' | 'resume' | 'volume' | 'warm',
     extraBody: Record<string, unknown> = {}
 ): Promise<boolean> => {
     const {error} = await supabase.functions.invoke('music-bot-play', {
