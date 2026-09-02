@@ -27,6 +27,18 @@ const isMusicBotParticipant = (identity: string, name?: string) => {
   );
 };
 
+// Deliberately excludes audioLevel. It's a continuous value that changes on
+// nearly every ActiveSpeakersChanged event while anyone is talking - which,
+// during a live podcast, is most of the time. Including it here meant this
+// hook's state updated multiple times a second whenever someone spoke, and
+// since it's called directly inside the (very large) admin/member screen
+// components rather than an isolated child, every one of those updates
+// re-rendered the whole screen - every sheet, every header button, whether
+// or not it was even visible. isSpeaking (a boolean that only flips at the
+// start/end of speech) is what the UI actually keys its "who's talking"
+// indicators off; audioLevel is still included in each snapshot object for
+// any component that wants it, it just no longer gates whether a new array
+// gets committed to state.
 const areSnapshotsEqual = (
   previous: LiveRoomParticipantSnapshot[],
   next: LiveRoomParticipantSnapshot[]
@@ -43,8 +55,7 @@ const areSnapshotsEqual = (
       participant.canPublish === nextParticipant.canPublish &&
       participant.isMicrophoneEnabled === nextParticipant.isMicrophoneEnabled &&
       participant.audioTrackSid === nextParticipant.audioTrackSid &&
-      participant.isSpeaking === nextParticipant.isSpeaking &&
-      participant.audioLevel === nextParticipant.audioLevel
+      participant.isSpeaking === nextParticipant.isSpeaking
     );
   });
 };

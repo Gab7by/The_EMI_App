@@ -8,7 +8,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^13.0.0",
@@ -32,6 +33,7 @@
     "expo": "~54.0.33",
     "expo-audio": "~1.1.1",
     "expo-blur": "~15.0.8",
+    "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.21",
     "expo-document-picker": "~14.0.8",
@@ -45,6 +47,7 @@
     "expo-media-library": "~18.2.1",
     "expo-router": "~6.0.23",
     "expo-secure-store": "~15.0.8",
+    "expo-sharing": "~14.0.8",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-symbols": "~1.0.8",
@@ -78,6 +81,7 @@
     "@types/react": "~19.1.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "patch-package": "^8.0.1",
     "supabase": "^2.96.0",
     "typescript": "~5.9.2"
   },

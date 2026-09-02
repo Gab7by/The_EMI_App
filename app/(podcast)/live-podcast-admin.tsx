@@ -4,11 +4,9 @@ import MessagingButton from "@/assets/svgs/messaging_button.svg";
 import MicrophoneButton from "@/assets/svgs/microphone_button.svg";
 import MusicButton from "@/assets/svgs/music_button_icon.svg";
 import {
-  HostAvatar,
   MAX_GUEST_SPEAKERS,
   PodcastBackground,
   PodcastBottomDock,
-  PodcastBottomSheet,
   PodcastComments,
   PodcastConnectingOverlay,
   PodcastDialog,
@@ -18,6 +16,7 @@ import {
   SPEAKER_LIMIT_MESSAGE,
   usePodcastFooterLayout,
 } from "@/components/podcast/livePodcastShared";
+import { BibleReader } from "@/components/podcast/bibleReader";
 import { Icon } from "@/components/ui/icon";
 import { Colors } from "@/constants/theme";
 import { useHostRooom } from "@/hooks/useHostRoom";
@@ -25,34 +24,36 @@ import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { hapticMedium } from "@/lib/haptics";
-import { BACKGROUND_MUSIC_DEFAULT_VOLUME, BACKGROUND_MUSIC_VOLUME_STEP, PODCAST_MIC_CAPTURE_OPTIONS } from "@/lib/livekit-audio";
-import { approveSpeaker, muteSpeaker, revokeSpeaker, sendBackgroundChangedSignal, sendSessionEnded } from "@/lib/livekit-signals";
+import { BACKGROUND_MUSIC_DEFAULT_VOLUME, PODCAST_MIC_CAPTURE_OPTIONS } from "@/lib/livekit-audio";
+import { approveSpeaker, muteSpeaker, revokeSpeaker, sendBackgroundChangedSignal, sendBibleNavigation, sendSessionEnded } from "@/lib/livekit-signals";
+import { ensureMicrophonePermission } from "@/lib/permissions";
 import { closeLiveKitRoom, endLiveSession, updateParticipantCalledIn } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { startRecording, stopRecording } from "@/lib/recording";
 import { pickAudioFile, pickImage, uploadPodcastBackground } from "@/lib/storage";
 import { useAuthStore } from "@/store/authStore";
 import { useLiveKitStore } from "@/store/livekit-store";
-import { AudioPickerAsset, LivePodcastParticipant, MusicTrack } from "@/types/podcast-types";
+import { AudioPickerAsset, MusicTrack } from "@/types/podcast-types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { FlashList } from "@shopify/flash-list";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { AlertCircle, CheckCircle2, ChevronRight, FileAudio, Loader2, Mic, MicOff, Minus, Music2, Pause, Play, Plus, Power, RefreshCw, Share2, Square, Trash2, Upload, X } from "lucide-react-native";
+import { BookOpen, Loader2, Mic, Power, Share2, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Keyboard,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { deleteMusicTrack, getMusicBotStatus, pauseMusicTrack, playMusicTrack, resumeMusicTrack, setMusicTrackVolume, stopMusicTrack, uploadMusicTrack } from "@/lib/music";
+import { deleteMusicTrack, getMusicBotStatus, pauseMusicTrack, playMusicTrack, resumeMusicTrack, setMusicTrackVolume, shutdownMusicBot, stopMusicTrack, uploadMusicTrack, warmMusicBot } from "@/lib/music";
 import { useActiveLivePodcastParticipants, useBackgoundMusicQuery } from "@/hooks/tanstack-query-hooks";
+import MusicSheet from "@/components/podcast/musicSheet";
+import SettingsSheet from "@/components/podcast/settingsSheet";
+import ParticipantsSheet from "@/components/podcast/participantsSheet";
+import SpeakersSheet from "@/components/podcast/speakersSheet";
 import { shareLivePodcast } from "@/lib/share";
 
 type AdminSheet = "none" | "settings" | "music" | "speakers" | "participants";
@@ -76,6 +77,9 @@ const AdminLivePodcast = () => {
 
   const [isExitPromptVisible, setIsExitPromptVisible] = useState(false);
   const [isNotesVisible, setIsNotesVisible] = useState(false);
+  const [isBibleVisible, setIsBibleVisible] = useState(false);
+  const [bibleBookId, setBibleBookId] = useState<string | null>(null);
+  const [bibleChapter, setBibleChapter] = useState<number | null>(null);
   const [activeSheet, setActiveSheet] = useState<AdminSheet>("none");
   const [isMessageComposerVisible, setIsMessageComposerVisible] = useState(false);
   const [message, setMessage] = useState("");
@@ -93,6 +97,7 @@ const AdminLivePodcast = () => {
   const [egressId, setEgressId] = useState<string | null>(null)
   const [isRecording, setIsRecording] = useState<boolean>(false)
   const [hasRequestedRecording, setHasRequestedRecording] = useState(false)
+  const [hasWarmedMusicBot, setHasWarmedMusicBot] = useState(false)
   const [isRecordingActionLoading, setIsRecordingActionLoading] = useState(false)
   const [selectedMusicAsset, setSelectedMusicAsset] = useState<AudioPickerAsset | null>(null)
   const [selectedMusicTrack, setSelectedMusicTrack] = useState<MusicTrack | null>(null)
@@ -104,12 +109,16 @@ const AdminLivePodcast = () => {
   const [musicStatusMessage, setMusicStatusMessage] = useState<string | null>(null)
   const [speakerLimitMessage, setSpeakerLimitMessage] = useState<string | null>(null)
   const [musicVolume, setMusicVolume] = useState(BACKGROUND_MUSIC_DEFAULT_VOLUME)
-  const [musicSliderWidth, setMusicSliderWidth] = useState(0)
   const [isMusicPaused, setIsMusicPaused] = useState(false)
   const [deletingMusicTrackId, setDeletingMusicTrackId] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [isRefreshingLiveParticipants, setIsRefreshingLiveParticipants] = useState(false)
   const [replyingTo, setReplyingTo] = useState<{ messageId: string; senderName: string } | null>(null)
+  const handleReplyToMessage = useCallback((messageId: string, senderName: string) => {
+    setReplyingTo({ messageId, senderName })
+    setIsMessageComposerVisible(true)
+  }, [])
+  const handleCancelReply = useCallback(() => setReplyingTo(null), [])
 
   const room = useLiveKitStore(state => state.room)
   const isMuted = useLiveKitStore(state => state.isMuted)
@@ -148,13 +157,24 @@ const AdminLivePodcast = () => {
     profile?.role
   )
 
-  const handleParticipantChange = useCallback((action: 'joined' | 'left', _participantId: string, participantName: string) => {
+  // Only "joined" gets a durable room event. "left" is intentionally not
+  // persisted - it added noise (people dropping in and out during a long
+  // live session) without being useful history, and doubled the row count
+  // every session was writing to Supabase.
+  //
+  // Both actions still refresh the DB-backed participant list, though - this
+  // LiveKit event fires in real time and at zero Supabase cost, on every
+  // connected client including the host's. Using it to invalidate
+  // active-live-podcast-participants is what let us take that query's
+  // refetchInterval from every 2s down to a long safety-net interval below:
+  // the host learns about joins/leaves instantly via LiveKit instead of
+  // waiting on (or depending on) the poll to notice.
+  const handleParticipantChange = useCallback((action: 'joined' | 'left', participantId: string, participantName: string) => {
     if (action === 'joined') {
-      void sendSystemMessage(`${participantName} joined the live room`, `joined:${_participantId}`)
-    } else {
-      void sendSystemMessage(`${participantName} left the live room`, `left:${_participantId}`)
+      void sendSystemMessage(`${participantName} joined the live room`, `joined:${participantId}`)
     }
-  }, [sendSystemMessage])
+    queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+  }, [sendSystemMessage, id])
 
   const { participants: roomParticipants } = useLiveRoomSnapshot(room, handleParticipantChange)
   const latestRaisedHand = raisedHands[raisedHands.length - 1]
@@ -192,6 +212,22 @@ const AdminLivePodcast = () => {
     startRecordingWhenConnected()
   }, [room, connectionState, isRecording, egressId, hasRequestedRecording, livekitRoomName, id])
 
+  // Almost every session ends up using background music, so warming the
+  // bot's connection here - the moment the host's own room connects,
+  // rather than waiting for them to open the music sheet - gives it the
+  // most possible lead time to finish its handshake before anyone goes
+  // looking for it. warmMusicBot()/connectBot() is idempotent and safe to
+  // call again later (from opening the sheet) - if this attempt fails
+  // (network blip, bot cold-starting, etc.) nothing is left half-set-up,
+  // so that later call - or Play itself - just retries the connection
+  // from scratch rather than getting stuck on a broken warm state.
+  useEffect(() => {
+    if (!room || connectionState !== 'connected' || hasWarmedMusicBot) return
+
+    setHasWarmedMusicBot(true)
+    void warmMusicBot(livekitRoomName)
+  }, [room, connectionState, hasWarmedMusicBot, livekitRoomName])
+
   const handleSendMessage = async () => {
     if (!message.trim()) return
     const result = await sendMessage(message, profile?.full_name ?? "User", profile?.avatar_url ?? null, replyingTo?.messageId)
@@ -202,16 +238,17 @@ const AdminLivePodcast = () => {
   }
   const canSendMessage = message.trim().length > 0
 
-  const handleRefreshLiveParticipants = async () => {
+  const handleRefreshLiveParticipants = useCallback(async () => {
     if (isRefreshingLiveParticipants) return
 
+    hapticMedium()
     setIsRefreshingLiveParticipants(true)
     try {
       await refetchActiveParticipants()
     } finally {
       setIsRefreshingLiveParticipants(false)
     }
-  }
+  }, [isRefreshingLiveParticipants, refetchActiveParticipants])
 
   useEffect(() => {
   let focusTimeout: NodeJS.Timeout;
@@ -244,10 +281,16 @@ const AdminLivePodcast = () => {
   };
 }, [isMessageComposerVisible]);
 
-  const closeAllOverlays = () => {
+  const closeAllOverlays = useCallback(() => {
     setActiveSheet("none");
     setIsMessageComposerVisible(false);
-  };
+  }, []);
+
+  // One stable reference shared by every sheet's onClose, instead of each
+  // passing its own inline `() => setActiveSheet("none")` - a fresh
+  // function every render, which would defeat those sheets' memo() even
+  // though setActiveSheet itself never changes.
+  const handleCloseSheet = useCallback(() => setActiveSheet("none"), []);
 
   const leaveLiveRoom = () => {
     setIsEndingSession(true)
@@ -256,6 +299,14 @@ const AdminLivePodcast = () => {
         if (room && profile) {
           await sendSessionEnded(room, profile.id, profile.full_name ?? 'Host')
         }
+
+        // Fully disconnects the music bot rather than leaving it warm - it
+        // has no session to come back to. closeLiveKitRoom below would
+        // eventually force this anyway (deleting the room disconnects
+        // every participant, bot included), but doing it explicitly here
+        // lets the bot shut down its ffmpeg process cleanly instead of
+        // just having its connection yanked.
+        void shutdownMusicBot(livekitRoomName)
 
         await stopRecording(egressId, id)
 
@@ -284,10 +335,18 @@ const AdminLivePodcast = () => {
     })
 }
 
-  const handleToggleMic = async () => {
-    if (!room) return 
+  const handleToggleMic = useCallback(async () => {
+    if (!room) return
 
     const newMutedState = !isMuted
+
+    if (!newMutedState) {
+      const granted = await ensureMicrophonePermission()
+      if (!granted) {
+        console.error("Microphone permission denied - cannot unmute")
+        return
+      }
+    }
 
     await room.localParticipant.setMicrophoneEnabled(
       !newMutedState,
@@ -296,7 +355,7 @@ const AdminLivePodcast = () => {
 
     setIsMuted(newMutedState)
     setForegroundServiceType(newMutedState ? "mediaPlayback" : "microphone")
-  }
+  }, [room, isMuted, setIsMuted, setForegroundServiceType])
 
   const hostSnapshot = useMemo(
     () => roomParticipants.find((participant) => participant.id === hostId),
@@ -351,6 +410,7 @@ const AdminLivePodcast = () => {
     () => speakerRows.filter((speaker) => !speaker.isHost).length,
     [speakerRows]
   )
+  const speakerLimitReached = activeGuestSpeakerCount >= MAX_GUEST_SPEAKERS
 
   const showSpeakerLimitMessage = useCallback(() => {
     setSpeakerLimitMessage(SPEAKER_LIMIT_MESSAGE)
@@ -366,7 +426,7 @@ const AdminLivePodcast = () => {
     return () => clearTimeout(timeout)
   }, [speakerLimitMessage])
 
-  const handleApproveRaisedHand = async (participantId: string) => {
+  const handleApproveRaisedHand = useCallback(async (participantId: string) => {
     if (!room || !profile || approvingRequests.has(participantId)) return
 
     const participantIsAlreadySpeaker = speakerRows.some((speaker) => speaker.id === participantId && !speaker.isHost)
@@ -406,13 +466,13 @@ const AdminLivePodcast = () => {
         return newSet
       })
     }
-  }
+  }, [room, profile, approvingRequests, speakerRows, activeGuestSpeakerCount, showSpeakerLimitMessage, livekitRoomName, id, dismissRaisedHand])
 
-  const handleRejectRaisedHand = (participantId: string) => {
+  const handleRejectRaisedHand = useCallback((participantId: string) => {
     dismissRaisedHand(participantId)
-  }
+  }, [dismissRaisedHand])
 
-  const handleRemoveSpeaker = async (participantId: string) => {
+  const handleRemoveSpeaker = useCallback(async (participantId: string) => {
     if (!room || !profile || removingSpeakers.has(participantId)) return
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -442,9 +502,9 @@ const AdminLivePodcast = () => {
         return newSet
       })
     }
-  }
+  }, [room, profile, removingSpeakers, livekitRoomName, id])
 
-  const handleMuteSpeaker = async (participantId: string, trackSid: string | null) => {
+  const handleMuteSpeaker = useCallback(async (participantId: string, trackSid: string | null) => {
     if (!trackSid || mutingSpeakers.has(participantId)) return
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -465,9 +525,9 @@ const AdminLivePodcast = () => {
         return newSet
       })
     }
-  }
+  }, [mutingSpeakers, livekitRoomName, id])
 
-  const handleBackgroundUpload = async () => {
+  const handleBackgroundUpload = useCallback(async () => {
     const asset = await pickImage({
       allowsEditing: false
     })
@@ -488,9 +548,9 @@ const AdminLivePodcast = () => {
     }
 
     setUploadingBackground(false)
-  }
+  }, [id, coverUrl, room, profile])
 
-  const handleToggleRecording = async () => {
+  const handleToggleRecording = useCallback(async () => {
     setIsRecordingActionLoading(true)
     try {
       if (isRecording) {
@@ -509,9 +569,9 @@ const AdminLivePodcast = () => {
     } finally {
       setIsRecordingActionLoading(false)
     }
-  }
+  }, [isRecording, egressId, id, livekitRoomName])
 
-  const handleMusicPick = async () => {
+  const handleMusicPick = useCallback(async () => {
     setUploadError(null)
     setUploadedMusicName(null)
 
@@ -519,9 +579,11 @@ const AdminLivePodcast = () => {
     if (!asset) return
 
     setSelectedMusicAsset(asset)
-  }
+  }, [])
 
-  const handleMusicUpload = async () => {
+  const handleClearPickedMusicAsset = useCallback(() => setSelectedMusicAsset(null), [])
+
+  const handleMusicUpload = useCallback(async () => {
     if (!selectedMusicAsset) {
       setUploadError("Choose an audio file first.")
       return
@@ -542,9 +604,9 @@ const AdminLivePodcast = () => {
     } else {
       setUploadError("Failed to upload track. Please try again.")
     }
-  }
+  }, [selectedMusicAsset])
 
-  const handlePlayMusic = async () => {
+  const handlePlayMusic = useCallback(async () => {
     if (!selectedMusicTrack || isMusicActionLoading) return
 
     setUploadError(null)
@@ -561,9 +623,9 @@ const AdminLivePodcast = () => {
     } else {
       setUploadError("Could not start music.")
     }
-  }
+  }, [selectedMusicTrack, isMusicActionLoading, livekitRoomName, musicVolume])
 
-  const handleStopMusic = async () => {
+  const handleStopMusic = useCallback(async () => {
     if (isMusicActionLoading) return
 
     setUploadError(null)
@@ -580,9 +642,9 @@ const AdminLivePodcast = () => {
     } else {
       setUploadError("Could not stop music.")
     }
-  }
+  }, [isMusicActionLoading, livekitRoomName])
 
-  const handleToggleMusicPaused = async () => {
+  const handleToggleMusicPaused = useCallback(async () => {
     if (!playingMusicTrack || isMusicActionLoading) return
 
     setUploadError(null)
@@ -600,9 +662,9 @@ const AdminLivePodcast = () => {
     } else {
       setUploadError(isMusicPaused ? "Could not resume music." : "Could not pause music.")
     }
-  }
+  }, [playingMusicTrack, isMusicActionLoading, isMusicPaused, livekitRoomName])
 
-  const handleAdjustMusicVolume = async (delta: number) => {
+  const handleAdjustMusicVolume = useCallback(async (delta: number) => {
     if (isMusicActionLoading) return
 
     const nextVolume = Math.max(0.05, Math.min(1, Math.round((musicVolume + delta) * 100) / 100))
@@ -621,15 +683,17 @@ const AdminLivePodcast = () => {
     if (!success) {
       setUploadError("Could not update music volume.")
     }
-  }
+  }, [isMusicActionLoading, musicVolume, playingMusicTrack, livekitRoomName])
 
-  const handleMusicSliderRelease = (locationX: number, width: number) => {
-    if (isMusicActionLoading || width <= 0) return
-    const target = Math.max(0, Math.min(1, locationX / width))
-    handleAdjustMusicVolume(target - musicVolume)
-  }
+  // MusicSheet's volume control reports an absolute value; the actual bot
+  // call wants a delta. This wrapper exists purely so that translation
+  // doesn't have to be a fresh inline arrow at the JSX call site.
+  const handleSetMusicVolume = useCallback(
+    (nextVolume: number) => handleAdjustMusicVolume(nextVolume - musicVolume),
+    [handleAdjustMusicVolume, musicVolume]
+  )
 
-  const handleCheckMusicStatus = async () => {
+  const handleCheckMusicStatus = useCallback(async () => {
     if (isMusicStatusLoading) return
 
     setUploadError(null)
@@ -663,9 +727,24 @@ const AdminLivePodcast = () => {
     }
 
     setMusicStatusMessage("Music is stopped.")
-  }
+  }, [isMusicStatusLoading, livekitRoomName, musicVolume])
 
-  const handleDeleteMusicTrack = async (track: MusicTrack) => {
+  // Opening the sheet is the earliest moment we know the host is about to
+  // want music - kick off the slow part (the bot's LiveKit connection)
+  // right now, in the background, instead of waiting for them to actually
+  // tap Play. By the time they've picked a track, the connection is
+  // typically already warm, so Play only has to start ffmpeg. Also
+  // resyncs with whatever the bot is actually doing, in case this host
+  // reopened the sheet after navigating away mid-playback.
+  const handleOpenMusicSheet = useCallback(() => {
+    hapticMedium()
+    closeAllOverlays()
+    setActiveSheet("music")
+    void warmMusicBot(livekitRoomName)
+    void handleCheckMusicStatus()
+  }, [closeAllOverlays, livekitRoomName, handleCheckMusicStatus])
+
+  const handleDeleteMusicTrack = useCallback(async (track: MusicTrack) => {
     if (deletingMusicTrackId || isMusicActionLoading) return
 
     if (playingMusicTrack?.id === track.id) {
@@ -690,88 +769,11 @@ const AdminLivePodcast = () => {
     } else {
       setUploadError("Could not delete track.")
     }
-  }
+  }, [deletingMusicTrackId, isMusicActionLoading, playingMusicTrack, selectedMusicTrack])
 
-  const renderMusicTrack = ({ item: track }: { item: MusicTrack }) => {
-    const isSelected = selectedMusicTrack?.id === track.id
-    const isPlaying = playingMusicTrack?.id === track.id
-    const isDeleting = deletingMusicTrackId === track.id
-    const canDelete = !isPlaying && !isDeleting && !isMusicActionLoading
+  // Track row rendering now lives in components/podcast/musicSheet.tsx.
 
-    return (
-      <Pressable
-        onPress={() => setSelectedMusicTrack(track)}
-        className={`mb-2 flex-row items-center rounded-[16px] px-4 py-3 ${
-          isSelected ? "bg-[#D7FF00]" : "bg-[#143703]"
-        }`}
-      >
-        <View className={`h-[30px] w-[30px] items-center justify-center rounded-[10px] ${
-          isSelected ? "bg-[#143703]/15" : "bg-[#D7FF00]/15"
-        }`}>
-          <Music2 size={15} color={isSelected ? "#143703" : "#D7FF00"} />
-        </View>
-        <Text className={`ml-3 flex-1 text-[13px] font-medium ${
-          isSelected ? "text-[#143703]" : "text-[#F2F5EE]"
-        }`} numberOfLines={1}>
-          {track.name}
-        </Text>
-        {isPlaying ? (
-          <View className={`ml-2 h-2.5 w-2.5 rounded-full ${
-            isSelected ? "bg-[#143703]" : "bg-[#D7FF00]"
-          }`} />
-        ) : null}
-        <Pressable
-          onPress={() => handleDeleteMusicTrack(track)}
-          disabled={!canDelete}
-          hitSlop={8}
-          className={`ml-3 h-9 w-9 items-center justify-center rounded-[12px] ${
-            isSelected ? "bg-[#143703]/10" : "bg-white/10"
-          }`}
-        >
-          {isDeleting ? (
-            <ActivityIndicator size="small" color={isSelected ? "#143703" : "#D7FF00"} />
-          ) : (
-            <Trash2
-              size={16}
-              color={canDelete ? (isSelected ? "#143703" : "#FF8A7A") : "#6F7C73"}
-            />
-          )}
-        </Pressable>
-      </Pressable>
-    )
-  }
-
-  const renderParticipantRow = ({ item: participant }: { item: LivePodcastParticipant }) => {
-    const participantProfile = participant.profile
-    const participantName = participantProfile?.full_name?.trim() || "Unnamed participant"
-    const joinedAt = participant.joined_at
-      ? new Date(participant.joined_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-      : null
-
-    return (
-      <View className="flex-row items-center rounded-[18px] bg-[#143703] px-4 py-3">
-        <HostAvatar
-          hostName={participantName}
-          hostPictureUrl={participantProfile?.avatar_url ?? null}
-          size={40}
-          textClassName="text-sm font-bold text-menorah-primary"
-        />
-        <View className="ml-3 min-w-0 flex-1">
-          <Text className="text-[14px] font-semibold text-[#F4F5F0]" numberOfLines={1}>
-            {participantName}
-          </Text>
-          <Text className="mt-1 text-[11px] text-[#B7C0BC]" numberOfLines={1}>
-            {joinedAt ? `Joined ${joinedAt}` : "Joined stream"}
-          </Text>
-        </View>
-        <View className={`ml-3 rounded-full px-2.5 py-1 ${participant.is_called_in ? "bg-[#D7FF00]" : "bg-[#D7FF00]/15"}`}>
-          <Text className={`text-[10px] font-semibold ${participant.is_called_in ? "text-[#143703]" : "text-[#D7FF00]"}`}>
-            {participant.is_called_in ? "Speaker" : "Live"}
-          </Text>
-        </View>
-      </View>
-    )
-  }
+  // Participant row rendering now lives in components/podcast/participantsSheet.tsx.
 
   return (
     <PodcastBackground coverUrl={coverUrl}
@@ -792,6 +794,11 @@ const AdminLivePodcast = () => {
                 <View className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
                   <Pressable onPress={() => { hapticMedium(); setIsNotesVisible(true) }} hitSlop={10}>
                     <HugeIcon width={21} height={21} />
+                  </Pressable>
+                </View>
+                <View className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
+                  <Pressable onPress={() => { hapticMedium(); setIsBibleVisible(true) }} hitSlop={10}>
+                    <BookOpen size={19} color="#F3F6E7" strokeWidth={1.4} />
                   </Pressable>
                 </View>
                 <Pressable
@@ -866,12 +873,9 @@ const AdminLivePodcast = () => {
             onDeleteMessage={deleteMessage}
             canDeleteMessage={canDeleteMessage}
             canEditMessage={canEditMessage}
-            onReplyToMessage={(messageId, senderName) => {
-              setReplyingTo({ messageId, senderName })
-              setIsMessageComposerVisible(true)
-            }}
+            onReplyToMessage={handleReplyToMessage}
             replyingTo={replyingTo}
-            onCancelReply={() => setReplyingTo(null)}
+            onCancelReply={handleCancelReply}
           />
         </View>
 
@@ -945,11 +949,7 @@ const AdminLivePodcast = () => {
                 <TreeButton width={26} height={26} />
               </Pressable>
               <Pressable
-                onPress={() => {
-                  hapticMedium();
-                  closeAllOverlays();
-                  setActiveSheet("music");
-                }}
+                onPress={handleOpenMusicSheet}
                 hitSlop={10}
               >
                 <MusicButton width={26} height={26} />
@@ -986,486 +986,69 @@ const AdminLivePodcast = () => {
           </View>
         ) : null}
 
-        <PodcastBottomSheet
+        <SettingsSheet
           visible={activeSheet === "settings"}
-          onClose={() => setActiveSheet("none")}
-        >
-          <View className="items-center">
-            <View className="h-[4px] w-[112px] rounded-full bg-[#D7FF00]" />
-          </View>
+          onClose={handleCloseSheet}
+          isRecording={isRecording}
+          isRecordingActionLoading={isRecordingActionLoading}
+          onToggleRecording={handleToggleRecording}
+          isUploadingBackground={uploadingBackground}
+          onSetBackground={handleBackgroundUpload}
+        />
 
-          <Pressable
-              onPress={handleToggleRecording}
-              disabled={isRecordingActionLoading}
-              className="mt-8 flex-row items-center justify-between"
-          >
-              <Text className="text-[16px] font-medium text-[#F2F5EE]">
-                  {isRecording ? 'Stop Recording' : 'Start Recording'}
-              </Text>
-              {isRecordingActionLoading ? (
-                <ActivityIndicator size="small" color="#D7FF00" />
-              ) : (
-                <ChevronRight size={24} color="#D7FF00" strokeWidth={2.4} />
-              )}
-          </Pressable>
-
-          <Pressable
-            onPress={() => handleBackgroundUpload()}
-            className="mt-10 flex-row items-center justify-between"
-          >
-            <Text className="text-[16px] font-medium text-[#F2F5EE]">Set Background</Text>
-            {uploadingBackground ? <ActivityIndicator size="small" color="#D7FF00" /> : <ChevronRight size={24} color="#D7FF00" strokeWidth={2.4} />}
-          </Pressable>
-        </PodcastBottomSheet>
-
-        <PodcastBottomSheet
+        <MusicSheet
           visible={activeSheet === "music"}
-          onClose={() => setActiveSheet("none")}
-          >
-          <View className="items-center">
-              <View className="h-[4px] w-[112px] rounded-full bg-[#D7FF00]" />
-          </View>
+          onClose={handleCloseSheet}
+          selectedAssetName={selectedMusicAsset?.name ?? null}
+          isUploading={isUploadingMusic}
+          uploadedName={uploadedMusicName}
+          onPickFile={handleMusicPick}
+          onClearPickedFile={handleClearPickedMusicAsset}
+          onUpload={handleMusicUpload}
+          tracks={musicTracks}
+          isLoadingTracks={isLoadingMusicTracks}
+          selectedTrack={selectedMusicTrack}
+          onSelectTrack={setSelectedMusicTrack}
+          deletingTrackId={deletingMusicTrackId}
+          onDeleteTrack={handleDeleteMusicTrack}
+          playingTrack={playingMusicTrack}
+          isPaused={isMusicPaused}
+          isActionLoading={isMusicActionLoading}
+          onPlay={handlePlayMusic}
+          onStop={handleStopMusic}
+          onTogglePause={handleToggleMusicPaused}
+          volume={musicVolume}
+          onSetVolume={handleSetMusicVolume}
+          statusMessage={musicStatusMessage}
+          errorMessage={uploadError}
+        />
 
-          <Text className="mt-3 text-center text-[16px] font-bold text-[#D7FF00]">
-            Music
-          </Text>
-
-          <View className="mt-3">
-            <Pressable
-              onPress={handleMusicPick}
-              disabled={isUploadingMusic}
-              className="flex-row items-center rounded-[14px] border border-dashed border-[#D7FF00]/45 bg-[#143703] px-3 py-3"
-            >
-              <View className="h-[34px] w-[34px] items-center justify-center rounded-full bg-[#D7FF00]">
-                <FileAudio size={17} color="#143703" strokeWidth={2.3} />
-              </View>
-              <View className="ml-3 flex-1">
-                <Text className="text-[13px] font-semibold text-[#F2F5EE]" numberOfLines={1}>
-                  {selectedMusicAsset ? selectedMusicAsset.name : "Choose audio"}
-                </Text>
-              </View>
-            </Pressable>
-
-            {selectedMusicAsset ? (
-              <Pressable
-                onPress={() => setSelectedMusicAsset(null)}
-                disabled={isUploadingMusic}
-                className="mt-2 self-end rounded-full bg-white/10 px-3 py-1.5"
-              >
-                <Text className="text-[12px] font-semibold text-[#F2F5EE]">Clear</Text>
-              </Pressable>
-            ) : null}
-
-            <Pressable
-              onPress={handleMusicUpload}
-              disabled={isUploadingMusic || !selectedMusicAsset}
-              className={`mt-3 flex-row items-center justify-center rounded-[14px] px-4 py-3 ${
-                selectedMusicAsset && !isUploadingMusic ? "bg-[#D7FF00]" : "bg-[#184832]"
-              }`}
-            >
-              {isUploadingMusic ? (
-                <>
-                  <ActivityIndicator size="small" color="#143703" />
-                  <Text className="ml-2 text-[13px] font-semibold text-[#143703]">
-                    Uploading...
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Upload size={16} color={selectedMusicAsset ? "#143703" : "#8A9A90"} />
-                  <Text
-                    className={`ml-2 text-[13px] font-semibold ${
-                      selectedMusicAsset ? "text-[#143703]" : "text-[#8A9A90]"
-                    }`}
-                  >
-                    Upload Track
-                  </Text>
-                </>
-              )}
-            </Pressable>
-
-            {uploadedMusicName ? (
-              <View className="mt-3 flex-row items-center rounded-[14px] bg-[#D7FF00]/12 px-3 py-2.5">
-                <CheckCircle2 size={16} color="#D7FF00" />
-                <Text className="ml-2 flex-1 text-[12px] text-[#D7FF00]" numberOfLines={1}>
-                  Uploaded {uploadedMusicName}
-                </Text>
-              </View>
-            ) : null}
-
-            {uploadError ? (
-              <View className="mt-3 flex-row items-center rounded-[14px] bg-[#F3523C]/12 px-3 py-2.5">
-                <AlertCircle size={16} color="#FF8A7A" />
-                <Text className="ml-2 flex-1 text-[12px] text-[#FF8A7A]">
-                  {uploadError}
-                </Text>
-              </View>
-            ) : null}
-
-            {musicStatusMessage ? (
-              <View className="mt-3 flex-row items-center rounded-[14px] bg-[#D7FF00]/12 px-3 py-2.5">
-                <CheckCircle2 size={16} color="#D7FF00" />
-                <Text className="ml-2 flex-1 text-[12px] text-[#D7FF00]" numberOfLines={2}>
-                  {musicStatusMessage}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-
-          <View className="mb-2 mt-4 flex-row items-center justify-between">
-            <Text className="text-[13px] font-semibold uppercase tracking-[1px] text-[#B7C0BC]">
-              Tracks
-            </Text>
-            <Text className="text-[12px] text-[#D7FF00]">
-              {musicTracks.length}
-            </Text>
-          </View>
-
-          <ScrollView
-            className="max-h-[280px]"
-            showsVerticalScrollIndicator
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: 4 }}
-          >
-            {isLoadingMusicTracks ? (
-              <View className="items-center rounded-[18px] bg-[#143703] px-4 py-5">
-                <ActivityIndicator size="small" color="#D7FF00" />
-              </View>
-            ) : musicTracks.length ? (
-              musicTracks.map((track) => (
-                <View key={track.id}>
-                  {renderMusicTrack({ item: track })}
-                </View>
-              ))
-            ) : (
-              <View className="rounded-[18px] bg-[#143703] px-4 py-5">
-                <Text className="text-center text-[13px] text-[#B7C0BC]">
-                  No tracks yet.
-                </Text>
-              </View>
-            )}
-          </ScrollView>
-
-          <View className="mt-3 flex-row gap-3">
-            <Pressable
-              onPress={handlePlayMusic}
-              disabled={!selectedMusicTrack || isMusicActionLoading}
-              className={`flex-1 flex-row items-center justify-center rounded-[14px] px-4 py-3 ${
-                selectedMusicTrack && !isMusicActionLoading ? "bg-[#D7FF00]" : "bg-[#184832]"
-              }`}
-            >
-              {isMusicActionLoading ? (
-                <ActivityIndicator size="small" color="#143703" />
-              ) : (
-                <Play size={17} color={selectedMusicTrack ? "#143703" : "#8A9A90"} />
-              )}
-              <Text className={`ml-2 text-[13px] font-semibold ${
-                selectedMusicTrack && !isMusicActionLoading ? "text-[#143703]" : "text-[#8A9A90]"
-              }`}>
-                Play
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={handleStopMusic}
-              disabled={isMusicActionLoading}
-              className="flex-1 flex-row items-center justify-center rounded-[14px] bg-[#184832] px-4 py-3"
-            >
-              <Square size={17} color="#D7FF00" />
-              <Text className="ml-2 text-[13px] font-semibold text-[#D7FF00]">
-                Stop
-              </Text>
-            </Pressable>
-          </View>
-
-          <View className="mt-2 rounded-[14px] bg-[#143703] px-3 py-3">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-[12px] font-semibold text-[#F2F5EE]">
-                Music volume
-              </Text>
-              <Text className="text-[12px] font-semibold text-[#D7FF00]">
-                {Math.round(musicVolume * 100)}%
-              </Text>
-            </View>
-            <View className="mt-3 flex-row items-center gap-3">
-              <Pressable
-                onPress={() => handleAdjustMusicVolume(-BACKGROUND_MUSIC_VOLUME_STEP)}
-                disabled={isMusicActionLoading || musicVolume <= 0.05}
-                className={`h-9 w-9 items-center justify-center rounded-[12px] ${
-                  isMusicActionLoading || musicVolume <= 0.05 ? "bg-white/5" : "bg-white/10"
-                }`}
-              >
-                <Minus size={18} color={musicVolume <= 0.05 ? "#6F7C73" : "#D7FF00"} />
-              </Pressable>
-              <View className="h-8 flex-1 justify-center" accessibilityRole="adjustable" accessibilityLabel="Music volume" onLayout={(event) => setMusicSliderWidth(event.nativeEvent.layout.width)} onStartShouldSetResponder={() => true} onResponderRelease={(event) => handleMusicSliderRelease(event.nativeEvent.locationX, musicSliderWidth)}>
-                <View className="h-2 overflow-hidden rounded-full bg-white/10">
-                  <View className="h-full rounded-full bg-[#D7FF00]" style={{ width: `${Math.round(musicVolume * 100)}%` }} />
-                </View>
-                <View pointerEvents="none" className="absolute h-5 w-5 rounded-full border-2 border-white bg-[#D7FF00]" style={{ left: `${Math.max(0, Math.min(100, musicVolume * 100))}%`, marginLeft: -10 }} />
-              </View>
-              <Pressable
-                onPress={() => handleAdjustMusicVolume(BACKGROUND_MUSIC_VOLUME_STEP)}
-                disabled={isMusicActionLoading || musicVolume >= 1}
-                className={`h-9 w-9 items-center justify-center rounded-[12px] ${
-                  isMusicActionLoading || musicVolume >= 1 ? "bg-white/5" : "bg-white/10"
-                }`}
-              >
-                <Plus size={18} color={musicVolume >= 1 ? "#6F7C73" : "#D7FF00"} />
-              </Pressable>
-            </View>
-          </View>
-
-          <Pressable
-            onPress={handleToggleMusicPaused}
-            disabled={!playingMusicTrack || isMusicActionLoading}
-            className={`mt-2 flex-row items-center justify-center rounded-[14px] px-4 py-3 ${
-              playingMusicTrack && !isMusicActionLoading ? "bg-[#143703]" : "bg-[#184832]"
-            }`}
-          >
-            {isMusicPaused ? (
-              <Play size={17} color={playingMusicTrack ? "#D7FF00" : "#8A9A90"} />
-            ) : (
-              <Pause size={17} color={playingMusicTrack ? "#D7FF00" : "#8A9A90"} />
-            )}
-            <Text className={`ml-2 text-[13px] font-semibold ${
-              playingMusicTrack && !isMusicActionLoading ? "text-[#D7FF00]" : "text-[#8A9A90]"
-            }`}>
-              {isMusicPaused ? "Resume" : "Pause"}
-            </Text>
-          </Pressable>
-      </PodcastBottomSheet>
-
-      <PodcastBottomSheet
+      <ParticipantsSheet
         visible={activeSheet === "participants"}
-        onClose={() => setActiveSheet("none")}
-      >
-        <View className="items-center">
-          <View className="h-[4px] w-[112px] rounded-full bg-[#D7FF00]" />
-        </View>
+        onClose={handleCloseSheet}
+        participants={activeAudienceParticipants}
+        participantCount={participantCount}
+        isLoading={isLoadingActiveParticipants}
+        isRefreshing={isRefreshingLiveParticipants}
+        onRefresh={handleRefreshLiveParticipants}
+        listHeight={participantSheetListHeight}
+      />
 
-        <View className="mt-5 flex-row items-center justify-between">
-          <View className="min-w-0 flex-1">
-            <Text className="text-[18px] font-bold text-[#D7FF00]">
-              Live Participants
-            </Text>
-            <Text className="mt-1 text-[12px] text-[#B7C0BC]">
-              {activeAudienceParticipants.length} visible, {participantCount} live now
-            </Text>
-          </View>
-          <Pressable
-            onPress={() => {
-              hapticMedium()
-              void handleRefreshLiveParticipants()
-            }}
-            disabled={isRefreshingLiveParticipants}
-            className="ml-3 h-10 w-10 items-center justify-center rounded-[14px] bg-[#143703]"
-            accessibilityRole="button"
-            accessibilityLabel="Refresh live participants"
-          >
-            {isRefreshingLiveParticipants ? (
-              <ActivityIndicator size="small" color="#D7FF00" />
-            ) : (
-              <RefreshCw size={18} color="#D7FF00" />
-            )}
-          </Pressable>
-        </View>
-
-        <View className="mt-4 overflow-hidden rounded-[20px]" style={{ height: participantSheetListHeight }}>
-          <FlashList
-            data={activeAudienceParticipants}
-            extraData={liveRoomParticipantIds}
-            keyExtractor={(item) => item.id}
-            renderItem={renderParticipantRow}
-            ItemSeparatorComponent={() => <View className="h-2" />}
-            ListEmptyComponent={() => (
-              <View className="items-center rounded-[18px] bg-[#143703] px-4 py-8">
-                {isLoadingActiveParticipants ? (
-                  <ActivityIndicator size="small" color="#D7FF00" />
-                ) : (
-                  <Text className="text-center text-[13px] text-[#B7C0BC]">
-                    No live participants yet.
-                  </Text>
-                )}
-              </View>
-            )}
-            contentContainerStyle={{ paddingBottom: 8 }}
-            showsVerticalScrollIndicator
-            refreshing={isRefreshingLiveParticipants}
-            onRefresh={() => {
-              void handleRefreshLiveParticipants()
-            }}
-          />
-        </View>
-      </PodcastBottomSheet>
-
-      <PodcastBottomSheet
-          visible={activeSheet === "speakers"}
-          onClose={() => setActiveSheet("none")}
-        >
-          <View className="items-center">
-            <View className="h-[4px] w-[112px] rounded-full bg-[#D7FF00]" />
-          </View>
-
-          <Text className="mt-8 text-center text-[18px] font-bold text-[#D7FF00]">
-            Speakers & Requests
-          </Text>
-
-          <Text className="mt-8 text-[13px] font-semibold uppercase tracking-[1px] text-[#B7C0BC]">
-            Call-in Requests
-          </Text>
-
-          {raisedHands.length ? (
-            <View className="mt-4 gap-4">
-              {raisedHands.map((request) => {
-                const isApprovingRequest = approvingRequests.has(request.fromId)
-                const speakerLimitReached = activeGuestSpeakerCount >= MAX_GUEST_SPEAKERS
-
-                return (
-                  <View
-                    key={request.fromId}
-                    className="rounded-[22px] bg-[#143703] px-4 py-4"
-                  >
-                    <Text className="text-[16px] font-semibold text-[#F4F5F0]">
-                      {request.fromName}
-                    </Text>
-                    <Text className="mt-1 text-[12px] text-[#B7C0BC]">
-                      Wants to call in and join as a speaker.
-                    </Text>
-                    <View className="mt-4 flex-row gap-3">
-                      <Pressable
-                        onPress={() => handleApproveRaisedHand(request.fromId)}
-                        disabled={isApprovingRequest || speakerLimitReached}
-                        className={`flex-1 items-center rounded-[16px] px-4 py-3 ${
-                          isApprovingRequest
-                            ? "bg-[#D7FF00]/70"
-                            : speakerLimitReached
-                              ? "bg-[#184832]"
-                              : "bg-[#D7FF00]"
-                        }`}
-                      >
-                        {isApprovingRequest ? (
-                          <View className="flex-row items-center">
-                            <ActivityIndicator size="small" color="#143703" />
-                            <Text className="ml-2 text-[14px] font-semibold text-[#143703]">Approving...</Text>
-                          </View>
-                        ) : (
-                          <Text className={`text-[14px] font-semibold ${speakerLimitReached ? "text-[#8A9A90]" : "text-[#143703]"}`}>
-                            Accept
-                          </Text>
-                        )}
-                      </Pressable>
-                      <Pressable
-                        onPress={() => handleRejectRaisedHand(request.fromId)}
-                        disabled={isApprovingRequest}
-                        className="flex-1 items-center rounded-[16px] bg-white/10 px-4 py-3"
-                      >
-                        <Text className="text-[14px] font-semibold text-[#F4F5F0]">Reject</Text>
-                      </Pressable>
-                    </View>
-                    {speakerLimitReached ? (
-                      <Text className="mt-3 text-[11px] text-[#D7FF00]">
-                        Speaker slots are full.
-                      </Text>
-                    ) : null}
-                  </View>
-                )
-              })}
-            </View>
-          ) : (
-            <View className="mt-4 rounded-[22px] bg-[#143703] px-4 py-4">
-              <Text className="text-[14px] text-[#B7C0BC]">No call-in requests right now.</Text>
-            </View>
-          )}
-
-          <Text className="mt-8 text-[13px] font-semibold uppercase tracking-[1px] text-[#B7C0BC]">
-            Active Speakers
-          </Text>
-
-          <View className="mt-4 gap-4">
-            {speakerRows.map((speaker) => (
-              (() => {
-                const isRemovingSpeaker = removingSpeakers.has(speaker.id)
-                const isMutingSpeaker = mutingSpeakers.has(speaker.id)
-
-                return (
-              <View
-                key={speaker.id}
-                className="flex-row items-center rounded-[22px] bg-[#143703] px-4 py-4"
-              >
-                <HostAvatar
-                  hostName={speaker.name}
-                  hostPictureUrl={speaker.avatarUrl}
-                  size={42}
-                  textClassName="text-base font-bold text-menorah-primary"
-                />
-                <View className="ml-3 flex-1">
-                  <Text className="text-[15px] font-semibold text-[#F4F5F0]">
-                    {speaker.name}
-                  </Text>
-                  <Text className="mt-1 text-[12px] text-[#B7C0BC]">
-                    {speaker.isHost ? "Host" : "Speaker"}
-                  </Text>
-                </View>
-                {speaker.isHost ? (
-                  <Pressable
-                    onPress={handleToggleMic}
-                    className="flex-row items-center rounded-full bg-menorah-darkGreen px-3 py-2"
-                  >
-                    {speaker.isMuted ? (
-                      <MicOff size={18} color={Colors.menorah.primary} />
-                    ) : (
-                      <Mic size={18} color={Colors.menorah.primary} />
-                    )}
-                    <Text className="ml-2 text-[12px] font-semibold text-[#F4F5F0]">
-                      {speaker.isMuted ? "Muted" : "Live"}
-                    </Text>
-                  </Pressable>
-                ) : (
-                  <View className="items-end gap-2">
-                    <Pressable
-                      onPress={() => handleMuteSpeaker(speaker.id, speaker.audioTrackSid)}
-                      disabled={speaker.isMuted || isMutingSpeaker || !speaker.audioTrackSid}
-                      className={`flex-row items-center rounded-full px-3 py-2 ${
-                        speaker.isMuted || !speaker.audioTrackSid ? "bg-white/10" : "bg-[#D7FF00]/15"
-                      }`}
-                    >
-                      {isMutingSpeaker ? (
-                        <ActivityIndicator size="small" color="#D7FF00" />
-                      ) : speaker.isMuted ? (
-                        <MicOff size={18} color="#F3F6E7" />
-                      ) : (
-                        <Mic size={18} color="#D7FF00" />
-                      )}
-                      <Text className="ml-2 text-[12px] font-semibold text-[#F4F5F0]">
-                        {isMutingSpeaker ? "Muting" : speaker.isMuted ? "Muted" : "Mute"}
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => handleRemoveSpeaker(speaker.id)}
-                      disabled={isRemovingSpeaker}
-                      className="rounded-full bg-[#F3523C]/15 px-3 py-2"
-                    >
-                      {isRemovingSpeaker ? (
-                        <View className="flex-row items-center">
-                          <ActivityIndicator size="small" color="#FF8A7A" />
-                          <Text className="ml-2 text-[11px] font-semibold text-[#FF8A7A]">
-                            Removing
-                          </Text>
-                        </View>
-                      ) : (
-                        <Text className="text-[11px] font-semibold text-[#FF8A7A]">
-                          Remove
-                        </Text>
-                      )}
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-                )
-              })()
-            ))}
-          </View>
-        </PodcastBottomSheet>
+      <SpeakersSheet
+        visible={activeSheet === "speakers"}
+        onClose={handleCloseSheet}
+        raisedHands={raisedHands}
+        approvingRequests={approvingRequests}
+        speakerLimitReached={speakerLimitReached}
+        onApprove={handleApproveRaisedHand}
+        onReject={handleRejectRaisedHand}
+        speakers={speakerRows}
+        removingSpeakers={removingSpeakers}
+        mutingSpeakers={mutingSpeakers}
+        onToggleHostMic={handleToggleMic}
+        onMuteSpeaker={handleMuteSpeaker}
+        onRemoveSpeaker={handleRemoveSpeaker}
+      />
 
         <PodcastDialog
           visible={isExitPromptVisible}
@@ -1517,6 +1100,24 @@ const AdminLivePodcast = () => {
           onClose={() => setIsNotesVisible(false)}
           playlist={playlist}
           title={title}
+        />
+
+        <BibleReader
+          visible={isBibleVisible}
+          onClose={() => setIsBibleVisible(false)}
+          bookId={bibleBookId}
+          chapter={bibleChapter}
+          onNavigate={(nextBookId, nextChapter) => {
+            setBibleBookId(nextBookId)
+            setBibleChapter(nextChapter)
+          }}
+          isHost
+          onShare={
+            room && profile
+              ? (sharedBookId, sharedChapter) =>
+                  sendBibleNavigation(room, profile.id, profile.full_name ?? "Host", sharedBookId, sharedChapter, "web")
+              : undefined
+          }
         />
 
       <PodcastConnectingOverlay

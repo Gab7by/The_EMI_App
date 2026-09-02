@@ -1,6 +1,7 @@
 import { getLiveKitToken } from "@/lib/livekit";
 import { startLiveForegroundService, stopForegroundService } from "@/lib/foreground-service";
 import { PODCAST_MIC_CAPTURE_OPTIONS, PODCAST_ROOM_AUDIO_CAPTURE_DEFAULTS } from "@/lib/livekit-audio";
+import { ensureMicrophonePermission } from "@/lib/permissions";
 import type { LiveKitRoomRole, LiveKitStore } from "@/types/livekit-types";
 import type { ConnectionState, Room } from "livekit-client";
 import { create } from "zustand";
@@ -86,8 +87,16 @@ export const useLiveKitStore = create<LiveKitStore>(
                     return
                 }
 
+                // Must be resolved before requesting a "microphone"-type foreground
+                // service below - Android 14+ throws a SecurityException (uncatchable,
+                // crashes the app) if that type is requested without RECORD_AUDIO
+                // already granted.
+                const hasMicPermission = role === "host" ? await ensureMicrophonePermission() : true
+
                 // Ensure Android's foreground service is alive before WebRTC starts.
-                await startLiveForegroundService(role === "host" ? "microphone" : "mediaPlayback")
+                await startLiveForegroundService(
+                    role === "host" && hasMicPermission ? "microphone" : "mediaPlayback"
+                )
                 const wsUrl = process.env.EXPO_PUBLIC_LIVEKIT_URL!
                 await room.connect(wsUrl, token)
 
@@ -105,12 +114,17 @@ export const useLiveKitStore = create<LiveKitStore>(
                 })
 
                 if (role === "host") {
-                    await room.localParticipant.setMicrophoneEnabled(true, PODCAST_MIC_CAPTURE_OPTIONS)
-                    if (connectRequestId === requestId) {
-                        set({ isMuted: false, foregroundServiceType: "microphone" })
+                    if (!hasMicPermission) {
+                        console.error("Microphone permission denied - host connected without publishing audio")
+                        set({ isMuted: true })
                     } else {
-                        await room.localParticipant.setMicrophoneEnabled(false)
-                        room.disconnect()
+                        await room.localParticipant.setMicrophoneEnabled(true, PODCAST_MIC_CAPTURE_OPTIONS)
+                        if (connectRequestId === requestId) {
+                            set({ isMuted: false, foregroundServiceType: "microphone" })
+                        } else {
+                            await room.localParticipant.setMicrophoneEnabled(false)
+                            room.disconnect()
+                        }
                     }
                 }
             })().catch((error) => {

@@ -1,0 +1,38 @@
+diff --git a/node_modules/react-native-background-actions/android/src/main/java/com/asterinet/react/bgactions/RNBackgroundActionsTask.java b/node_modules/react-native-background-actions/android/src/main/java/com/asterinet/react/bgactions/RNBackgroundActionsTask.java
+index 963b788..09762e7 100644
+--- a/node_modules/react-native-background-actions/android/src/main/java/com/asterinet/react/bgactions/RNBackgroundActionsTask.java
++++ b/node_modules/react-native-background-actions/android/src/main/java/com/asterinet/react/bgactions/RNBackgroundActionsTask.java
+@@ -10,6 +10,7 @@ import android.content.Intent;
+ import android.net.Uri;
+ import android.os.Build;
+ import android.os.Bundle;
++import android.util.Log;
+ 
+ import androidx.annotation.NonNull;
+ import androidx.annotation.Nullable;
+@@ -105,13 +106,18 @@ final public class RNBackgroundActionsTask extends HeadlessJsTaskService {
+                 bgOptions.getForegroundServiceType()
+             );
+         } catch (RuntimeException e) {
+-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+-                    && e instanceof android.app.ForegroundServiceStartNotAllowedException) {
+-                // Android 12+: not allowed to start foreground service from background
+-                stopSelf(startId);
+-                return START_NOT_STICKY;
+-            }
+-            throw e;
++            // Any failure to actually enter the foreground state - the
++            // Android 12+ "not allowed to start from background" restriction,
++            // a dangerous-permission check for a special type like
++            // microphone/camera not being granted yet (Android 14+), a
++            // declared-vs-requested foregroundServiceType mismatch, or an
++            // OEM-specific enforcement quirk (e.g. Samsung One UI) - must
++            // never crash the whole app process. This exception is thrown
++            // inside a Service, so it is uncatchable from JS; log it and stop
++            // this service cleanly instead of taking the app down with it.
++            Log.w("RNBackgroundActionsTask", "startForeground failed, stopping service instead of crashing", e);
++            stopSelf(startId);
++            return START_NOT_STICKY;
+         }
+         return super.onStartCommand(intent, flags, startId);
+     }

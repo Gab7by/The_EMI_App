@@ -66,6 +66,7 @@
       ],
       "expo-secure-store",
       "./plugins/with-foreground-service",
+      "./plugins/with-android-large-heap",
       "@livekit/react-native-expo-plugin",
       "@config-plugins/react-native-webrtc",
       [

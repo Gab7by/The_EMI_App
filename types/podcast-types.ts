@@ -90,7 +90,11 @@ export type LivePodcast = {
   start_time: string
   end_time: string | null
   created_at: string
-  participants: LivePodcastParticipant[]
+  /** Not selected by PODCAST_SELECT (see constants/podcast.ts) - nothing in
+   * the UI reads it, and fetching it there was an unbounded, wasted nested
+   * join. Use getActiveLivePodcastParticipants for a specific session's
+   * current participants instead. */
+  participants?: LivePodcastParticipant[]
 }
 
 export type CreateLivePodcastInput = {
@@ -194,4 +198,6 @@ export type Recording = {
   duration_seconds: number | null
   podcast_title?: string
   playlist?: string
+  /** The live session's background image, reused as this recording's artwork. Null for older sessions that never had one set. */
+  coverImageUrl?: string | null
 }

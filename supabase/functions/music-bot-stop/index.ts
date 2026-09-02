@@ -47,7 +47,7 @@ serve(async (req) => {
       })
     }
 
-    const { roomName } = await req.json()
+    const { roomName, hard } = await req.json()
 
     if (!roomName) {
       return new Response(JSON.stringify({ error: 'roomName is required' }), {
@@ -77,7 +77,11 @@ serve(async (req) => {
         Authorization: `Bearer ${botSecret}`,
       },
       body: JSON.stringify({
-        action: 'stop',
+        // 'stop' is a soft stop - ffmpeg stops, but the bot stays connected
+        // to the room so the next Play is fast. 'shutdown' (hard: true) is
+        // for when music is truly done for the session - it fully
+        // disconnects the bot and frees its LiveKit connection.
+        action: hard ? 'shutdown' : 'stop',
         roomName,
       }),
     })

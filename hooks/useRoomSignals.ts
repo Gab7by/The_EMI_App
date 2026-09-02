@@ -3,6 +3,13 @@ import { LoveBurst, RoomSignal } from "@/types/livekit-types"
 import type {Room} from "livekit-client"
 import { useCallback, useEffect, useState } from "react"
 
+export type BibleNavigationSignal = {
+    id: string
+    bookId: string
+    chapter: number
+    translation: string
+}
+
 export const useRoomSignals = (
     room: Room | null,
     currentUserId: string
@@ -13,6 +20,7 @@ export const useRoomSignals = (
     const [isSpeakerRevoked, setIsSpeakerRevoked] = useState<boolean>(false)
     const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null)
     const [loveBursts, setLoveBursts] = useState<LoveBurst[]>([])
+    const [bibleNavigation, setBibleNavigation] = useState<BibleNavigationSignal | null>(null)
 
     useEffect(() => {
         if (!room) return
@@ -66,6 +74,17 @@ export const useRoomSignals = (
                     queryClient.invalidateQueries({ queryKey: ['live-podcast-sessions'] })
                 }
 
+                if (signal.type === 'BIBLE_NAVIGATE') {
+                    if (signal.bibleBookId && signal.bibleChapter && signal.fromId !== currentUserId) {
+                        setBibleNavigation({
+                            id: signal.id ?? `${signal.fromId}-${Date.now()}`,
+                            bookId: signal.bibleBookId,
+                            chapter: signal.bibleChapter,
+                            translation: signal.bibleTranslation ?? "web",
+                        })
+                    }
+                }
+
                 if (signal.type === 'LOVE') {
                     setLoveBursts(prev => [
                         ...prev.slice(-14),
@@ -108,6 +127,7 @@ export const useRoomSignals = (
         isSpeakerRevoked,
         backgroundUrl,
         loveBursts,
+        bibleNavigation,
         dismissRaisedHand,
         dismissLoveBurst,
     }

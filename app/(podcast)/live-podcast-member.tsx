@@ -21,12 +21,14 @@ import {
   usePodcastFooterLayout,
   type PodcastCurrencyOption
 } from "@/components/podcast/livePodcastShared";
+import { BibleReader } from "@/components/podcast/bibleReader";
 import { useAudienceRoom } from "@/hooks/useAudienceRoom";
 import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useRoomChat } from "@/hooks/useRoomChat";
 import { useRoomSignals } from "@/hooks/useRoomSignals";
 import { hapticMedium } from "@/lib/haptics";
 import { PODCAST_MIC_CAPTURE_OPTIONS } from "@/lib/livekit-audio";
+import { ensureMicrophonePermission } from "@/lib/permissions";
 import { lowerHand, raiseHand, revokeOwnSpeaker, sendLoveSignal } from "@/lib/livekit-signals";
 import { getLivePodcastStatus, joinLivePodcastParticipant, leaveLivePodcastParticipant, updateParticipantCalledIn } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
@@ -36,7 +38,7 @@ import { useLiveKitStore } from "@/store/livekit-store";
 import type { LoveBurst } from "@/types/livekit-types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, ChevronDown, ChevronRight, Power, Share2, X } from "lucide-react-native";
+import { ArrowLeft, BookOpen, ChevronDown, ChevronRight, Power, Share2, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Animated, Easing, Keyboard, Linking, Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -59,6 +61,9 @@ const MemberLivePodcast = () => {
 
   const [isExitPromptVisible, setIsExitPromptVisible] = useState(false);
   const [isNotesVisible, setIsNotesVisible] = useState(false);
+  const [isBibleVisible, setIsBibleVisible] = useState(false);
+  const [bibleBookId, setBibleBookId] = useState<string | null>(null);
+  const [bibleChapter, setBibleChapter] = useState<number | null>(null);
   const [isPaymentMethodsVisible, setIsPaymentMethodsVisible] = useState(false);
   const [isCurrencySheetVisible, setIsCurrencySheetVisible] = useState(false);
   const [selectedCurrencyId, setSelectedCurrencyId] =
@@ -71,6 +76,10 @@ const MemberLivePodcast = () => {
   const [hasHungUpSpeaker, setHasHungUpSpeaker] = useState(false)
   const [speakerLimitMessage, setSpeakerLimitMessage] = useState<string | null>(null)
   const [replyingTo, setReplyingTo] = useState<{ messageId: string; senderName: string } | null>(null)
+  const handleReplyToMessage = useCallback((messageId: string, senderName: string) => {
+    setReplyingTo({ messageId, senderName })
+  }, [])
+  const handleCancelReply = useCallback(() => setReplyingTo(null), [])
 
   const selectedCurrency = useMemo(
     () =>
@@ -86,7 +95,7 @@ const MemberLivePodcast = () => {
   const setIsMuted = useLiveKitStore(state => state.setIsMuted)
   const setForegroundServiceType = useLiveKitStore(state => state.setForegroundServiceType)
   const profile = useAuthStore(state => state.profile)
-  const {isApprovedToSpeak, sessionEnded, isSpeakerRevoked, backgroundUrl, loveBursts, dismissLoveBurst} = useRoomSignals(room, profile?.id ?? "")
+  const {isApprovedToSpeak, sessionEnded, isSpeakerRevoked, backgroundUrl, loveBursts, bibleNavigation, dismissLoveBurst} = useRoomSignals(room, profile?.id ?? "")
   const [hasRaisedHand, setHasRaisedHand] = useState<boolean>(false)
   const canSpeak = isApprovedToSpeak && !hasHungUpSpeaker
   const isConnecting = connectionState !== "connected"
@@ -211,19 +220,34 @@ const MemberLivePodcast = () => {
 
   useEffect(() => {
     if (!isApprovedToSpeak || !room || hasHungUpSpeaker) return
-    
-    room.localParticipant
-      .setMicrophoneEnabled(true, PODCAST_MIC_CAPTURE_OPTIONS)
-      .then(() => {
-        setIsMuted(false)
-        setForegroundServiceType("microphone")
-        setHasRaisedHand(false)
-        setHasHungUpSpeaker(false)
-        queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
-      })
-      .catch((error) => {
-        console.error("Failed to enable speaker microphone", error)
-      })
+
+    let cancelled = false
+
+    ensureMicrophonePermission().then((granted) => {
+      if (cancelled) return
+
+      if (!granted) {
+        console.error("Microphone permission denied - cannot enable speaker microphone")
+        return
+      }
+
+      return room.localParticipant
+        .setMicrophoneEnabled(true, PODCAST_MIC_CAPTURE_OPTIONS)
+        .then(() => {
+          if (cancelled) return
+          setIsMuted(false)
+          setForegroundServiceType("microphone")
+          setHasRaisedHand(false)
+          setHasHungUpSpeaker(false)
+          queryClient.invalidateQueries({ queryKey: ["active-live-podcast-participants", id] })
+        })
+    }).catch((error) => {
+      console.error("Failed to enable speaker microphone", error)
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [hasHungUpSpeaker, id, isApprovedToSpeak, room, setForegroundServiceType, setIsMuted])
 
   useEffect(() => {
@@ -242,6 +266,14 @@ const MemberLivePodcast = () => {
         console.error("Failed to disable revoked speaker microphone", error)
       })
   }, [isSpeakerRevoked, room, setForegroundServiceType, setIsMuted, id])
+
+  useEffect(() => {
+    if (!bibleNavigation) return
+
+    setBibleBookId(bibleNavigation.bookId)
+    setBibleChapter(bibleNavigation.chapter)
+    setIsBibleVisible(true)
+  }, [bibleNavigation])
 
   useEffect(() => {
     if (connectionState !== "connected" || !profile?.id) return
@@ -276,6 +308,15 @@ const MemberLivePodcast = () => {
     try {
       if (canSpeak) {
         const nextMutedState = !isMuted
+
+        if (!nextMutedState) {
+          const granted = await ensureMicrophonePermission()
+          if (!granted) {
+            console.error("Microphone permission denied - cannot unmute")
+            return
+          }
+        }
+
         await room.localParticipant.setMicrophoneEnabled(
           !nextMutedState,
           !nextMutedState ? PODCAST_MIC_CAPTURE_OPTIONS : undefined
@@ -377,6 +418,13 @@ const MemberLivePodcast = () => {
                   </Pressable>
                 </View>
                 <Pressable
+                  onPress={() => { hapticMedium(); setIsBibleVisible(true) }}
+                  hitSlop={10}
+                  className="h-9 w-9 items-center justify-center rounded-full bg-white/10"
+                >
+                  <BookOpen size={19} color="#F3F6E7" strokeWidth={1.4} />
+                </Pressable>
+                <Pressable
                   onPress={() => {
                     hapticMedium()
                     shareLivePodcast({ hostName, title, podcastId: id, playlist })
@@ -409,11 +457,9 @@ const MemberLivePodcast = () => {
             onDeleteMessage={deleteMessage}
             canDeleteMessage={canDeleteMessage}
             canEditMessage={canEditMessage}
-            onReplyToMessage={(messageId, senderName) => {
-              setReplyingTo({ messageId, senderName })
-            }}
+            onReplyToMessage={handleReplyToMessage}
             replyingTo={replyingTo}
-            onCancelReply={() => setReplyingTo(null)}
+            onCancelReply={handleCancelReply}
           />
         </View>
 
@@ -547,6 +593,18 @@ const MemberLivePodcast = () => {
           onClose={() => setIsNotesVisible(false)}
           playlist={playlist}
           title={title}
+        />
+
+        <BibleReader
+          visible={isBibleVisible}
+          onClose={() => setIsBibleVisible(false)}
+          bookId={bibleBookId}
+          chapter={bibleChapter}
+          onNavigate={(nextBookId, nextChapter) => {
+            setBibleBookId(nextBookId)
+            setBibleChapter(nextChapter)
+          }}
+          isHost={false}
         />
 
         {/* <PodcastFullScreenModal
@@ -698,12 +756,11 @@ const MemberLivePodcast = () => {
           </View>
         ) : null}
 
-        <View pointerEvents="none" className="absolute bottom-24 right-8 h-[220px] w-[96px] overflow-visible">
-          {visibleLoveBursts.map((love, index) => (
+        <View pointerEvents="none" className="absolute bottom-24 right-6 h-[240px] w-[160px] overflow-visible">
+          {visibleLoveBursts.map((love) => (
             <FloatingLove
               key={love.id}
               burstId={love.id}
-              index={index}
               onDone={dismissVisibleLoveBurst}
             />
           ))}
@@ -713,58 +770,82 @@ const MemberLivePodcast = () => {
   );
 };
 
+// A warm, varied palette so a burst of hearts reads as a lively shower
+// rather than identical icons stamped out one after another.
+const LOVE_HEART_COLORS = ["#FF4B1F", "#FF6F91", "#FFA53D", "#FF3D68"]
+
 const FloatingLove = ({
   burstId,
-  index,
   onDone,
 }: {
   burstId: string
-  index: number
   onDone: (burstId: string) => void
 }) => {
   const progress = useRef(new Animated.Value(0)).current
-  const drift = useMemo(() => ((index % 5) - 2) * 9, [index])
+
+  // Randomized once per burst (stable for this component's lifetime, since
+  // burstId never changes) so each heart takes its own path, speed, size and
+  // tilt - and, critically, so an in-flight heart's trajectory never shifts
+  // just because an earlier heart finished and the list re-indexed.
+  const flight = useMemo(() => ({
+    originX: (Math.random() - 0.5) * 28,
+    driftMid: (Math.random() - 0.5) * 100,
+    driftEnd: (Math.random() - 0.5) * 70,
+    rotate: (Math.random() - 0.5) * 34,
+    size: 24 + Math.random() * 18,
+    color: LOVE_HEART_COLORS[Math.floor(Math.random() * LOVE_HEART_COLORS.length)],
+    duration: 1500 + Math.random() * 600,
+    peakOpacity: 0.55 + Math.random() * 0.25,
+    rise: 190 + Math.random() * 60,
+  }), [])
 
   useEffect(() => {
     Animated.timing(progress, {
       toValue: 1,
-      duration: 1500,
+      duration: flight.duration,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start(() => onDone(burstId))
-  }, [burstId, onDone, progress])
+  }, [burstId, onDone, progress, flight.duration])
 
   return (
     <Animated.View
-      className="absolute bottom-0 right-3"
+      className="absolute bottom-0"
       style={{
+        right: 16 + flight.originX,
         opacity: progress.interpolate({
-          inputRange: [0, 0.2, 0.78, 1],
-          outputRange: [0, 1, 1, 0],
+          inputRange: [0, 0.15, 0.75, 1],
+          outputRange: [0, flight.peakOpacity, flight.peakOpacity, 0],
         }),
         transform: [
           {
             translateY: progress.interpolate({
               inputRange: [0, 1],
-              outputRange: [0, -176],
+              outputRange: [0, -flight.rise],
             }),
           },
           {
             translateX: progress.interpolate({
               inputRange: [0, 0.5, 1],
-              outputRange: [0, drift, drift * -0.3],
+              outputRange: [0, flight.driftMid, flight.driftEnd],
+            }),
+          },
+          {
+            rotate: progress.interpolate({
+              inputRange: [0, 1],
+              outputRange: ["0deg", `${flight.rotate}deg`],
             }),
           },
           {
             scale: progress.interpolate({
-              inputRange: [0, 0.35, 1],
-              outputRange: [0.55, 1.18, 1.55],
+              inputRange: [0, 0.3, 1],
+              outputRange: [0.4, 1.15, 1],
             }),
           },
         ],
       }}
     >
-      <MaterialCommunityIcons name="heart" size={30} color="#FF4B1F" />
+      <MaterialCommunityIcons name="heart" size={flight.size} color={flight.color} />
     </Animated.View>
   )
 }
