@@ -1,6 +1,6 @@
 import { getMusicTracks } from "@/lib/music";
 import { getActiveLivePodcastParticipants, getLiveSessions } from "@/lib/podcast";
-import { getRecentTestimonies, getTestimonies, getTestimonyById } from "@/lib/testimonies";
+import { getRecentTestimonies, getTestimonies, getTestimonyById, getTestimonyComments } from "@/lib/testimonies";
 import { useQuery } from "@tanstack/react-query";
 
 export const useLivePodcastSessions = (hostId?: string) => {
@@ -60,5 +60,13 @@ export const useTestimonyById = (id: string) => {
         queryKey: ["testimony", id],
         queryFn: () => getTestimonyById(id),
         enabled: !!id
+    })
+}
+
+export const useTestimonyComments = (testimonyId: string) => {
+    return useQuery({
+        queryKey: ["testimony-comments", testimonyId],
+        queryFn: () => getTestimonyComments(testimonyId),
+        enabled: !!testimonyId
     })
 }

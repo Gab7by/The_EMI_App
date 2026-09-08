@@ -1,5 +1,6 @@
 import { getInitial } from "@/components/testimonies/testimonyCard"
 import ImageViewerModal from "@/components/testimonies/imageViewerModal"
+import TestimonyComments from "@/components/testimonies/testimonyComments"
 import { useTestimonyById } from "@/hooks/tanstack-query-hooks"
 import { formatRecordingDate } from "@/lib/formatters"
 import { hapticLight, hapticMedium } from "@/lib/haptics"
@@ -10,7 +11,7 @@ import { Image } from "expo-image"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { ArrowLeft, Trash2 } from "lucide-react-native"
 import { useState } from "react"
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native"
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 const GRID_GAP = 8
@@ -116,90 +117,98 @@ const TestimonyDetailScreen = () => {
       className="flex-1 bg-menorah-bg px-4"
       style={{ paddingBottom: insets.bottom + 16 }}
     >
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerClassName="pb-10 pt-2"
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View className="flex-row items-center justify-between">
-          <Pressable
-            onPress={() => router.back()}
-            className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
-          >
-            <ArrowLeft size={22} color="white" />
-          </Pressable>
-
-          {canDelete ? (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerClassName="pb-10 pt-2"
+        >
+          <View className="flex-row items-center justify-between">
             <Pressable
-              onPress={() => { hapticMedium(); handleDelete() }}
-              disabled={isDeleting}
-              className="h-10 w-10 items-center justify-center rounded-full bg-[#5A2020]"
-              hitSlop={8}
+              onPress={() => router.back()}
+              className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
             >
-              {isDeleting ? (
-                <ActivityIndicator size="small" color="#FFB4A9" />
-              ) : (
-                <Trash2 size={18} color="#FFB4A9" />
-              )}
+              <ArrowLeft size={22} color="white" />
             </Pressable>
-          ) : null}
-        </View>
 
-        <View className="mt-8 items-center">
-          {avatarUrl ? (
-            <Image
-              source={{ uri: avatarUrl }}
-              style={{ width: 128, height: 128, borderRadius: 64 }}
-              contentFit="cover"
-            />
-          ) : (
-            <View
-              style={{ width: 128, height: 128, borderRadius: 64 }}
-              className="items-center justify-center border-4 border-menorah-primary/60 bg-menorah-darkGreen"
-            >
-              <Text className="text-5xl font-bold text-menorah-primary">
-                {getInitial(fullName)}
+            {canDelete ? (
+              <Pressable
+                onPress={() => { hapticMedium(); handleDelete() }}
+                disabled={isDeleting}
+                className="h-10 w-10 items-center justify-center rounded-full bg-[#5A2020]"
+                hitSlop={8}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#FFB4A9" />
+                ) : (
+                  <Trash2 size={18} color="#FFB4A9" />
+                )}
+              </Pressable>
+            ) : null}
+          </View>
+
+          <View className="mt-8 items-center">
+            {avatarUrl ? (
+              <Image
+                source={{ uri: avatarUrl }}
+                style={{ width: 128, height: 128, borderRadius: 64 }}
+                contentFit="cover"
+              />
+            ) : (
+              <View
+                style={{ width: 128, height: 128, borderRadius: 64 }}
+                className="items-center justify-center border-4 border-menorah-primary/60 bg-menorah-darkGreen"
+              >
+                <Text className="text-5xl font-bold text-menorah-primary">
+                  {getInitial(fullName)}
+                </Text>
+              </View>
+            )}
+
+            <Text className="mt-4 text-xl font-bold text-white">{fullName}</Text>
+            <Text className="mt-1 text-xs text-menorah-gray">
+              {formatRecordingDate(testimony.created_at)}
+            </Text>
+          </View>
+
+          <View className="mt-8 rounded-2xl bg-menorah-darkGreen p-5">
+            <Text className="text-[11px] font-bold uppercase tracking-[1.5px] text-menorah-primary">
+              Testimony
+            </Text>
+            <Text className="mt-3 text-[15px] leading-6 text-white/90">
+              {testimony.content}
+            </Text>
+          </View>
+
+          {images.length > 0 && (
+            <View className="mt-6 gap-3">
+              <Text className="text-[11px] font-bold uppercase tracking-[1.5px] text-menorah-goldDark">
+                Photos ({images.length})
               </Text>
+              <View className="flex-row gap-2">
+                {images.map((image, index) => (
+                  <Pressable
+                    key={image.id}
+                    onPress={() => { hapticLight(); setViewerIndex(index) }}
+                    style={{ width: imageLayout.width, height: imageLayout.height }}
+                  >
+                    <Image
+                      source={{ uri: image.image_url }}
+                      style={{ width: "100%", height: "100%", borderRadius: 16 }}
+                      contentFit="cover"
+                    />
+                  </Pressable>
+                ))}
+              </View>
             </View>
           )}
 
-          <Text className="mt-4 text-xl font-bold text-white">{fullName}</Text>
-          <Text className="mt-1 text-xs text-menorah-gray">
-            {formatRecordingDate(testimony.created_at)}
-          </Text>
-        </View>
-
-        <View className="mt-8 rounded-2xl bg-menorah-darkGreen p-5">
-          <Text className="text-[11px] font-bold uppercase tracking-[1.5px] text-menorah-primary">
-            Testimony
-          </Text>
-          <Text className="mt-3 text-[15px] leading-6 text-white/90">
-            {testimony.content}
-          </Text>
-        </View>
-
-        {images.length > 0 && (
-          <View className="mt-6 gap-3">
-            <Text className="text-[11px] font-bold uppercase tracking-[1.5px] text-menorah-goldDark">
-              Photos ({images.length})
-            </Text>
-            <View className="flex-row gap-2">
-              {images.map((image, index) => (
-                <Pressable
-                  key={image.id}
-                  onPress={() => { hapticLight(); setViewerIndex(index) }}
-                  style={{ width: imageLayout.width, height: imageLayout.height }}
-                >
-                  <Image
-                    source={{ uri: image.image_url }}
-                    style={{ width: "100%", height: "100%", borderRadius: 16 }}
-                    contentFit="cover"
-                  />
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        )}
-      </ScrollView>
+          <TestimonyComments testimonyId={testimony.id} />
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <ImageViewerModal
         visible={viewerIndex !== null}

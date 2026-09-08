@@ -1,10 +1,19 @@
 import type { ImagePickerAsset } from "expo-image-picker"
 import { uploadImage } from "./storage"
 import { supabase } from "./supabase"
-import type { Testimony, TestimonyWithImages } from "@/types/testimony-types"
+import type { Testimony, TestimonyComment, TestimonyWithImages } from "@/types/testimony-types"
 
 const TESTIMONY_SELECT = `
   id,
+  user_id,
+  content,
+  created_at,
+  profiles(full_name, avatar_url)
+`
+
+const TESTIMONY_COMMENT_SELECT = `
+  id,
+  testimony_id,
   user_id,
   content,
   created_at,
@@ -98,6 +107,16 @@ export const deleteTestimony = async (
     return false
   }
 
+  const { error: commentsError } = await supabase
+    .from('testimony_comments')
+    .delete()
+    .eq('testimony_id', id)
+
+  if (commentsError) {
+    console.error('deleteTestimony comments:', commentsError.message)
+    return false
+  }
+
   const { data, error } = await supabase
     .from('testimonies')
     .delete()
@@ -165,4 +184,67 @@ export const createTestimony = async (
   }
 
   return data as unknown as Testimony
+}
+
+export const getTestimonyComments = async (testimonyId: string): Promise<TestimonyComment[]> => {
+  const { data, error } = await supabase
+    .from('testimony_comments')
+    .select(TESTIMONY_COMMENT_SELECT)
+    .eq('testimony_id', testimonyId)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('getTestimonyComments:', error.message)
+    return []
+  }
+
+  return data as unknown as TestimonyComment[]
+}
+
+export const addTestimonyComment = async (
+  testimonyId: string,
+  content: string
+): Promise<TestimonyComment | null> => {
+  const trimmedContent = content.trim()
+  if (!trimmedContent) return null
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data, error } = await supabase
+    .from('testimony_comments')
+    .insert({
+      testimony_id: testimonyId,
+      user_id: user.id,
+      content: trimmedContent,
+    })
+    .select(TESTIMONY_COMMENT_SELECT)
+    .single()
+
+  if (error) {
+    console.error('addTestimonyComment:', error.message)
+    return null
+  }
+
+  return data as unknown as TestimonyComment
+}
+
+/**
+ * Deletes a single comment. RLS is the real gate (comment owner, or an
+ * admin, may delete) - this just performs the delete and reports whether
+ * it actually removed anything, matching deleteTestimony's convention.
+ */
+export const deleteTestimonyComment = async (id: string): Promise<boolean> => {
+  const { data, error } = await supabase
+    .from('testimony_comments')
+    .delete()
+    .eq('id', id)
+    .select('id')
+
+  if (error) {
+    console.error('deleteTestimonyComment:', error.message)
+    return false
+  }
+
+  return (data?.length ?? 0) > 0
 }
