@@ -1,4 +1,5 @@
 import { getFeaturedTeaching } from "@/lib/featuredTeaching";
+import { getHomeSliderSlots } from "@/lib/homeSlider";
 import { getMusicTracks } from "@/lib/music";
 import { getActiveLivePodcastParticipants, getLiveSessions } from "@/lib/podcast";
 import { getRecentTestimonies, getTestimonies, getTestimonyById, getTestimonyComments } from "@/lib/testimonies";
@@ -76,6 +77,14 @@ export const useFeaturedTeaching = () => {
     return useQuery({
         queryKey: ["featured-teaching"],
         queryFn: getFeaturedTeaching,
+        staleTime: 1000 * 60 * 5
+    })
+}
+
+export const useHomeSliderSlots = () => {
+    return useQuery({
+        queryKey: ["home-slider-slots"],
+        queryFn: getHomeSliderSlots,
         staleTime: 1000 * 60 * 5
     })
 }

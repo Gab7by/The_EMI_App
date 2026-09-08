@@ -5,13 +5,13 @@ import HomeProfileBar from "@/components/profile/homePofileBar"
 import HomeProfileModal from "@/components/profile/homeProfileModal"
 import TestimonyCard from "@/components/testimonies/testimonyCard"
 import { CONTACT_ITEMS } from "@/constants/contact"
-import { imageItems } from "@/constants/podcast"
-import { useFeaturedTeaching, useRecentTestimonies } from "@/hooks/tanstack-query-hooks"
+import { useFeaturedTeaching, useHomeSliderSlots, useRecentTestimonies } from "@/hooks/tanstack-query-hooks"
+import { buildHomeSliderItems } from "@/lib/homeSlider"
 import { useAuthStore } from "@/store/authStore"
 import { FEATURED_TEACHING_HOME_PREVIEW_LINES } from "@/types/featured-teaching-types"
 import { useRouter } from "expo-router"
 import { Pencil } from "lucide-react-native"
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
@@ -26,6 +26,8 @@ const Home = () => {
   const isAdmin = profile?.role === "admin"
   const { data: recentTestimonies } = useRecentTestimonies()
   const { data: featuredTeaching, isLoading: isFeaturedTeachingLoading } = useFeaturedTeaching()
+  const { data: sliderSlots } = useHomeSliderSlots()
+  const sliderItems = useMemo(() => buildHomeSliderItems(sliderSlots), [sliderSlots])
   const handleOpenTestimony = useCallback(
     (testimonyId: string) => router.push(`/(testimonies)/${testimonyId}`),
     [router]
@@ -39,7 +41,7 @@ const Home = () => {
         contentContainerClassName="gap-6"
         contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}
       >
-        <ImageSlider items={imageItems} height={196} />
+        <ImageSlider items={sliderItems} height={196} />
         <View className="gap-4">
           <View><Text className="text-[11px] font-bold uppercase tracking-[1.5px] text-menorah-primary">Welcome home</Text><Text className="mt-1 text-2xl font-bold text-white">The Menorah</Text></View>
           <LinearGradient

@@ -27,6 +27,34 @@ export const pickImage = async (options?:{
     return result.assets[0]
 }
 
+/**
+ * Multi-select variant of pickImage. Cropping isn't offered here - the
+ * underlying picker doesn't support it alongside multi-select (see
+ * expo-image-picker's own docs), which matches how testimony photos are
+ * already handled: uploaded as picked, `contentFit="cover"` at display time.
+ */
+export const pickImages = async (options?: {
+    selectionLimit?: number
+}): Promise<ImagePicker.ImagePickerAsset[]> => {
+
+    const {status} = await ImagePicker.requestMediaLibraryPermissionsAsync()
+
+    if (status != "granted") {
+        return []
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        selectionLimit: options?.selectionLimit,
+        quality: 0.8
+    })
+
+    if (result.canceled) return []
+
+    return result.assets
+}
+
 export const pickFromCamera = async ():Promise<ImagePicker.ImagePickerAsset | null> => {
 
     const {status} = await ImagePicker.requestCameraPermissionsAsync()
