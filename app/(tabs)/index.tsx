@@ -1,8 +1,10 @@
 import Sparkling from "@/assets/svgs/sparkling.svg"
 import ImageSlider from "@/components/commons/image-slider"
+import ContactRow from "@/components/home/contactRow"
 import HomeProfileBar from "@/components/profile/homePofileBar"
 import HomeProfileModal from "@/components/profile/homeProfileModal"
 import TestimonyCard from "@/components/testimonies/testimonyCard"
+import { CONTACT_ITEMS } from "@/constants/contact"
 import { imageItems } from "@/constants/podcast"
 import { useFeaturedTeaching, useRecentTestimonies } from "@/hooks/tanstack-query-hooks"
 import { useAuthStore } from "@/store/authStore"
@@ -114,6 +116,25 @@ const Home = () => {
                 />
               ))
             )}
+          </View>
+
+          <View className="mt-2 gap-3">
+            <View>
+              <Text className="text-[11px] font-bold uppercase tracking-[1.5px] text-menorah-primary">Get in touch</Text>
+              <Text className="mt-1 text-xs text-menorah-muted">We&apos;d love to hear from you</Text>
+            </View>
+
+            <View className="gap-2.5">
+              {CONTACT_ITEMS.map((item) => (
+                <ContactRow
+                  key={item.id}
+                  icon={item.icon}
+                  label={item.label}
+                  value={item.value}
+                  url={item.url}
+                />
+              ))}
+            </View>
           </View>
         </View>
       </ScrollView>
