@@ -26,7 +26,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 
 // ─────────────────────────────────────────────────────────────────────
 // Dummy data (kept for backward compatibility with the existing export)
@@ -1452,10 +1452,17 @@ export const PodcastBottomSheet = ({
   onClose,
   children,
 }: PodcastBottomSheetProps) => {
-  const { height } = useWindowDimensions()
-  const insets = useSafeAreaInsets()
-
   return (
+    // A Modal opens its own native view-controller hierarchy on iOS - it
+    // is not a child of the app's root SafeAreaProvider (set up once in
+    // app/_layout.tsx), so useSafeAreaInsets() inside it would otherwise
+    // report stale/inherited insets instead of ones actually measured for
+    // this window (most visibly, a wrong/too-small bottom inset, which
+    // under-pads the sheet against the home indicator). Nested here so
+    // PodcastBottomSheetContent - a genuine descendant of it, unlike this
+    // component itself - gets a fresh measurement. Android doesn't need
+    // this, but nesting it there is a no-op, so it's simplest to always
+    // do it.
     <Modal
       visible={visible}
       transparent
@@ -1463,19 +1470,35 @@ export const PodcastBottomSheet = ({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <View className="flex-1 justify-end">
-        <Pressable onPress={onClose} className="absolute inset-0 bg-black/35" />
-        <View
-          className="rounded-t-[24px] bg-menorah-bg px-6 pt-3"
-          style={{
-            maxHeight: height * 0.82,
-            paddingBottom: Math.max(insets.bottom, 16) + 16,
-          }}
-        >
+      <SafeAreaProvider>
+        <PodcastBottomSheetContent onClose={onClose}>
           {children}
-        </View>
-      </View>
+        </PodcastBottomSheetContent>
+      </SafeAreaProvider>
     </Modal>
+  )
+}
+
+const PodcastBottomSheetContent = ({
+  onClose,
+  children,
+}: Pick<PodcastBottomSheetProps, "onClose" | "children">) => {
+  const { height } = useWindowDimensions()
+  const insets = useSafeAreaInsets()
+
+  return (
+    <View className="flex-1 justify-end">
+      <Pressable onPress={onClose} className="absolute inset-0 bg-black/35" />
+      <View
+        className="rounded-t-[24px] bg-menorah-bg px-6 pt-3"
+        style={{
+          maxHeight: height * 0.82,
+          paddingBottom: Math.max(insets.bottom, 16) + 16,
+        }}
+      >
+        {children}
+      </View>
+    </View>
   )
 }
 
