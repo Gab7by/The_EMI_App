@@ -40,6 +40,17 @@ export default function AudioProgressBar({
     useEffect(() => { onSeekRef.current = onSeek }, [onSeek])
 
     const liveProgress = duration > 0 ? Math.min(1, currentTime / duration) : 0
+
+    // PanResponder.create() below only ever runs once (useRef), so every
+    // handler it's given closes over whatever `liveProgress` was on that
+    // first render - effectively 0, since playback had barely started.
+    // onPanResponderGrant used that stale value directly, which is why a
+    // drag always began from the very start of the track no matter how
+    // far into playback you actually were: kept fresh here instead, and
+    // read via .current at grant time.
+    const liveProgressRef = useRef(liveProgress)
+    useEffect(() => { liveProgressRef.current = liveProgress }, [liveProgress])
+
     const displayedProgress = isScrubbing ? scrubProgress : liveProgress
     const displayedTime = isScrubbing ? scrubProgress * duration : currentTime
 
@@ -49,9 +60,10 @@ export default function AudioProgressBar({
             onMoveShouldSetPanResponder: (_evt, gestureState) => Math.abs(gestureState.dx) > 2,
             onPanResponderGrant: () => {
                 hapticLight()
-                startProgressRef.current = liveProgress
-                scrubProgressRef.current = liveProgress
-                setScrubProgress(liveProgress)
+                const startProgress = liveProgressRef.current
+                startProgressRef.current = startProgress
+                scrubProgressRef.current = startProgress
+                setScrubProgress(startProgress)
                 setIsScrubbing(true)
                 Animated.spring(thumbScale, { toValue: 1.5, useNativeDriver: true, friction: 6 }).start()
             },
