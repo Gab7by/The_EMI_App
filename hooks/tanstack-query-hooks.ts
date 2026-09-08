@@ -1,3 +1,4 @@
+import { getFeaturedTeaching } from "@/lib/featuredTeaching";
 import { getMusicTracks } from "@/lib/music";
 import { getActiveLivePodcastParticipants, getLiveSessions } from "@/lib/podcast";
 import { getRecentTestimonies, getTestimonies, getTestimonyById, getTestimonyComments } from "@/lib/testimonies";
@@ -68,5 +69,13 @@ export const useTestimonyComments = (testimonyId: string) => {
         queryKey: ["testimony-comments", testimonyId],
         queryFn: () => getTestimonyComments(testimonyId),
         enabled: !!testimonyId
+    })
+}
+
+export const useFeaturedTeaching = () => {
+    return useQuery({
+        queryKey: ["featured-teaching"],
+        queryFn: getFeaturedTeaching,
+        staleTime: 1000 * 60 * 5
     })
 }
