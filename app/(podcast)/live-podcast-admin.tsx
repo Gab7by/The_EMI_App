@@ -17,6 +17,7 @@ import {
   usePodcastFooterLayout,
 } from "@/components/podcast/livePodcastShared";
 import { BibleReader } from "@/components/podcast/bibleReader";
+import { DEFAULT_BIBLE_TRANSLATION, type BibleTranslationId } from "@/lib/bible";
 import { Icon } from "@/components/ui/icon";
 import { Colors } from "@/constants/theme";
 import { useHostRooom } from "@/hooks/useHostRoom";
@@ -80,6 +81,7 @@ const AdminLivePodcast = () => {
   const [isBibleVisible, setIsBibleVisible] = useState(false);
   const [bibleBookId, setBibleBookId] = useState<string | null>(null);
   const [bibleChapter, setBibleChapter] = useState<number | null>(null);
+  const [bibleTranslation, setBibleTranslation] = useState<BibleTranslationId>(DEFAULT_BIBLE_TRANSLATION);
   const [activeSheet, setActiveSheet] = useState<AdminSheet>("none");
   const [isMessageComposerVisible, setIsMessageComposerVisible] = useState(false);
   const [message, setMessage] = useState("");
@@ -1111,11 +1113,13 @@ const AdminLivePodcast = () => {
             setBibleBookId(nextBookId)
             setBibleChapter(nextChapter)
           }}
+          translation={bibleTranslation}
+          onTranslationChange={setBibleTranslation}
           isHost
           onShare={
             room && profile
-              ? (sharedBookId, sharedChapter) =>
-                  sendBibleNavigation(room, profile.id, profile.full_name ?? "Host", sharedBookId, sharedChapter, "web")
+              ? (sharedBookId, sharedChapter, sharedTranslation) =>
+                  sendBibleNavigation(room, profile.id, profile.full_name ?? "Host", sharedBookId, sharedChapter, sharedTranslation)
               : undefined
           }
         />

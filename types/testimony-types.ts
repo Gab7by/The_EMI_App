@@ -20,4 +20,14 @@ export type TestimonyWithImages = Testimony & {
   testimony_images: TestimonyImage[] | null
 }
 
+export type TestimonyComment = {
+  id: string
+  testimony_id: string
+  user_id: string
+  content: string
+  created_at: string
+  profiles: TestimonyProfile | null
+}
+
 export const MAX_TESTIMONY_IMAGES = 3
+export const MAX_TESTIMONY_COMMENT_LENGTH = 1000

@@ -1,6 +1,8 @@
+import { getFeaturedTeaching } from "@/lib/featuredTeaching";
+import { getHomeSliderSlots } from "@/lib/homeSlider";
 import { getMusicTracks } from "@/lib/music";
 import { getActiveLivePodcastParticipants, getLiveSessions } from "@/lib/podcast";
-import { getRecentTestimonies, getTestimonies, getTestimonyById } from "@/lib/testimonies";
+import { getRecentTestimonies, getTestimonies, getTestimonyById, getTestimonyComments } from "@/lib/testimonies";
 import { useQuery } from "@tanstack/react-query";
 
 export const useLivePodcastSessions = (hostId?: string) => {
@@ -60,5 +62,29 @@ export const useTestimonyById = (id: string) => {
         queryKey: ["testimony", id],
         queryFn: () => getTestimonyById(id),
         enabled: !!id
+    })
+}
+
+export const useTestimonyComments = (testimonyId: string) => {
+    return useQuery({
+        queryKey: ["testimony-comments", testimonyId],
+        queryFn: () => getTestimonyComments(testimonyId),
+        enabled: !!testimonyId
+    })
+}
+
+export const useFeaturedTeaching = () => {
+    return useQuery({
+        queryKey: ["featured-teaching"],
+        queryFn: getFeaturedTeaching,
+        staleTime: 1000 * 60 * 5
+    })
+}
+
+export const useHomeSliderSlots = () => {
+    return useQuery({
+        queryKey: ["home-slider-slots"],
+        queryFn: getHomeSliderSlots,
+        staleTime: 1000 * 60 * 5
     })
 }

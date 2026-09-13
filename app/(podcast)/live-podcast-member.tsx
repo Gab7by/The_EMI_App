@@ -22,6 +22,7 @@ import {
   type PodcastCurrencyOption
 } from "@/components/podcast/livePodcastShared";
 import { BibleReader } from "@/components/podcast/bibleReader";
+import { DEFAULT_BIBLE_TRANSLATION, parseBibleTranslationId, type BibleTranslationId } from "@/lib/bible";
 import { useAudienceRoom } from "@/hooks/useAudienceRoom";
 import { useLiveRoomSnapshot } from "@/hooks/useLiveRoomSnapshot";
 import { useRoomChat } from "@/hooks/useRoomChat";
@@ -64,6 +65,7 @@ const MemberLivePodcast = () => {
   const [isBibleVisible, setIsBibleVisible] = useState(false);
   const [bibleBookId, setBibleBookId] = useState<string | null>(null);
   const [bibleChapter, setBibleChapter] = useState<number | null>(null);
+  const [bibleTranslation, setBibleTranslation] = useState<BibleTranslationId>(DEFAULT_BIBLE_TRANSLATION);
   const [isPaymentMethodsVisible, setIsPaymentMethodsVisible] = useState(false);
   const [isCurrencySheetVisible, setIsCurrencySheetVisible] = useState(false);
   const [selectedCurrencyId, setSelectedCurrencyId] =
@@ -272,6 +274,7 @@ const MemberLivePodcast = () => {
 
     setBibleBookId(bibleNavigation.bookId)
     setBibleChapter(bibleNavigation.chapter)
+    setBibleTranslation(parseBibleTranslationId(bibleNavigation.translation))
     setIsBibleVisible(true)
   }, [bibleNavigation])
 
@@ -604,6 +607,8 @@ const MemberLivePodcast = () => {
             setBibleBookId(nextBookId)
             setBibleChapter(nextChapter)
           }}
+          translation={bibleTranslation}
+          onTranslationChange={setBibleTranslation}
           isHost={false}
         />
 

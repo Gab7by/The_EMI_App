@@ -7,7 +7,7 @@ import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useEffect, useRef } from 'react'
 import { Animated, Modal, Pressable, Text, TouchableOpacity, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import AudioProgressBar from './AudioProgressBar'
 import DownloadButton from './DownloadButton'
 
@@ -102,206 +102,219 @@ export default function RecordingPlayerScreen({
             onRequestClose={handleMinimize}
             statusBarTranslucent
         >
-            <LinearGradient
-                colors={["#0B1F0E", "#143703", "#0B1F0E"]}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={{ flex: 1 }}
-            >
-                <SafeAreaView className="flex-1" edges={["top", "bottom"]}>
-                    {/* Header */}
-                    <View className="flex-row items-center justify-between px-4 pt-2 pb-2">
-                        <Pressable
-                            onPress={handleMinimize}
-                            className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
-                            hitSlop={12}
-                        >
-                            <MaterialCommunityIcons name="chevron-down" size={24} color="#D7FF00" />
-                        </Pressable>
-
-                        <View className="flex-1 items-center">
-                            <Text className="text-[11px] font-semibold uppercase tracking-[1.5px] text-[#8FA396]">
-                                Now Playing
-                            </Text>
-                        </View>
-
-                        <DownloadButton recording={recording} />
-                    </View>
-
-                    <View className="flex-1 items-center justify-center px-6">
-                        {/* Artwork */}
-                        <View className="items-center justify-center" style={{ height: 232, width: 232 }}>
-                            <Animated.View
-                                pointerEvents="none"
-                                className="absolute rounded-[36px]"
-                                style={{
-                                    height: 232,
-                                    width: 232,
-                                    backgroundColor: playlistColor,
-                                    opacity: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.24] }),
-                                    transform: [{ scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1.04] }) }],
-                                }}
-                            />
-                            <View
-                                className="items-center justify-center overflow-hidden rounded-[28px] bg-[#132A19]"
-                                style={{
-                                    height: 208,
-                                    width: 208,
-                                    shadowColor: '#000',
-                                    shadowOpacity: 0.35,
-                                    shadowRadius: 16,
-                                    shadowOffset: { width: 0, height: 8 },
-                                    elevation: 10,
-                                }}
+            {/* A Modal opens its own native view-controller hierarchy on iOS -
+                it is not a child of the app's root SafeAreaProvider (set up
+                once in app/_layout.tsx), so SafeAreaView inside it would
+                otherwise read stale/inherited insets instead of ones
+                actually measured for this window. That's what was pushing
+                this whole screen upward on iOS: the top inset it was using
+                didn't match the notch/status bar it actually needed to
+                clear, so the header (minimize + download buttons) rendered
+                too high and got obstructed. Android doesn't need this - its
+                Modal shares the same window - but nesting it here is a
+                no-op there, so it's simplest to always do it. */}
+            <SafeAreaProvider>
+                <LinearGradient
+                    colors={["#0B1F0E", "#143703", "#0B1F0E"]}
+                    start={{ x: 0.5, y: 0 }}
+                    end={{ x: 0.5, y: 1 }}
+                    style={{ flex: 1 }}
+                >
+                    <SafeAreaView className="flex-1" edges={["top", "bottom"]}>
+                        {/* Header */}
+                        <View className="flex-row items-center justify-between px-4 pt-2 pb-2">
+                            <Pressable
+                                onPress={handleMinimize}
+                                className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
+                                hitSlop={12}
                             >
-                                {recording.coverImageUrl ? (
-                                    <Image
-                                        source={{ uri: recording.coverImageUrl }}
-                                        style={{ height: '100%', width: '100%' }}
-                                        contentFit="cover"
-                                        transition={200}
-                                    />
-                                ) : (
-                                    <MaterialCommunityIcons name="waveform" size={64} color={playlistColor} />
-                                )}
-                            </View>
-                        </View>
+                                <MaterialCommunityIcons name="chevron-down" size={24} color="#D7FF00" />
+                            </Pressable>
 
-                        {/* Playlist tag */}
-                        {recording.playlist ? (
-                            <View
-                                className="mt-5 self-center rounded-full px-3.5 py-1.5"
-                                style={{ backgroundColor: `${playlistColor}22` }}
-                            >
-                                <Text className="text-[11px] font-semibold" style={{ color: playlistColor }}>
-                                    {recording.playlist}
+                            <View className="flex-1 items-center">
+                                <Text className="text-[11px] font-semibold uppercase tracking-[1.5px] text-[#8FA396]">
+                                    Now Playing
                                 </Text>
                             </View>
-                        ) : null}
 
-                        {/* Title */}
-                        <Text className="mt-3 text-center text-[19px] font-bold text-[#F4F5F0]" numberOfLines={2}>
-                            {recording.podcast_title || 'Untitled Recording'}
-                        </Text>
-
-                        {/* Date + duration */}
-                        <Text className="mt-1.5 text-[12px] text-[#8FA396]">
-                            {formatRecordingDate(recording.started_at)}
-                            {recording.duration_seconds ? `  ·  ${formatDuration(recording.duration_seconds)}` : ''}
-                        </Text>
-
-                        {/* Progress */}
-                        <View className="mt-8 w-full">
-                            <AudioProgressBar currentTime={currentTime} duration={duration} onSeek={onSeek} />
+                            <DownloadButton recording={recording} />
                         </View>
 
-                        {/* Speed picker - a persistent, always-visible segmented row
-                            instead of a single badge you had to blind-tap-cycle
-                            through six values to discover. */}
-                        <View className="mt-5 flex-row items-center justify-center gap-1.5 rounded-full bg-black/20 p-1">
-                            {SPEED_OPTIONS.map((rate) => {
-                                const isActive = rate === playbackRate
-                                return (
-                                    <Pressable
-                                        key={rate}
-                                        onPress={() => handleSpeedSelect(rate)}
-                                        className="rounded-full px-2.5 py-1.5"
-                                        style={{ backgroundColor: isActive ? '#D7FF00' : 'transparent' }}
-                                    >
-                                        <Text
-                                            className="text-[11px] font-semibold"
-                                            style={{ color: isActive ? '#143703' : '#B7C0BC' }}
-                                        >
-                                            {rate}x
-                                        </Text>
-                                    </Pressable>
-                                )
-                            })}
-                        </View>
-
-                        {/* Main controls - justify-between + no fixed gap so this
-                            row can never overflow a narrow screen. It used to be
-                            justify-center with a fixed 24px gap between 5 fixed-size
-                            buttons, which added up to wider than a typical phone's
-                            available width and pushed rewind-15 off the left edge. */}
-                        <View className="mt-7 w-full flex-row items-center justify-between px-1">
-                            <TouchableOpacity
-                                onPress={() => { hapticLight(); onSeek(Math.max(0, currentTime - 15)) }}
-                                className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
-                                activeOpacity={0.7}
-                            >
-                                <MaterialCommunityIcons name="rewind-15" size={20} color="#F4F5F0" />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                onPress={onPrevious}
-                                disabled={!hasPrevious}
-                                className="h-12 w-12 items-center justify-center rounded-full"
-                                style={{ backgroundColor: hasPrevious ? 'rgba(255,255,255,0.1)' : 'transparent' }}
-                                activeOpacity={0.7}
-                            >
-                                <MaterialCommunityIcons
-                                    name="skip-backward"
-                                    size={22}
-                                    color={hasPrevious ? '#F4F5F0' : '#4C5A50'}
+                        <View className="flex-1 items-center justify-center px-6">
+                            {/* Artwork */}
+                            <View className="items-center justify-center" style={{ height: 232, width: 232 }}>
+                                <Animated.View
+                                    pointerEvents="none"
+                                    className="absolute rounded-[36px]"
+                                    style={{
+                                        height: 232,
+                                        width: 232,
+                                        backgroundColor: playlistColor,
+                                        opacity: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.24] }),
+                                        transform: [{ scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1.04] }) }],
+                                    }}
                                 />
-                            </TouchableOpacity>
+                                <View
+                                    className="items-center justify-center overflow-hidden rounded-[28px] bg-[#132A19]"
+                                    style={{
+                                        height: 208,
+                                        width: 208,
+                                        shadowColor: '#000',
+                                        shadowOpacity: 0.35,
+                                        shadowRadius: 16,
+                                        shadowOffset: { width: 0, height: 8 },
+                                        elevation: 10,
+                                    }}
+                                >
+                                    {recording.coverImageUrl ? (
+                                        <Image
+                                            source={{ uri: recording.coverImageUrl }}
+                                            style={{ height: '100%', width: '100%' }}
+                                            contentFit="cover"
+                                            transition={200}
+                                        />
+                                    ) : (
+                                        <MaterialCommunityIcons name="waveform" size={64} color={playlistColor} />
+                                    )}
+                                </View>
+                            </View>
 
-                            <TouchableOpacity
-                                onPress={onToggle}
-                                disabled={!isLoaded}
-                                className="h-[72px] w-[72px] items-center justify-center rounded-full bg-[#D7FF00]"
-                                activeOpacity={0.85}
-                                style={{
-                                    shadowColor: '#D7FF00',
-                                    shadowOpacity: 0.4,
-                                    shadowRadius: 14,
-                                    shadowOffset: { width: 0, height: 4 },
-                                    elevation: 8,
-                                }}
-                            >
-                                {!isLoaded ? <LoadingDots /> : (
-                                    <MaterialCommunityIcons name={isPlaying ? 'pause' : 'play'} size={32} color="#143703" />
-                                )}
-                            </TouchableOpacity>
+                            {/* Playlist tag */}
+                            {recording.playlist ? (
+                                <View
+                                    className="mt-5 self-center rounded-full px-3.5 py-1.5"
+                                    style={{ backgroundColor: `${playlistColor}22` }}
+                                >
+                                    <Text className="text-[11px] font-semibold" style={{ color: playlistColor }}>
+                                        {recording.playlist}
+                                    </Text>
+                                </View>
+                            ) : null}
 
-                            <TouchableOpacity
-                                onPress={onNext}
-                                disabled={!hasNext}
-                                className="h-12 w-12 items-center justify-center rounded-full"
-                                style={{ backgroundColor: hasNext ? 'rgba(255,255,255,0.1)' : 'transparent' }}
-                                activeOpacity={0.7}
-                            >
-                                <MaterialCommunityIcons
-                                    name="skip-forward"
-                                    size={22}
-                                    color={hasNext ? '#F4F5F0' : '#4C5A50'}
-                                />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                onPress={() => { hapticLight(); onSeek(Math.min(duration, currentTime + 15)) }}
-                                className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
-                                activeOpacity={0.7}
-                            >
-                                <MaterialCommunityIcons name="fast-forward-15" size={20} color="#F4F5F0" />
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Stop */}
-                        <TouchableOpacity
-                            onPress={() => { hapticLight(); onStop() }}
-                            className="mt-8 flex-row items-center gap-2 rounded-full bg-white/[0.06] px-5 py-2.5"
-                            activeOpacity={0.7}
-                        >
-                            <MaterialCommunityIcons name="stop" size={14} color="#8FA396" />
-                            <Text className="text-[12px] font-semibold text-[#8FA396]">
-                                Stop playback
+                            {/* Title */}
+                            <Text className="mt-3 text-center text-[19px] font-bold text-[#F4F5F0]" numberOfLines={2}>
+                                {recording.podcast_title || 'Untitled Recording'}
                             </Text>
-                        </TouchableOpacity>
-                    </View>
-                </SafeAreaView>
-            </LinearGradient>
+
+                            {/* Date + duration */}
+                            <Text className="mt-1.5 text-[12px] text-[#8FA396]">
+                                {formatRecordingDate(recording.started_at)}
+                                {recording.duration_seconds ? `  ·  ${formatDuration(recording.duration_seconds)}` : ''}
+                            </Text>
+
+                            {/* Progress */}
+                            <View className="mt-8 w-full">
+                                <AudioProgressBar currentTime={currentTime} duration={duration} onSeek={onSeek} />
+                            </View>
+
+                            {/* Speed picker - a persistent, always-visible segmented row
+                                instead of a single badge you had to blind-tap-cycle
+                                through six values to discover. */}
+                            <View className="mt-5 flex-row items-center justify-center gap-1.5 rounded-full bg-black/20 p-1">
+                                {SPEED_OPTIONS.map((rate) => {
+                                    const isActive = rate === playbackRate
+                                    return (
+                                        <Pressable
+                                            key={rate}
+                                            onPress={() => handleSpeedSelect(rate)}
+                                            className="rounded-full px-2.5 py-1.5"
+                                            style={{ backgroundColor: isActive ? '#D7FF00' : 'transparent' }}
+                                        >
+                                            <Text
+                                                className="text-[11px] font-semibold"
+                                                style={{ color: isActive ? '#143703' : '#B7C0BC' }}
+                                            >
+                                                {rate}x
+                                            </Text>
+                                        </Pressable>
+                                    )
+                                })}
+                            </View>
+
+                            {/* Main controls - justify-between + no fixed gap so this
+                                row can never overflow a narrow screen. It used to be
+                                justify-center with a fixed 24px gap between 5 fixed-size
+                                buttons, which added up to wider than a typical phone's
+                                available width and pushed rewind-15 off the left edge. */}
+                            <View className="mt-7 w-full flex-row items-center justify-between px-1">
+                                <TouchableOpacity
+                                    onPress={() => { hapticLight(); onSeek(Math.max(0, currentTime - 15)) }}
+                                    className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
+                                    activeOpacity={0.7}
+                                >
+                                    <MaterialCommunityIcons name="rewind-15" size={20} color="#F4F5F0" />
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    onPress={onPrevious}
+                                    disabled={!hasPrevious}
+                                    className="h-12 w-12 items-center justify-center rounded-full"
+                                    style={{ backgroundColor: hasPrevious ? 'rgba(255,255,255,0.1)' : 'transparent' }}
+                                    activeOpacity={0.7}
+                                >
+                                    <MaterialCommunityIcons
+                                        name="skip-backward"
+                                        size={22}
+                                        color={hasPrevious ? '#F4F5F0' : '#4C5A50'}
+                                    />
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    onPress={onToggle}
+                                    disabled={!isLoaded}
+                                    className="h-[72px] w-[72px] items-center justify-center rounded-full bg-[#D7FF00]"
+                                    activeOpacity={0.85}
+                                    style={{
+                                        shadowColor: '#D7FF00',
+                                        shadowOpacity: 0.4,
+                                        shadowRadius: 14,
+                                        shadowOffset: { width: 0, height: 4 },
+                                        elevation: 8,
+                                    }}
+                                >
+                                    {!isLoaded ? <LoadingDots /> : (
+                                        <MaterialCommunityIcons name={isPlaying ? 'pause' : 'play'} size={32} color="#143703" />
+                                    )}
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    onPress={onNext}
+                                    disabled={!hasNext}
+                                    className="h-12 w-12 items-center justify-center rounded-full"
+                                    style={{ backgroundColor: hasNext ? 'rgba(255,255,255,0.1)' : 'transparent' }}
+                                    activeOpacity={0.7}
+                                >
+                                    <MaterialCommunityIcons
+                                        name="skip-forward"
+                                        size={22}
+                                        color={hasNext ? '#F4F5F0' : '#4C5A50'}
+                                    />
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    onPress={() => { hapticLight(); onSeek(Math.min(duration, currentTime + 15)) }}
+                                    className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
+                                    activeOpacity={0.7}
+                                >
+                                    <MaterialCommunityIcons name="fast-forward-15" size={20} color="#F4F5F0" />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Stop */}
+                            <TouchableOpacity
+                                onPress={() => { hapticLight(); onStop() }}
+                                className="mt-8 flex-row items-center gap-2 rounded-full bg-white/[0.06] px-5 py-2.5"
+                                activeOpacity={0.7}
+                            >
+                                <MaterialCommunityIcons name="stop" size={14} color="#8FA396" />
+                                <Text className="text-[12px] font-semibold text-[#8FA396]">
+                                    Stop playback
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </SafeAreaView>
+                </LinearGradient>
+            </SafeAreaProvider>
         </Modal>
     )
 }

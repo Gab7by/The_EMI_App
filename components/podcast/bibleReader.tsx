@@ -1,9 +1,11 @@
 import { hapticLight, hapticMedium } from "@/lib/haptics";
 import {
+  BIBLE_TRANSLATIONS,
   getBibleBook,
   getBibleChapterVerses,
   searchBibleBooks,
   type BibleBook,
+  type BibleTranslationId,
 } from "@/lib/bible";
 import { FlashList } from "@shopify/flash-list";
 import { ChevronLeft, ChevronRight, Minus, Plus, Search, Share2, X } from "lucide-react-native";
@@ -24,9 +26,13 @@ export type BibleReaderProps = {
   bookId: string | null;
   chapter: number | null;
   onNavigate: (bookId: string, chapter: number) => void;
+  /** Also lifted, same reason - a host's shared reading can carry a
+   * translation choice too, not just book/chapter. */
+  translation: BibleTranslationId;
+  onTranslationChange: (translation: BibleTranslationId) => void;
   /** Only hosts get the "share with everyone" control. */
   isHost: boolean;
-  onShare?: (bookId: string, chapter: number) => void;
+  onShare?: (bookId: string, chapter: number, translation: BibleTranslationId) => void;
 };
 
 export const BibleReader = ({
@@ -35,6 +41,8 @@ export const BibleReader = ({
   bookId,
   chapter,
   onNavigate,
+  translation,
+  onTranslationChange,
   isHost,
   onShare,
 }: BibleReaderProps) => {
@@ -109,10 +117,12 @@ export const BibleReader = ({
           <ChapterReaderStep
             book={book}
             chapter={chapter}
+            translation={translation}
+            onTranslationChange={onTranslationChange}
             fontSize={fontSize}
             onFontSizeChange={setFontSize}
             isHost={isHost}
-            onShare={onShare ? () => onShare(book.id, chapter) : undefined}
+            onShare={onShare ? () => onShare(book.id, chapter, translation) : undefined}
             onBrowse={openBookList}
             onPrevChapter={
               chapter > 1 ? () => handleSelectChapter(book.id, chapter - 1) : undefined
@@ -255,6 +265,8 @@ const ChapterGridStep = ({
 const ChapterReaderStep = ({
   book,
   chapter,
+  translation,
+  onTranslationChange,
   fontSize,
   onFontSizeChange,
   isHost,
@@ -266,6 +278,8 @@ const ChapterReaderStep = ({
 }: {
   book: BibleBook;
   chapter: number;
+  translation: BibleTranslationId;
+  onTranslationChange: (translation: BibleTranslationId) => void;
   fontSize: number;
   onFontSizeChange: (size: number) => void;
   isHost: boolean;
@@ -275,7 +289,10 @@ const ChapterReaderStep = ({
   onNextChapter?: () => void;
   onClose: () => void;
 }) => {
-  const verses = useMemo(() => getBibleChapterVerses(book.id, chapter), [book.id, chapter]);
+  const verses = useMemo(
+    () => getBibleChapterVerses(book.id, chapter, translation),
+    [book.id, chapter, translation]
+  );
   const [shared, setShared] = useState(false);
 
   const handleShare = useCallback(() => {
@@ -296,11 +313,40 @@ const ChapterReaderStep = ({
           <Text className="text-[16px] font-semibold text-[#F4F5F0]">
             {book.name} {chapter}
           </Text>
-          <Text className="text-[10px] uppercase tracking-[1px] text-[#95A89C]">World English Bible</Text>
         </Pressable>
         <Pressable onPress={onClose} hitSlop={12} className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
           <X size={18} color="#F4F5F0" />
         </Pressable>
+      </View>
+
+      {/* Translation switcher - each reader (host or member) picks their
+          own independently, same as book/chapter browsing already works;
+          a host's "Share with everyone" tap below also carries whichever
+          one is selected here, so a shared reading snaps every member to
+          match it too. */}
+      <View className="mt-3 flex-row items-center justify-center gap-1.5 self-center rounded-full bg-black/20 p-1">
+        {BIBLE_TRANSLATIONS.map((entry) => {
+          const isActive = entry.id === translation;
+          return (
+            <Pressable
+              key={entry.id}
+              onPress={() => {
+                if (entry.id === translation) return;
+                hapticLight();
+                onTranslationChange(entry.id);
+              }}
+              className="rounded-full px-3 py-1.5"
+              style={{ backgroundColor: isActive ? "#D7FF00" : "transparent" }}
+            >
+              <Text
+                className="text-[11px] font-semibold"
+                style={{ color: isActive ? "#143703" : "#95A89C" }}
+              >
+                {entry.shortName}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <View className="mt-3 flex-row items-center justify-between px-5">

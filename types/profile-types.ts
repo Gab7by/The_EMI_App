@@ -16,4 +16,6 @@ export type profileManagementCategory = {
     categoryDescription?: string
     categoryIconColor?: string
     onPressFunction?: () => void
+    /** Only rendered for a profile with role === "admin". */
+    adminOnly?: boolean
 }

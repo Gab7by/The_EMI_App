@@ -8,6 +8,12 @@
     "scheme": "themenorah",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/4d60785a-3fab-4fe0-a6a7-c205ea7664b9"
+    },
     "ios": {
       "supportsTablet": true,
       "bitcode": false,

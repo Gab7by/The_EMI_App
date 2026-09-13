@@ -7,6 +7,15 @@ const ImageSlider = ({items, height = 200}:SliderProps) => {
 
     const [activeIndex, setActiveIndex] = useState(0)
     const [sliderWidth, setSliderWidth] = useState(0)
+    // Ids of items whose remote `source` failed to load - rendered with
+    // `fallbackSource` instead, if one was given. Reset whenever the item
+    // set itself changes (e.g. an admin deletes/uploads images) so a slot
+    // that gets a different image doesn't inherit a stale failure.
+    const [failedIds, setFailedIds] = useState<Set<string>>(new Set())
+
+    useEffect(() => {
+        setFailedIds(new Set())
+    }, [items])
 
     const scrollRef = useRef<ScrollView>(null)
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -81,14 +90,21 @@ const ImageSlider = ({items, height = 200}:SliderProps) => {
                     className="w-full"
                 >
                     {
-                        items.map((item) => (
-                            <Image
-                                key={item.id}
-                                source={item.source}
-                                contentFit="cover"
-                                style={{height, width: sliderWidth}}
-                            />
-                        ))
+                        items.map((item) => {
+                            const useFallback = failedIds.has(item.id) && item.fallbackSource !== undefined
+                            return (
+                                <Image
+                                    key={item.id}
+                                    source={useFallback ? item.fallbackSource : item.source}
+                                    contentFit="cover"
+                                    style={{height, width: sliderWidth}}
+                                    onError={() => {
+                                        if (item.fallbackSource === undefined) return
+                                        setFailedIds((prev) => (prev.has(item.id) ? prev : new Set(prev).add(item.id)))
+                                    }}
+                                />
+                            )
+                        })
                     }
                 </ScrollView>
             </View>

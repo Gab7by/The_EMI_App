@@ -17,7 +17,12 @@ export type GradientButtonProps = {
 
 export type SliderItem = {
     id: string
-    source: number
+    // A bundled asset (require()'d, a number) or a remote image ({ uri }).
+    source: number | { uri: string }
+    // Only meaningful when `source` is a remote { uri } - the bundled asset
+    // to swap in if that URI fails to load, so one broken upload only ever
+    // loses its own slide instead of breaking the whole slider.
+    fallbackSource?: number
 }
 
 export type SliderProps = {

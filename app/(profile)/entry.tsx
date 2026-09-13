@@ -18,6 +18,10 @@ const ProfileEntryScreen = () => {
     const name = useAuthStore(state => state.profile?.full_name ?? state.session?.user.user_metadata.full_name)
     const email = useAuthStore(state => state.session?.user.email)
     const profile = useAuthStore(state => state.profile)
+    const isAdmin = profile?.role === "admin"
+    const visibleCategories = ProfileManagementCategories.filter(
+        (category) => !category.adminOnly || isAdmin
+    )
 
     const goToPreviousScreen = () => {
         router.back()
@@ -88,7 +92,7 @@ const ProfileEntryScreen = () => {
                 </View>
             <View className="gap-4">
                 {
-                    ProfileManagementCategories.map(category => (
+                    visibleCategories.map(category => (
                         <ProfileCategory key={category.key} categoryName={category.categoryName} icon={category.icon} categoryDescription={category.categoryDescription} categoryIconColor={category.categoryIconColor} onPressFunction={category.onPressFunction}  />
                     ))
                 }
