@@ -8,9 +8,9 @@ import { CONTACT_ITEMS } from "@/constants/contact"
 import { useFeaturedTeaching, useHomeSliderSlots, useRecentTestimonies } from "@/hooks/tanstack-query-hooks"
 import { buildHomeSliderItems } from "@/lib/homeSlider"
 import { useAuthStore } from "@/store/authStore"
-import { FEATURED_TEACHING_HOME_PREVIEW_LINES } from "@/types/featured-teaching-types"
+import { FEATURED_TEACHING_HOME_MESSAGE_LINES } from "@/types/featured-teaching-types"
 import { useRouter } from "expo-router"
-import { Pencil } from "lucide-react-native"
+import { ArrowRight, Pencil } from "lucide-react-native"
 import { useCallback, useMemo } from "react"
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
@@ -62,25 +62,40 @@ const Home = () => {
               </Pressable>
             )}
 
-            <View className="mb-6 self-start">
+            <View className="mb-5 self-start">
               <Sparkling width={25} height={25} />
             </View>
-            <Text className="mb-2 text-[11px] font-bold uppercase tracking-[1px] text-[#0B1F0E]/70">Featured teaching</Text>
+            <Text className="mb-2 text-[11px] font-bold uppercase tracking-[1px] text-[#0B1F0E]/70">Featured Teaching</Text>
 
             {isFeaturedTeachingLoading ? (
               <ActivityIndicator size="small" color="#0B1F0E" />
             ) : featuredTeaching ? (
               <>
-                <Text className="text-left text-xl font-bold text-[#0B1F0E]">{featuredTeaching.title}</Text>
-                <Text numberOfLines={FEATURED_TEACHING_HOME_PREVIEW_LINES} className="mt-2 text-left text-sm leading-5 text-[#0B1F0E]/80">
-                  {featuredTeaching.content}
+                <Text
+                  numberOfLines={2}
+                  className="text-left text-xl font-bold text-[#0B1F0E]"
+                >
+                  {featuredTeaching.title}
+                </Text>
+                <Text
+                  numberOfLines={FEATURED_TEACHING_HOME_MESSAGE_LINES}
+                  className="mt-2.5 text-left text-sm leading-5 text-[#0B1F0E]/75"
+                >
+                  {featuredTeaching.devotional_message}
                 </Text>
                 <Pressable
                   onPress={() => router.push("/(teaching)/featured-teaching")}
-                  hitSlop={8}
-                  className="mt-3 self-start"
+                  className="mt-4 flex-row items-center gap-1.5 self-start rounded-full bg-[#0B1F0E] px-4 py-2.5"
+                  style={{
+                    shadowColor: "#000",
+                    shadowOpacity: 0.18,
+                    shadowRadius: 6,
+                    shadowOffset: { width: 0, height: 3 },
+                    elevation: 3,
+                  }}
                 >
-                  <Text className="text-xs font-bold text-[#0B1F0E]">Read more →</Text>
+                  <Text className="text-xs font-bold text-white">Read the full devotion</Text>
+                  <ArrowRight size={13} color="#C6FF00" />
                 </Pressable>
               </>
             ) : (

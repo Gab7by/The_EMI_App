@@ -4,7 +4,10 @@ import type { FeaturedTeaching } from "@/types/featured-teaching-types"
 const FEATURED_TEACHING_SELECT = `
   id,
   title,
-  content,
+  scripture_reference,
+  devotional_message,
+  prayer,
+  declaration,
   updated_by,
   updated_at,
   created_at
@@ -33,6 +36,14 @@ export const getFeaturedTeaching = async (): Promise<FeaturedTeaching | null> =>
   return data as unknown as FeaturedTeaching | null
 }
 
+export type FeaturedTeachingInput = {
+  title: string
+  scriptureReference: string
+  devotionalMessage: string
+  prayer: string
+  declaration: string
+}
+
 /**
  * Updates the single featured teaching row in place. RLS is the real gate
  * (admins only) - this just performs the update and reports whether it
@@ -41,12 +52,15 @@ export const getFeaturedTeaching = async (): Promise<FeaturedTeaching | null> =>
  */
 export const updateFeaturedTeaching = async (
   id: string,
-  title: string,
-  content: string
+  input: FeaturedTeachingInput
 ): Promise<FeaturedTeaching | null> => {
-  const trimmedTitle = title.trim()
-  const trimmedContent = content.trim()
-  if (!trimmedTitle || !trimmedContent) return null
+  const title = input.title.trim()
+  const scriptureReference = input.scriptureReference.trim()
+  const devotionalMessage = input.devotionalMessage.trim()
+  const prayer = input.prayer.trim()
+  const declaration = input.declaration.trim()
+
+  if (!title || !scriptureReference || !devotionalMessage || !prayer || !declaration) return null
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -54,8 +68,11 @@ export const updateFeaturedTeaching = async (
   const { data, error } = await supabase
     .from('featured_teaching')
     .update({
-      title: trimmedTitle,
-      content: trimmedContent,
+      title,
+      scripture_reference: scriptureReference,
+      devotional_message: devotionalMessage,
+      prayer,
+      declaration,
       updated_by: user.id,
       updated_at: new Date().toISOString(),
     })
