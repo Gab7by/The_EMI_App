@@ -1,22 +1,31 @@
-import { useFeaturedTeaching } from "@/hooks/tanstack-query-hooks"
-import { formatRecordingDate } from "@/lib/formatters"
-import { Fonts } from "@/constants/theme"
-import { useRouter } from "expo-router"
-import { ArrowLeft, BookOpen, Heart, Megaphone } from "lucide-react-native"
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native"
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
+import { Fonts } from "@/constants/theme";
+import { useFeaturedTeaching } from "@/hooks/tanstack-query-hooks";
+import { formatRecordingDate } from "@/lib/formatters";
+import { useRouter } from "expo-router";
+import { ArrowLeft, BookOpen, Heart, Megaphone } from "lucide-react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 const FeaturedTeachingScreen = () => {
-  const insets = useSafeAreaInsets()
-  const router = useRouter()
-  const { data: featuredTeaching, isLoading } = useFeaturedTeaching()
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { data: featuredTeaching, isLoading } = useFeaturedTeaching();
 
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-menorah-bg">
         <ActivityIndicator size="large" color="#C6FF00" />
       </SafeAreaView>
-    )
+    );
   }
 
   if (!featuredTeaching) {
@@ -37,7 +46,7 @@ const FeaturedTeachingScreen = () => {
           </Text>
         </View>
       </SafeAreaView>
-    )
+    );
   }
 
   return (
@@ -45,7 +54,10 @@ const FeaturedTeachingScreen = () => {
       className="flex-1 bg-menorah-bg px-4"
       style={{ paddingBottom: insets.bottom + 16 }}
     >
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerClassName="pb-14 pt-2">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerClassName="pb-14 pt-2"
+      >
         <View className="flex-row items-center justify-between">
           <Pressable
             onPress={() => router.back()}
@@ -59,7 +71,9 @@ const FeaturedTeachingScreen = () => {
           <Text className="text-[11px] font-bold uppercase tracking-[2px] text-menorah-primary">
             Featured Teaching
           </Text>
-          <Text className="text-2xl font-bold text-white">{featuredTeaching.title}</Text>
+          <Text className="text-2xl font-bold text-white">
+            {featuredTeaching.title}
+          </Text>
           <Text className="text-[11px] text-menorah-gray">
             {formatRecordingDate(featuredTeaching.updated_at)}
           </Text>
@@ -104,7 +118,9 @@ const FeaturedTeachingScreen = () => {
             <View className="h-7 w-7 items-center justify-center rounded-full bg-menorah-gold/20">
               <Heart size={14} color="#D4AF37" />
             </View>
-            <Text className="text-[13px] font-bold text-menorah-gold">Let&apos;s Pray</Text>
+            <Text className="text-[13px] font-bold text-menorah-gold">
+              Let&apos;s Pray
+            </Text>
           </View>
           <Text className="mt-3 text-[15px] italic leading-[26px] text-white/90">
             {featuredTeaching.prayer}
@@ -127,7 +143,7 @@ const FeaturedTeachingScreen = () => {
         </View>
       </ScrollView>
     </SafeAreaView>
-  )
-}
+  );
+};
 
-export default FeaturedTeachingScreen
+export default FeaturedTeachingScreen;
