@@ -1,43 +1,13 @@
 import LearningPathCard from "@/components/discipleship/learningPathCard";
 import PodcastProfileBar from "@/components/profile/podcastProfileBar";
+import { LEARNING_PATHS } from "@/constants/discipleship";
+import { useRouter } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-const learningPaths = [
-  {
-    icon: "school" as const,
-    title: "School Of Spiritual Foundation",
-    description: "Build a strong foundation in Christian principles and practices",
-    moduleCount: 12,
-  },
-  {
-    icon: "hands-pray" as const,
-    title: "School Of Ministry",
-    description: "Discover and develop your spiritual gifts for service",
-    moduleCount: 16,
-  },
-  {
-    icon: "human-child" as const,
-    title: "Sonship Submission",
-    description: "Understanding your identity as a child of God",
-    moduleCount: 8,
-  },
-  {
-    icon: "account-supervisor" as const,
-    title: "Mentorship",
-    description: "One-on-one guidance from experience spiritual leaders.",
-    moduleCount: 10,
-  },
-  {
-    icon: "meditation" as const,
-    title: "School Of Christian Mysticism",
-    description: "Deep dive into contemplative prayer and spiritual intimacy.",
-    moduleCount: 10,
-  },
-];
-
 const DiscipleshipScreen = () => {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   return (
     <SafeAreaView
@@ -61,13 +31,15 @@ const DiscipleshipScreen = () => {
         </Text>
 
         <View className="gap-3">
-          {learningPaths.map((path) => (
+          {LEARNING_PATHS.map((path) => (
             <LearningPathCard
-              key={path.title}
+              key={path.id}
               icon={path.icon}
               title={path.title}
               description={path.description}
               moduleCount={path.moduleCount}
+              locked={path.locked}
+              onPress={path.locked ? undefined : () => router.push(`/(discipleship)/${path.id}`)}
             />
           ))}
         </View>

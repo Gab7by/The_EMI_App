@@ -7,14 +7,19 @@ import TestimonyCard from "@/components/testimonies/testimonyCard"
 import { CONTACT_ITEMS } from "@/constants/contact"
 import { useFeaturedTeaching, useHomeSliderSlots, useRecentTestimonies } from "@/hooks/tanstack-query-hooks"
 import { buildHomeSliderItems } from "@/lib/homeSlider"
+import { hapticLight } from "@/lib/haptics"
 import { useAuthStore } from "@/store/authStore"
 import { FEATURED_TEACHING_HOME_MESSAGE_LINES } from "@/types/featured-teaching-types"
 import { useRouter } from "expo-router"
-import { ArrowRight, Pencil } from "lucide-react-native"
+import { ArrowRight, HeartHandshake, Pencil } from "lucide-react-native"
 import { useCallback, useMemo } from "react"
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native"
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
+
+// Shared by anyone this evolves to reach later, not just this screen -
+// kept as a constant rather than buried inline in the handler below.
+const BECOME_A_PARTNER_URL = "https://somconvenantpartnerships.home.blog/"
 
 
 
@@ -32,6 +37,14 @@ const Home = () => {
     (testimonyId: string) => router.push(`/(testimonies)/${testimonyId}`),
     [router]
   )
+  const handleBecomePartner = useCallback(async () => {
+    hapticLight()
+    try {
+      await Linking.openURL(BECOME_A_PARTNER_URL)
+    } catch (error) {
+      console.error("Home: failed to open partnership link", error)
+    }
+  }, [])
 
   return (
     <SafeAreaView className="flex-1 gap-6 px-4 py-5 bg-menorah-bg" style={{ paddingBottom: insets.bottom + 16 }}>
@@ -104,6 +117,26 @@ const Home = () => {
               </Text>
             )}
           </LinearGradient>
+
+          <Pressable onPress={handleBecomePartner} className="overflow-hidden rounded-2xl">
+            <LinearGradient
+              colors={["#EFBF04", "#D4AF37"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ flexDirection: "row", alignItems: "center", padding: 18, gap: 14 }}
+            >
+              <View className="h-12 w-12 items-center justify-center rounded-full bg-black/10">
+                <HeartHandshake size={22} color="#0B1F0E" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-base font-bold text-[#0B1F0E]">Become a Partner</Text>
+                <Text className="mt-0.5 text-xs leading-4 text-[#0B1F0E]/75">
+                  Join hands with us and help take this ministry further
+                </Text>
+              </View>
+              <ArrowRight size={18} color="#0B1F0E" />
+            </LinearGradient>
+          </Pressable>
 
           <View className="mt-2 gap-3">
             <View className="flex-row items-center justify-between">
