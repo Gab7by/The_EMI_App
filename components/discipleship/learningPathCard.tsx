@@ -38,7 +38,7 @@ const LearningPathCard = ({
           {description}
         </Text>
         <Text className="mt-1 text-[10px] font-semibold uppercase tracking-[0.8px] text-menorah-muted/70">
-          {moduleCount} modules · coming soon
+          {moduleCount} modules · {locked ? "coming soon" : "view details"}
         </Text>
       </View>
 
