@@ -18,7 +18,7 @@ export const LEARNING_PATHS: LearningPath[] = [
     icon: "school",
     title: "School Of Spiritual Foundation",
     description: "Build a strong foundation in Christian principles and practices",
-    moduleCount: 12,
+    moduleCount: 8,
     locked: false,
   },
   {
