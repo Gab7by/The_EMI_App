@@ -1075,7 +1075,9 @@ export const PodcastComments = memo(({
   const handleDownloadImage = useCallback(async () => {
     if (!selectedImageUri) return
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync()
+      // Saving a file needs write access only; it must not request permission
+      // to browse the person's existing photo library.
+      const { status } = await MediaLibrary.requestPermissionsAsync(true)
       if (status !== 'granted') {
         Alert.alert('Permission required', 'Please grant permission to save images to your device.')
         return

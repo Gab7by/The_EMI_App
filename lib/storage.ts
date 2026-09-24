@@ -9,12 +9,6 @@ export const pickImage = async (options?:{
     aspect?: [number, number]
 }) => {
 
-    const {status} = await ImagePicker.requestMediaLibraryPermissionsAsync()
-
-    if (status != "granted") {
-        return null
-    }
-
     const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: options?.allowsEditing ?? true,
@@ -36,12 +30,6 @@ export const pickImage = async (options?:{
 export const pickImages = async (options?: {
     selectionLimit?: number
 }): Promise<ImagePicker.ImagePickerAsset[]> => {
-
-    const {status} = await ImagePicker.requestMediaLibraryPermissionsAsync()
-
-    if (status != "granted") {
-        return []
-    }
 
     const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
