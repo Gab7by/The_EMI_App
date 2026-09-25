@@ -12,6 +12,7 @@ import {
   PodcastDialog,
   PodcastFullScreenModal,
   PodcastHeader,
+  LinkMessageSheet,
   PodcastNotesDialog,
   PodcastParticipantsGrid,
   podcastCurrencies,
@@ -71,6 +72,7 @@ const MemberLivePodcast = () => {
   const [selectedCurrencyId, setSelectedCurrencyId] =
     useState<PodcastCurrencyOption["id"]>("usd");
   const [message, setMessage] = useState<string>('')
+  const [isLinkSheetVisible, setIsLinkSheetVisible] = useState(false)
   const [shouldShowConnectingOverlay, setShouldShowConnectingOverlay] = useState(true)
   const [localLoveBursts, setLocalLoveBursts] = useState<LoveBurst[]>([])
   const [keyboardHeight, setKeyboardHeight] = useState(0)
@@ -104,7 +106,7 @@ const MemberLivePodcast = () => {
 
   useAudienceRoom(livekitRoomName, id)
 
-  const {messages, isLoading: isChatLoading, sendMessage, editMessage, deleteMessage, canDeleteMessage, canEditMessage} = useRoomChat(
+  const {messages, isLoading: isChatLoading, sendMessage, sendLink, editMessage, deleteMessage, canDeleteMessage, canEditMessage} = useRoomChat(
     room,
     id,
     profile?.id ?? '',
@@ -218,6 +220,12 @@ const MemberLivePodcast = () => {
       setReplyingTo(null)
     }
   }
+  const handleSendLink = useCallback((url: string, label: string) =>
+    sendLink(url, label, profile?.full_name ?? 'User', profile?.avatar_url ?? null, replyingTo?.messageId)
+      .then((result) => {
+        if (result.ok) setReplyingTo(null)
+        return result
+      }), [sendLink, profile?.full_name, profile?.avatar_url, replyingTo?.messageId])
   const canSendMessage = message.trim().length > 0
 
   useEffect(() => {
@@ -484,6 +492,9 @@ const MemberLivePodcast = () => {
                   handleSendMessage()
                 }}
               />
+              <Pressable onPress={() => { hapticMedium(); setIsLinkSheetVisible(true) }} hitSlop={8} className="ml-1 h-8 w-8 items-center justify-center rounded-full bg-white/10">
+                <MaterialCommunityIcons name="link-variant" size={18} color="#D7FF00" />
+              </Pressable>
               <Pressable
                 onPress={() => {
                   hapticMedium()
@@ -590,6 +601,8 @@ const MemberLivePodcast = () => {
             </View>
           </View>
         </PodcastDialog>
+
+        <LinkMessageSheet visible={isLinkSheetVisible} onClose={() => setIsLinkSheetVisible(false)} onSend={handleSendLink} />
 
         <PodcastNotesDialog
           visible={isNotesVisible}

@@ -13,6 +13,7 @@ import {
   Alert,
   Animated,
   Keyboard,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -611,6 +612,84 @@ const ChatImage = memo(({ uri, maxWidth, onPress }: { uri: string; maxWidth: num
   );
 });
 ChatImage.displayName = "ChatImage";
+
+const ChatLinkCard = memo(({ message, isOwn }: { message: LiveMessage; isOwn: boolean }) => {
+  const url = message.link_url ?? message.content
+  let domain = url
+  try { domain = new URL(url).hostname.replace(/^www\./, '') } catch {}
+  const label = message.link_label?.trim() || domain
+  return (
+    <Pressable
+      onPress={(event) => {
+        event.stopPropagation()
+        void Linking.openURL(url).catch(() => Alert.alert('Unable to open link', 'Please try again.'))
+      }}
+      className={`w-[238px] overflow-hidden rounded-2xl border ${isOwn ? 'border-[#143703]/15 bg-[#D7FF00]' : 'border-white/15 bg-[#10280B]/95'}`}
+      style={{ shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 3 }}
+    >
+      <View className={`flex-row items-center px-3.5 pt-3 ${isOwn ? 'border-[#143703]/15' : 'border-white/10'}`}>
+        <View className={`h-9 w-9 items-center justify-center rounded-xl ${isOwn ? 'bg-[#143703]/12' : 'bg-[#D7FF00]/15'}`}>
+          <MaterialCommunityIcons name="link-variant" size={19} color={isOwn ? '#143703' : '#D7FF00'} />
+        </View>
+        <View className="ml-2.5 flex-1">
+          <Text numberOfLines={1} className={`text-[12px] font-bold ${isOwn ? 'text-[#143703]' : 'text-white'}`}>{label}</Text>
+          <Text numberOfLines={1} className={`mt-0.5 text-[10px] ${isOwn ? 'text-[#143703]/65' : 'text-white/55'}`}>{domain}</Text>
+        </View>
+      </View>
+      <View className={`mt-3 flex-row items-center border-t px-3.5 py-2.5 ${isOwn ? 'border-[#143703]/15' : 'border-white/10'}`}>
+        <Text className={`text-[10px] font-bold ${isOwn ? 'text-[#143703]' : 'text-[#D7FF00]'}`}>Open link</Text>
+        <MaterialCommunityIcons name="open-in-new" size={13} color={isOwn ? '#143703' : '#D7FF00'} style={{ marginLeft: 5 }} />
+      </View>
+    </Pressable>
+  )
+})
+ChatLinkCard.displayName = 'ChatLinkCard'
+
+type LinkMessageSheetProps = {
+  visible: boolean
+  onClose: () => void
+  onSend: (url: string, label: string) => Promise<ChatActionResult>
+}
+
+export const LinkMessageSheet = ({ visible, onClose, onSend }: LinkMessageSheetProps) => {
+  const [url, setUrl] = useState('')
+  const [label, setLabel] = useState('')
+  const [isSending, setIsSending] = useState(false)
+  const canSend = /^https:\/\/\S+$/i.test(url.trim()) && !isSending
+  const close = () => { if (!isSending) { setUrl(''); setLabel(''); onClose() } }
+  const send = async () => {
+    if (!canSend) return
+    setIsSending(true)
+    const result = await onSend(url, label)
+    setIsSending(false)
+    if (result.ok) {
+      setUrl('')
+      setLabel('')
+      onClose()
+    }
+    else Alert.alert('Could not share link', result.error ?? 'Please try again.')
+  }
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
+      <Pressable onPress={close} className="flex-1 justify-end bg-black/65 px-4 pb-7">
+        <Pressable onPress={(event) => event.stopPropagation()} className="rounded-[28px] border border-white/15 bg-[#10280B] px-5 pb-5 pt-4">
+          <View className="mb-4 flex-row items-center justify-between">
+            <View className="flex-row items-center">
+              <View className="h-10 w-10 items-center justify-center rounded-2xl bg-[#D7FF00]/15"><MaterialCommunityIcons name="link-variant" size={21} color="#D7FF00" /></View>
+              <View className="ml-3"><Text className="text-[16px] font-bold text-white">Share a link</Text><Text className="mt-0.5 text-[11px] text-white/55">Only secure https links can be shared</Text></View>
+            </View>
+            <Pressable onPress={close} hitSlop={10}><MaterialCommunityIcons name="close" size={21} color="#FFFFFF99" /></Pressable>
+          </View>
+          <TextInput value={url} onChangeText={setUrl} autoCapitalize="none" autoCorrect={false} keyboardType="url" placeholder="https://example.com" placeholderTextColor="#8FA28E" className="rounded-2xl border border-white/15 bg-black/20 px-4 py-3 text-[13px] text-white" selectionColor="#D7FF00" />
+          <TextInput value={label} onChangeText={setLabel} maxLength={80} placeholder="Label (optional)" placeholderTextColor="#8FA28E" className="mt-2 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-[13px] text-white" selectionColor="#D7FF00" />
+          <Pressable onPress={send} disabled={!canSend} className={`mt-4 h-12 flex-row items-center justify-center rounded-2xl ${canSend ? 'bg-[#D7FF00]' : 'bg-white/10'}`}>
+            {isSending ? <ActivityIndicator color="#143703" /> : <><MaterialCommunityIcons name="send" size={17} color={canSend ? '#143703' : '#FFFFFF55'} /><Text className={`ml-2 text-[13px] font-bold ${canSend ? 'text-[#143703]' : 'text-white/35'}`}>Share link</Text></>}
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  )
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // ReplyPreviewBanner — WhatsApp-style minimal reply indicator.
@@ -1220,6 +1299,8 @@ export const PodcastComments = memo(({
                   <>
                     {item.message_type === 'image' ? (
                       <ChatImage uri={item.content} maxWidth={imageWidth} onPress={handleImagePress} />
+                    ) : item.message_type === 'link' ? (
+                      <ChatLinkCard message={item} isOwn={isOwn} />
                     ) : (
                       <View
                         className={`rounded-2xl px-4 py-3 ${isOwn ? "rounded-br-md bg-[#D7FF00]" : "self-start rounded-bl-md bg-white/20"} ${isSelected ? 'border-2 border-[#D7FF00]' : ''}`}

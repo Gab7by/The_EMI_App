@@ -122,12 +122,14 @@ export const PLAYLIST_OPTIONS = PLAYLISTS.map((playlist) => ({
   value: playlist,
 }))
 
-export type MessageType = 'text' | 'image' | 'system'
+export type MessageType = 'text' | 'image' | 'link' | 'system'
 
 export type ReplyPreview = {
   sender_name: string
-  content: string
+  content: string 
   message_type: MessageType
+  link_url?: string | null
+  link_label?: string | null
 }
 
 export type LiveMessage = {

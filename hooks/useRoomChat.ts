@@ -21,6 +21,15 @@ const isUuid = (value: string | null | undefined): value is string => {
   return typeof value === "string" && UUID_PATTERN.test(value);
 };
 
+const normalizeHttpsUrl = (value: string): string | null => {
+    try {
+        const url = new URL(value.trim())
+        return url.protocol === 'https:' ? url.toString() : null
+    } catch {
+        return null
+    }
+}
+
 export const useRoomChat = (
     room: Room | null,
     podcastId: string,
@@ -166,6 +175,8 @@ export const useRoomChat = (
                                 sender_avartar_url: parsed.sender_avartar_url ?? null,
                                 content: parsed.content,
                                 message_type: parsed.message_type,
+                                link_url: parsed.link_url ?? null,
+                                link_label: parsed.link_label ?? null,
                                 created_at: parsed.created_at,
                                 reply_to_id: parsed.reply_to_id ?? null,
                                 reply_preview: parsed.reply_preview ?? null,
@@ -299,13 +310,16 @@ export const useRoomChat = (
             replyPreview = await fetchReplyPreview(replyToId)
         }
 
+        const trimmedContent = content.trim()
+        const pastedUrl = normalizeHttpsUrl(trimmedContent)
         const insertPayload: Record<string, unknown> = {
             podcast_id: podcastId,
             sender_id: currentUserId,
             sender_name: senderName,
             sender_avartar_url: senderAvatarUrl,
-            content: content.trim(),
-            message_type: 'text' as MessageType,
+            content: trimmedContent,
+            message_type: (pastedUrl ? 'link' : 'text') as MessageType,
+            ...(pastedUrl ? { link_url: pastedUrl, link_label: null } : {}),
         }
 
         if (replyToId) {
@@ -329,8 +343,10 @@ export const useRoomChat = (
             sender_id: currentUserId,
             sender_name: senderName,
             sender_avartar_url: senderAvatarUrl,
-            content: content.trim(),
-            message_type: 'text',
+            content: trimmedContent,
+            message_type: pastedUrl ? 'link' : 'text',
+            link_url: pastedUrl,
+            link_label: null,
             created_at: inserted.created_at,
             reply_to_id: replyToId ?? null,
             reply_preview: replyPreview,
@@ -352,6 +368,54 @@ export const useRoomChat = (
         return { ok: true }
     }, [room, podcastId, currentUserId, fetchReplyPreview])
 
+    /** Saves first, then broadcasts the DB-generated row, just like text and images. */
+    const sendLink = useCallback(async (
+        rawUrl: string,
+        rawLabel: string,
+        senderName: string,
+        senderAvatarUrl: string | null,
+        replyToId?: string | null
+    ): Promise<ChatActionResult> => {
+        if (!room) return { ok: false, error: "Not connected to the live room." }
+        const linkUrl = normalizeHttpsUrl(rawUrl)
+        if (!linkUrl) return { ok: false, error: "Enter a valid https:// link." }
+        const linkLabel = rawLabel.trim() || null
+        const replyPreview = replyToId ? await fetchReplyPreview(replyToId) : null
+        const payload: Record<string, unknown> = {
+            podcast_id: podcastId,
+            sender_id: currentUserId,
+            sender_name: senderName,
+            sender_avartar_url: senderAvatarUrl,
+            content: linkUrl,
+            message_type: 'link',
+            link_url: linkUrl,
+            link_label: linkLabel,
+        }
+        if (replyToId) payload.reply_to_id = replyToId
+        const { data: inserted, error } = await supabase
+            .from('live_podcast_messages')
+            .insert(payload)
+            .select('id, created_at')
+            .single()
+        if (error || !inserted) {
+            console.error('[useRoomChat] Failed to save link message', error)
+            return { ok: false, error: 'Failed to share link.' }
+        }
+        const message: LiveMessage = {
+            id: inserted.id, podcast_id: podcastId, sender_id: currentUserId,
+            sender_name: senderName, sender_avartar_url: senderAvatarUrl,
+            content: linkUrl, message_type: 'link', link_url: linkUrl, link_label: linkLabel,
+            created_at: inserted.created_at, reply_to_id: replyToId ?? null,
+            reply_preview: replyPreview, edited_at: null, isLocal: true,
+        }
+        setMessages(prev => prev.some(item => item.id === message.id) ? prev : [...prev, message])
+        room.localParticipant.publishData(
+            new TextEncoder().encode(JSON.stringify({ type: 'CHAT', ...message })),
+            { reliable: true }
+        )
+        return { ok: true }
+    }, [room, podcastId, currentUserId, fetchReplyPreview])
+
     /**
      * Edits a message. Enforces the 10-minute window on the client — if the
      * message is older than 10 minutes, we do NOT make the API call at all.
@@ -367,7 +431,7 @@ export const useRoomChat = (
 
         if (!room) return { ok: false, error: "Not connected to the live room." }
         if (!newContent.trim()) return { ok: false, error: "Message is empty." }
-        if (message.message_type === 'system') return { ok: false, error: "System messages cannot be edited." }
+        if (message.message_type === 'system' || message.message_type === 'link') return { ok: false, error: "This message type cannot be edited." }
 
         const validUuid = isUuid(message.id)
         console.log("[useRoomChat] editMessage uuid check", { validUuid, messageId: message.id })
@@ -534,7 +598,7 @@ export const useRoomChat = (
     }, [currentUserId, currentUserRole])
 
     const canEditMessage = useCallback((message: LiveMessage) => {
-        if (message.message_type === 'system') {
+        if (message.message_type === 'system' || message.message_type === 'link') {
             console.log("[useRoomChat] canEditMessage: false (system message)", { id: message.id })
             return false
         }
@@ -641,6 +705,7 @@ export const useRoomChat = (
         messages,
         isLoading,
         sendMessage,
+        sendLink,
         sendImage,
         editMessage,
         deleteMessage,
