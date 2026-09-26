@@ -1,4 +1,5 @@
 import SchoolOfSpiritualFoundationScreen from "@/components/discipleship/schoolOfSpiritualFoundationScreen"
+import SonshipSubmissionScreen from "@/components/discipleship/sonshipSubmissionScreen"
 import { getLearningPath } from "@/constants/discipleship"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { useLocalSearchParams, useRouter } from "expo-router"
@@ -14,6 +15,10 @@ const LearningPathDetailScreen = () => {
 
   if (path?.id === "school-of-spiritual-foundation") {
     return <SchoolOfSpiritualFoundationScreen path={path} />
+  }
+
+  if (path?.id === "sonship-submission") {
+    return <SonshipSubmissionScreen path={path} />
   }
 
   if (!path) {
