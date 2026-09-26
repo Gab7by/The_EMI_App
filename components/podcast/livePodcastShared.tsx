@@ -13,6 +13,7 @@ import {
   Alert,
   Animated,
   Keyboard,
+  KeyboardAvoidingView,
   Linking,
   Modal,
   Platform,
@@ -671,8 +672,12 @@ export const LinkMessageSheet = ({ visible, onClose, onSend }: LinkMessageSheetP
   }
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
-      <Pressable onPress={close} className="flex-1 justify-end bg-black/65 px-4 pb-7">
-        <Pressable onPress={(event) => event.stopPropagation()} className="rounded-[28px] border border-white/15 bg-[#10280B] px-5 pb-5 pt-4">
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <Pressable onPress={close} className="flex-1 justify-end bg-black/65 px-4 pb-7">
+          <Pressable onPress={(event) => event.stopPropagation()} className="rounded-[28px] border border-white/15 bg-[#10280B] px-5 pb-5 pt-4">
           <View className="mb-4 flex-row items-center justify-between">
             <View className="flex-row items-center">
               <View className="h-10 w-10 items-center justify-center rounded-2xl bg-[#D7FF00]/15"><MaterialCommunityIcons name="link-variant" size={21} color="#D7FF00" /></View>
@@ -685,8 +690,9 @@ export const LinkMessageSheet = ({ visible, onClose, onSend }: LinkMessageSheetP
           <Pressable onPress={send} disabled={!canSend} className={`mt-4 h-12 flex-row items-center justify-center rounded-2xl ${canSend ? 'bg-[#D7FF00]' : 'bg-white/10'}`}>
             {isSending ? <ActivityIndicator color="#143703" /> : <><MaterialCommunityIcons name="send" size={17} color={canSend ? '#143703' : '#FFFFFF55'} /><Text className={`ml-2 text-[13px] font-bold ${canSend ? 'text-[#143703]' : 'text-white/35'}`}>Share link</Text></>}
           </Pressable>
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   )
 }
