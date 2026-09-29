@@ -36,7 +36,10 @@ const SliderImagesScreen = () => {
 
     if (!updated) {
       console.error("SliderImagesScreen: failed to update slot", position)
-      Alert.alert("Upload failed", "Please check your connection and try again.")
+      Alert.alert(
+        "Upload failed",
+        "Could not update the slider image. Please try again."
+      )
       return
     }
 
