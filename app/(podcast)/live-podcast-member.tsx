@@ -479,14 +479,14 @@ const MemberLivePodcast = () => {
           paddingBottom={footerPaddingBottom}
           onLayout={handleFooterLayout}
         >
-          <View className="mb-1 flex-row items-center">
-            <View className="mr-2 h-[44px] flex-1 flex-row items-center rounded-[14px] border border-white/55 bg-[#143703] px-3">
+          <View className="mb-2 flex-row items-center">
+            <View className="h-[48px] flex-1 flex-row items-center rounded-[16px] border border-white/55 bg-[#143703] px-3">
               <TextInput
-                placeholder="Input your message"
+                placeholder="Type a message..."
                 value={message}
                 onChangeText={setMessage}
                 placeholderTextColor="#A9A9A9"
-                className="flex-1 text-[12px] text-white"
+                className="flex-1 text-[13px] text-white"
                 returnKeyType="send"
                 onSubmitEditing={() => {
                   handleSendMessage()
@@ -502,7 +502,7 @@ const MemberLivePodcast = () => {
                 }}
                 disabled={!canSendMessage}
                 hitSlop={8}
-                className="ml-2 h-8 w-8 items-center justify-center rounded-full"
+                className="ml-1 h-8 w-8 items-center justify-center rounded-full"
               >
                 <MaterialCommunityIcons
                   name="send"
@@ -511,44 +511,44 @@ const MemberLivePodcast = () => {
                 />
               </Pressable>
             </View>
+          </View>
 
-            <View className="flex-row items-center gap-2">
-              <Pressable onPress={handleSendLove} hitSlop={10} className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
-                <MaterialCommunityIcons name="heart" size={22} color="#FF4B1F" />
-              </Pressable>
+          <View className="flex-row items-center justify-between">
+            <Pressable onPress={handleSendLove} hitSlop={10} className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
+              <MaterialCommunityIcons name="heart" size={22} color="#FF4B1F" />
+            </Pressable>
+            <Pressable
+              onPress={() => { hapticMedium(); handleRaiseHand() }}
+              disabled={isCallActionLoading}
+              hitSlop={8}
+              className="h-10 min-w-[48px] items-center justify-center rounded-[12px] bg-white/10 px-1"
+            >
+              {isCallActionLoading ? (
+                <ActivityIndicator size="small" color="#D7FF00" />
+              ) : (
+                <>
+                  <Call width={22} height={22} />
+                  <Text className="mt-0.5 text-[8px] font-medium text-[#F3F6E7]">
+                    {canSpeak ? (isMuted ? "Unmute" : "Mute") : hasRaisedHand ? "Pending" : "Call in"}
+                  </Text>
+                </>
+              )}
+            </Pressable>
+            {canSpeak ? (
               <Pressable
-                onPress={() => { hapticMedium(); handleRaiseHand() }}
+                onPress={handleHangUpSpeaker}
                 disabled={isCallActionLoading}
                 hitSlop={8}
-                className="h-10 min-w-[48px] items-center justify-center rounded-[12px] bg-white/10 px-1"
+                className="h-9 min-w-[48px] items-center justify-center rounded-[12px] bg-[#F3523C]/20 px-2"
               >
-                {isCallActionLoading ? (
-                  <ActivityIndicator size="small" color="#D7FF00" />
-                ) : (
-                  <>
-                    <Call width={22} height={22} />
-                    <Text className="mt-0.5 text-[8px] font-medium text-[#F3F6E7]">
-                      {canSpeak ? (isMuted ? "Unmute" : "Mute") : hasRaisedHand ? "Pending" : "Call in"}
-                    </Text>
-                  </>
-                )}
+                <Text className="text-[8px] font-semibold text-[#FF8A7A]">
+                  Hang up
+                </Text>
               </Pressable>
-              {canSpeak ? (
-                <Pressable
-                  onPress={handleHangUpSpeaker}
-                  disabled={isCallActionLoading}
-                  hitSlop={8}
-                  className="h-9 min-w-[48px] items-center justify-center rounded-[12px] bg-[#F3523C]/20 px-2"
-                >
-                  <Text className="text-[8px] font-semibold text-[#FF8A7A]">
-                    Hang up
-                  </Text>
-                </Pressable>
-              ) : null}
-              <Pressable onPress={() => { hapticMedium(); redirectToPaymentPage() }} hitSlop={8} className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
-                <MoneyIcon width={22} height={22} />
-              </Pressable>
-            </View>
+            ) : null}
+            <Pressable onPress={() => { hapticMedium(); redirectToPaymentPage() }} hitSlop={8} className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
+              <MoneyIcon width={22} height={22} />
+            </Pressable>
           </View>
         </PodcastBottomDock>
 
