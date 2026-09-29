@@ -3,6 +3,7 @@ import { supabase } from "./supabase"
 import { UploadResult } from "@/types/storage-types"
 import * as DocumentPicker from "expo-document-picker"
 import { AudioPickerAsset } from "@/types/podcast-types"
+import { File } from "expo-file-system"
 
 export const pickImage = async (options?:{
     allowsEditing?: boolean,
@@ -67,30 +68,34 @@ export const uploadImage = async (
     path: string
 ): Promise<UploadResult | null> => {
 
-    const response = await fetch(asset.uri)
-
-    const arrayBuffer = await response.arrayBuffer()
-
     const fileExt = asset.uri.split('.').pop()?.toLowerCase() ?? 'jpg'
     const mimeType = asset.mimeType ?? `image/${fileExt}`
 
-    const {error} = await supabase.storage
-        .from(bucket)
-        .upload(path, arrayBuffer, {
-            contentType: mimeType,
-            upsert: true
-        })
+    try {
+        const file = new File(asset.uri)
+        const bytes = await file.bytes()
 
-    if (error) {
-        console.error('uploadImage error: ', error.message)
+        const {error} = await supabase.storage
+            .from(bucket)
+            .upload(path, bytes, {
+                contentType: mimeType,
+                upsert: true
+            })
+
+        if (error) {
+            console.error('uploadImage error: ', error.message)
+            return null
+        }
+
+        const {data: {publicUrl}} = supabase.storage
+            .from(bucket)
+            .getPublicUrl(path)
+
+        return {url: publicUrl, path}
+    } catch (err: any) {
+        console.error('uploadImage error: ', err?.message ?? err)
         return null
     }
-
-    const {data: {publicUrl}} = supabase.storage
-        .from(bucket)
-        .getPublicUrl(path)
-
-    return {url: publicUrl, path}
 }
 
 export const uploadPodcastBackground = async (
@@ -163,24 +168,29 @@ export const uploadAudioFile = async (
     path: string
 ): Promise<UploadResult | null> => {
 
-    const response = await fetch(asset.uri)
-    const arrayBuffer = await response.arrayBuffer()
+    try {
+        const file = new File(asset.uri)
+        const bytes = await file.bytes()
 
-    const {error} = await supabase.storage
-        .from(bucket)
-        .upload(path, arrayBuffer, {
-            contentType: asset.mimeType,
-            upsert: false
-        })
-    
-    if (error) {
-        console.error('Error uploading Audio File: ', error.message)
+        const {error} = await supabase.storage
+            .from(bucket)
+            .upload(path, bytes, {
+                contentType: asset.mimeType,
+                upsert: false
+            })
+
+        if (error) {
+            console.error('Error uploading Audio File: ', error.message)
+            return null
+        }
+
+        const {data: {publicUrl}} = supabase.storage
+            .from(bucket)
+            .getPublicUrl(path)
+
+        return { url: publicUrl, path }
+    } catch (err: any) {
+        console.error('Error uploading Audio File: ', err?.message ?? err)
         return null
     }
-
-    const {data: {publicUrl}} = supabase.storage
-        .from(bucket)
-        .getPublicUrl(path)
-
-    return { url: publicUrl, path }
 }
