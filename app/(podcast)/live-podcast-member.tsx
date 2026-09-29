@@ -40,7 +40,7 @@ import { useLiveKitStore } from "@/store/livekit-store";
 import type { LoveBurst } from "@/types/livekit-types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, BookOpen, ChevronDown, ChevronRight, Power, Share2, X } from "lucide-react-native";
+import { ArrowLeft, BookOpen, ChevronDown, ChevronRight, PhoneOff, Power, Share2, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Animated, Easing, Keyboard, Linking, Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -73,6 +73,7 @@ const MemberLivePodcast = () => {
     useState<PodcastCurrencyOption["id"]>("usd");
   const [message, setMessage] = useState<string>('')
   const [isLinkSheetVisible, setIsLinkSheetVisible] = useState(false)
+  const [isMoreSheetVisible, setIsMoreSheetVisible] = useState(false)
   const [shouldShowConnectingOverlay, setShouldShowConnectingOverlay] = useState(true)
   const [localLoveBursts, setLocalLoveBursts] = useState<LoveBurst[]>([])
   const [keyboardHeight, setKeyboardHeight] = useState(0)
@@ -479,7 +480,7 @@ const MemberLivePodcast = () => {
           paddingBottom={footerPaddingBottom}
           onLayout={handleFooterLayout}
         >
-          <View className="mb-2 flex-row items-center">
+          <View className="flex-row items-center">
             <View className="h-[48px] flex-1 flex-row items-center rounded-[16px] border border-white/55 bg-[#143703] px-3">
               <TextInput
                 placeholder="Type a message..."
@@ -492,9 +493,6 @@ const MemberLivePodcast = () => {
                   handleSendMessage()
                 }}
               />
-              <Pressable onPress={() => { hapticMedium(); setIsLinkSheetVisible(true) }} hitSlop={8} className="ml-1 h-8 w-8 items-center justify-center rounded-full bg-white/10">
-                <MaterialCommunityIcons name="link-variant" size={18} color="#D7FF00" />
-              </Pressable>
               <Pressable
                 onPress={() => {
                   hapticMedium()
@@ -511,43 +509,11 @@ const MemberLivePodcast = () => {
                 />
               </Pressable>
             </View>
-          </View>
-
-          <View className="flex-row items-center justify-between">
-            <Pressable onPress={handleSendLove} hitSlop={10} className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
+            <Pressable onPress={handleSendLove} hitSlop={8} className="ml-2 h-10 w-10 items-center justify-center rounded-full bg-white/10">
               <MaterialCommunityIcons name="heart" size={22} color="#FF4B1F" />
             </Pressable>
-            <Pressable
-              onPress={() => { hapticMedium(); handleRaiseHand() }}
-              disabled={isCallActionLoading}
-              hitSlop={8}
-              className="h-10 min-w-[48px] items-center justify-center rounded-[12px] bg-white/10 px-1"
-            >
-              {isCallActionLoading ? (
-                <ActivityIndicator size="small" color="#D7FF00" />
-              ) : (
-                <>
-                  <Call width={22} height={22} />
-                  <Text className="mt-0.5 text-[8px] font-medium text-[#F3F6E7]">
-                    {canSpeak ? (isMuted ? "Unmute" : "Mute") : hasRaisedHand ? "Pending" : "Call in"}
-                  </Text>
-                </>
-              )}
-            </Pressable>
-            {canSpeak ? (
-              <Pressable
-                onPress={handleHangUpSpeaker}
-                disabled={isCallActionLoading}
-                hitSlop={8}
-                className="h-9 min-w-[48px] items-center justify-center rounded-[12px] bg-[#F3523C]/20 px-2"
-              >
-                <Text className="text-[8px] font-semibold text-[#FF8A7A]">
-                  Hang up
-                </Text>
-              </Pressable>
-            ) : null}
-            <Pressable onPress={() => { hapticMedium(); redirectToPaymentPage() }} hitSlop={8} className="h-9 w-9 items-center justify-center rounded-full bg-white/10">
-              <MoneyIcon width={22} height={22} />
+            <Pressable onPress={() => { hapticMedium(); setIsMoreSheetVisible(true) }} hitSlop={8} className="ml-2 h-10 w-10 items-center justify-center rounded-full bg-white/10">
+              <MaterialCommunityIcons name="dots-horizontal" size={22} color="#F3F6E7" />
             </Pressable>
           </View>
         </PodcastBottomDock>
@@ -603,6 +569,117 @@ const MemberLivePodcast = () => {
         </PodcastDialog>
 
         <LinkMessageSheet visible={isLinkSheetVisible} onClose={() => setIsLinkSheetVisible(false)} onSend={handleSendLink} />
+
+        <PodcastBottomSheet
+          visible={isMoreSheetVisible}
+          onClose={() => setIsMoreSheetVisible(false)}
+        >
+          <View className="items-center">
+            <View className="h-[4px] w-[82px] rounded-full bg-[#E8E8E8]" />
+          </View>
+
+          <Text className="mt-6 text-center text-[16px] font-bold text-white">Actions</Text>
+
+          <View className="mt-6 w-full gap-3">
+            {/* Call in / Mute / Unmute / Hang up */}
+            <Pressable
+              onPress={() => {
+                hapticMedium()
+                setIsMoreSheetVisible(false)
+                handleRaiseHand()
+              }}
+              disabled={isCallActionLoading}
+              className="flex-row items-center rounded-[16px] bg-white/10 px-4 py-3.5"
+            >
+              {isCallActionLoading ? (
+                <ActivityIndicator size="small" color="#D7FF00" />
+              ) : (
+                <>
+                  <View className="h-10 w-10 items-center justify-center rounded-full bg-white/10">
+                    <Call width={20} height={20} />
+                  </View>
+                  <View className="ml-3 flex-1">
+                    <Text className="text-[15px] font-semibold text-white">
+                      {canSpeak ? (isMuted ? "Unmute" : "Mute") : hasRaisedHand ? "Pending" : "Call in"}
+                    </Text>
+                    <Text className="mt-0.5 text-[11px] text-white/50">
+                      {canSpeak
+                        ? isMuted
+                          ? "Turn your microphone back on"
+                          : "Mute your microphone"
+                        : hasRaisedHand
+                          ? "Waiting for the host to accept"
+                          : "Request to speak in the live session"}
+                    </Text>
+                  </View>
+                </>
+              )}
+            </Pressable>
+
+            {/* Hang up (only when speaking) */}
+            {canSpeak ? (
+              <Pressable
+                onPress={() => {
+                  hapticMedium()
+                  setIsMoreSheetVisible(false)
+                  handleHangUpSpeaker()
+                }}
+                disabled={isCallActionLoading}
+                className="flex-row items-center rounded-[16px] bg-[#F3523C]/15 px-4 py-3.5"
+              >
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-[#F3523C]/20">
+                  <PhoneOff size={20} color="#FF8A7A" />
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="text-[15px] font-semibold text-[#FF8A7A]">Hang up</Text>
+                  <Text className="mt-0.5 text-[11px] text-[#FF8A7A]/60">
+                    Leave the speaker seat and return to listening
+                  </Text>
+                </View>
+              </Pressable>
+            ) : null}
+
+            {/* Share link */}
+            <Pressable
+              onPress={() => {
+                hapticMedium()
+                setIsMoreSheetVisible(false)
+                setIsLinkSheetVisible(true)
+              }}
+              className="flex-row items-center rounded-[16px] bg-white/10 px-4 py-3.5"
+            >
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-white/10">
+                <MaterialCommunityIcons name="link-variant" size={20} color="#D7FF00" />
+              </View>
+              <View className="ml-3 flex-1">
+                <Text className="text-[15px] font-semibold text-white">Share a link</Text>
+                <Text className="mt-0.5 text-[11px] text-white/50">
+                  Share a secure https link in the chat
+                </Text>
+              </View>
+            </Pressable>
+
+            {/* Payment / Give */}
+            <Pressable
+              onPress={() => {
+                hapticMedium()
+                setIsMoreSheetVisible(false)
+                redirectToPaymentPage()
+              }}
+              className="flex-row items-center rounded-[16px] bg-white/10 px-4 py-3.5"
+            >
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-white/10">
+                <MoneyIcon width={20} height={20} />
+              </View>
+              <View className="ml-3 flex-1">
+                <Text className="text-[15px] font-semibold text-white">Give</Text>
+                <Text className="mt-0.5 text-[11px] text-white/50">
+                  Make a donation to support this ministry
+                </Text>
+              </View>
+            </Pressable>
+          </View>
+        </PodcastBottomSheet>
 
         <PodcastNotesDialog
           visible={isNotesVisible}
