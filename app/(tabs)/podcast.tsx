@@ -8,8 +8,8 @@ import NoLiveStreamCard from "@/components/podcast/no-live-podcast";
 import PodcastLoadingSkeleton from "@/components/podcast/podcast-loading-skeleton";
 import PodcastProfileBar from "@/components/profile/podcastProfileBar";
 import { Button } from "@/components/ui/button";
-import { imageItems } from "@/constants/podcast";
-import { useLivePodcastSessions } from "@/hooks/tanstack-query-hooks";
+import { useHomeSliderSlots, useLivePodcastSessions } from "@/hooks/tanstack-query-hooks";
+import { buildHomeSliderItems } from "@/lib/homeSlider";
 import { createLivePodcast } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { startRecording } from "@/lib/recording";
@@ -48,6 +48,9 @@ const PodcastScreen = () => {
   const openLiveStreamStartModal = useCallback(() => {
     setOpenLiveStreamStartModal(true);
   }, [setOpenLiveStreamStartModal]);
+
+  const { data: sliderSlots } = useHomeSliderSlots();
+  const sliderItems = useMemo(() => buildHomeSliderItems(sliderSlots), [sliderSlots]);
 
   const { data, isLoading, isRefetching, refetch } = useLivePodcastSessions(profile?.id);
 
@@ -123,7 +126,7 @@ const PodcastScreen = () => {
   return (
     <SafeAreaView className="flex-1 bg-menorah-bg py-5 px-4 gap-5 relative">
       <PodcastProfileBar />
-      <ImageSlider items={imageItems} height={196} />
+      <ImageSlider items={sliderItems} height={196} />
       {isLoading ? (
         <PodcastLoadingSkeleton />
       ) : (
