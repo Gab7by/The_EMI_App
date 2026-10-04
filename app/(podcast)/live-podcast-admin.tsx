@@ -11,6 +11,7 @@ import {
   PodcastConnectingOverlay,
   PodcastDialog,
   PodcastHeader,
+  LinkMessageSheet,
   PodcastNotesDialog,
   PodcastParticipantsGrid,
   SPEAKER_LIMIT_MESSAGE,
@@ -85,6 +86,7 @@ const AdminLivePodcast = () => {
   const [activeSheet, setActiveSheet] = useState<AdminSheet>("none");
   const [isMessageComposerVisible, setIsMessageComposerVisible] = useState(false);
   const [message, setMessage] = useState("");
+  const [isLinkSheetVisible, setIsLinkSheetVisible] = useState(false)
   const [isEndingSession, setIsEndingSession] = useState(false);
   const messageInputRef = useRef<TextInput | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -152,7 +154,7 @@ const AdminLivePodcast = () => {
   useHostRooom(livekitRoomName, id)
 
   const {raisedHands, dismissRaisedHand} = useRoomSignals(room, profile?.id ?? "")
-  const {messages, isLoading: isChatLoading, sendMessage, sendImage, editMessage, deleteMessage, canDeleteMessage, canEditMessage, sendSystemMessage} = useRoomChat(
+  const {messages, isLoading: isChatLoading, sendMessage, sendLink, sendImage, editMessage, deleteMessage, canDeleteMessage, canEditMessage, sendSystemMessage} = useRoomChat(
     room,
     id,
     profile?.id ?? '',
@@ -238,6 +240,12 @@ const AdminLivePodcast = () => {
       setReplyingTo(null)
     }
   }
+  const handleSendLink = useCallback((url: string, label: string) =>
+    sendLink(url, label, profile?.full_name ?? 'Admin', profile?.avatar_url ?? null, replyingTo?.messageId)
+      .then((result) => {
+        if (result.ok) setReplyingTo(null)
+        return result
+      }), [sendLink, profile?.full_name, profile?.avatar_url, replyingTo?.messageId])
   const canSendMessage = message.trim().length > 0
 
   const handleRefreshLiveParticipants = useCallback(async () => {
@@ -923,6 +931,14 @@ const AdminLivePodcast = () => {
 
               <Pressable
                 hitSlop={10}
+                className="mr-2"
+                onPress={() => { hapticMedium(); setIsLinkSheetVisible(true) }}
+              >
+                <MaterialCommunityIcons name="link-variant" size={27} color="#D7FF00" />
+              </Pressable>
+
+              <Pressable
+                hitSlop={10}
                 disabled={!canSendMessage}
                 onPress={() => {
                   hapticMedium()
@@ -1103,6 +1119,8 @@ const AdminLivePodcast = () => {
           playlist={playlist}
           title={title}
         />
+
+        <LinkMessageSheet visible={isLinkSheetVisible} onClose={() => setIsLinkSheetVisible(false)} onSend={handleSendLink} />
 
         <BibleReader
           visible={isBibleVisible}

@@ -140,7 +140,17 @@ export const useLiveKitStore = create<LiveKitStore>(
         },
         setConnectionState: (state) => set({connectionState: state}),
         setIsMuted: (muted) => set({isMuted: muted}),
-        setForegroundServiceType: (type) => set({foregroundServiceType: type}),
+        setForegroundServiceType: (type) => {
+            set({ foregroundServiceType: type })
+            // A listener can be promoted to a speaker after joining the room.
+            // Update the actual Android FGS type as well as Zustand state before
+            // microphone capture is used, rather than only changing the UI state.
+            if (get().room) {
+                void startLiveForegroundService(type).catch((error) => {
+                    console.error("Failed to update foreground service type:", error)
+                })
+            }
+        },
         clearRoom: () => {
             connectRequestId++
             connectPromise = null

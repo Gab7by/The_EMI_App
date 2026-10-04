@@ -35,7 +35,7 @@ export const LEARNING_PATHS: LearningPath[] = [
     title: "Sonship Submission",
     description: "Understanding your identity as a child of God",
     moduleCount: 8,
-    locked: true,
+    locked: false,
   },
   {
     id: "mentorship",

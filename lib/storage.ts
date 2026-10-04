@@ -4,16 +4,11 @@ import { UploadResult } from "@/types/storage-types"
 import * as DocumentPicker from "expo-document-picker"
 import { AudioPickerAsset } from "@/types/podcast-types"
 
+
 export const pickImage = async (options?:{
     allowsEditing?: boolean,
     aspect?: [number, number]
 }) => {
-
-    const {status} = await ImagePicker.requestMediaLibraryPermissionsAsync()
-
-    if (status != "granted") {
-        return null
-    }
 
     const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
@@ -36,12 +31,6 @@ export const pickImage = async (options?:{
 export const pickImages = async (options?: {
     selectionLimit?: number
 }): Promise<ImagePicker.ImagePickerAsset[]> => {
-
-    const {status} = await ImagePicker.requestMediaLibraryPermissionsAsync()
-
-    if (status != "granted") {
-        return []
-    }
 
     const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
@@ -80,7 +69,6 @@ export const uploadImage = async (
 ): Promise<UploadResult | null> => {
 
     const response = await fetch(asset.uri)
-
     const arrayBuffer = await response.arrayBuffer()
 
     const fileExt = asset.uri.split('.').pop()?.toLowerCase() ?? 'jpg'
@@ -184,7 +172,7 @@ export const uploadAudioFile = async (
             contentType: asset.mimeType,
             upsert: false
         })
-    
+
     if (error) {
         console.error('Error uploading Audio File: ', error.message)
         return null

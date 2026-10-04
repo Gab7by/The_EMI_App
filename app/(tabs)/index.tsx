@@ -12,6 +12,7 @@ import { useAuthStore } from "@/store/authStore"
 import { FEATURED_TEACHING_HOME_MESSAGE_LINES } from "@/types/featured-teaching-types"
 import { useRouter } from "expo-router"
 import { ArrowRight, HeartHandshake, Pencil } from "lucide-react-native"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { useCallback, useMemo } from "react"
 import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
@@ -20,6 +21,13 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 // Shared by anyone this evolves to reach later, not just this screen -
 // kept as a constant rather than buried inline in the handler below.
 const BECOME_A_PARTNER_URL = "https://somconvenantpartnerships.home.blog/"
+
+const SOCIAL_LINKS = [
+  { label: "YouTube", icon: "youtube" as const, color: "#FF3D3D", url: "https://youtube.com/@prophetsethowusu2791?si=6OIZrhsQ9DCumfF9" },
+  { label: "Facebook", icon: "facebook" as const, color: "#5B9CFF", url: "https://www.facebook.com/share/1J2NFZpKbP/?mibextid=wwXIfr" },
+  { label: "Spotify", icon: "spotify" as const, color: "#1ED760", url: "https://open.spotify.com/show/3C0THQlVTJVGXEvtQNT9ud?si=GhCKlliOTiqES3x9z7bMmA&utm_source=copy-link" },
+  { label: "Podbean", icon: "podcast" as const, color: "#B890FF", url: "https://www.podbean.com/pa/pbblog-vebka-7ef7b6" },
+]
 
 
 
@@ -43,6 +51,14 @@ const Home = () => {
       await Linking.openURL(BECOME_A_PARTNER_URL)
     } catch (error) {
       console.error("Home: failed to open partnership link", error)
+    }
+  }, [])
+  const handleOpenSocial = useCallback(async (url: string) => {
+    hapticLight()
+    try {
+      await Linking.openURL(url)
+    } catch (error) {
+      console.error("Home: failed to open social link", error)
     }
   }, [])
 
@@ -137,6 +153,27 @@ const Home = () => {
               <ArrowRight size={18} color="#0B1F0E" />
             </LinearGradient>
           </Pressable>
+
+          <View className="mt-1 gap-3">
+            <View>
+              <Text className="text-[11px] font-bold uppercase tracking-[1.5px] text-menorah-primary">Follow the ministry</Text>
+              <Text className="mt-1 text-xs text-menorah-muted">Messages and conversations beyond the app</Text>
+            </View>
+            <View className="flex-row gap-2">
+              {SOCIAL_LINKS.map((social) => (
+                <Pressable
+                  key={social.label}
+                  onPress={() => handleOpenSocial(social.url)}
+                  accessibilityRole="link"
+                  accessibilityLabel={`Open ${social.label}`}
+                  className="min-h-[76px] flex-1 items-center justify-center rounded-[18px] border border-white/10 bg-white/5 active:bg-white/10"
+                >
+                  <MaterialCommunityIcons name={social.icon} size={25} color={social.color} />
+                  <Text className="mt-1.5 text-[10px] font-semibold text-white/85" numberOfLines={1}>{social.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
 
           <View className="mt-2 gap-3">
             <View className="flex-row items-center justify-between">

@@ -116,6 +116,15 @@ export const endLiveSession = async (
     return false
   }
 
+  const { error: messagesError } = await supabase
+    .from('live_podcast_messages')
+    .delete()
+    .eq('podcast_id', podcastId)
+
+  if (messagesError) {
+    console.error('endLiveSession: failed to delete messages:', messagesError.message)
+  }
+
   return true
 }
 
