@@ -178,10 +178,11 @@ const selectAndroidBluetoothOutputIfAvailable = async (): Promise<boolean> => {
 
 export default function RootLayout() {
 
-  const session = useAuthStore(state => state.session)
+  const authStatus = useAuthStore(state => state.authStatus)
   const isAuthLoading = useAuthStore(state => state.isAuthLoading)
   const setIsAuthLoading = useAuthStore(state => state.setIsAuthLoading)
   const setSession = useAuthStore(state => state.setSession)
+  const restoreGuestChoice = useAuthStore(state => state.restoreGuestChoice)
 
   useEffect(() => {
     const startAudio = async () => {
@@ -220,6 +221,9 @@ export default function RootLayout() {
 
         if (session) {
           await useAuthStore.getState().fetchProfile(session.user.id)
+        } else {
+          // No session - restore guest choice if any
+          await restoreGuestChoice()
         }
       } finally {
         setIsAuthLoading(false)
@@ -242,10 +246,10 @@ export default function RootLayout() {
     );
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [restoreGuestChoice]);
 
 
-  const isLoggedIn = session !== null
+  const canAccessTabs = authStatus === 'signed-in' || authStatus === 'guest'
 
   if (isAuthLoading) return (
     <SafeAreaView className="bg-menorah-bg">
@@ -261,21 +265,21 @@ export default function RootLayout() {
             headerShown: false
           }}
         >
-          <Stack.Protected guard={!!isLoggedIn}>
+          <Stack.Protected guard={canAccessTabs}>
             <Stack.Screen
               name="(tabs)"
             />
           </Stack.Protected>
-          <Stack.Protected guard={!isLoggedIn}>
+          <Stack.Protected guard={authStatus !== 'signed-in'}>
             <Stack.Screen
               name="(auth)"
             />
           </Stack.Protected>
-       </Stack>
-       <LiveKitAudioManager />
-       <LiveKitForegroundService />
-       <PortalHost />
-       <ForgotPasswordModal />
+        </Stack>
+        <LiveKitAudioManager />
+        <LiveKitForegroundService />
+        <PortalHost />
+        <ForgotPasswordModal />
       </SafeAreaProvider>
     </QueryClientProvider>
   );
