@@ -1,6 +1,6 @@
 import ProfileCategory from "@/components/profile/profileCategory"
 import ProfileModalIcon from "@/components/profile/profileModalIcon"
-import { ProfileManagementCategories } from "@/constants/profile"
+import { ProfileManagementCategories, GuestProfileCategories } from "@/constants/profile"
 import { Colors } from "@/constants/theme"
 import { updateProfilePicture } from "@/lib/profile"
 import { pickFromCamera, pickImage } from "@/lib/storage"
@@ -10,16 +10,19 @@ import { ArrowLeft, Camera } from "lucide-react-native"
 import { useState } from "react"
 import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { useJoinMenorah } from "@/lib/join-menorah"
 
 const ProfileEntryScreen = () => {
 
     const router = useRouter()
+    const joinMenorah = useJoinMenorah()
 
+    const isGuest = useAuthStore(state => state.isGuest)
     const name = useAuthStore(state => state.profile?.full_name ?? state.session?.user.user_metadata.full_name)
     const email = useAuthStore(state => state.session?.user.email)
     const profile = useAuthStore(state => state.profile)
     const isAdmin = profile?.role === "admin"
-    const visibleCategories = ProfileManagementCategories.filter(
+    const visibleCategories = isGuest ? GuestProfileCategories : ProfileManagementCategories.filter(
         (category) => !category.adminOnly || isAdmin
     )
 
@@ -58,6 +61,49 @@ const ProfileEntryScreen = () => {
         ])
     }
     
+    // Custom handler for guest "Join Menorah" category
+    const getCategoryHandler = (category: typeof GuestProfileCategories[0]) => {
+        if (isGuest && category.key === "join") {
+            return joinMenorah
+        }
+        return category.onPressFunction
+    }
+    
+    if (isGuest) {
+        return (
+            <SafeAreaView className="flex-1 bg-menorah-bg py-8 px-4 gap-8">
+                <View className="flex-row gap-2 items-center">
+                    <Pressable onPress={goToPreviousScreen}>
+                        <ArrowLeft size={26} color="white" />
+                    </Pressable>
+                </View>
+                <View className="gap-4">
+                    <View className="items-center">
+                        <ProfileModalIcon borderColor={Colors.menorah.primary} />
+                    </View>
+                    <View className="items-center gap-1">
+                        <Text className="text-white text-lg font-bold" numberOfLines={2}>
+                            Guest
+                        </Text>
+                    </View>
+                </View>
+                <View className="gap-4">
+                    {
+                        visibleCategories.map(category => (
+                            <ProfileCategory 
+                                key={category.key} 
+                                categoryName={category.categoryName} 
+                                icon={category.icon} 
+                                categoryDescription={category.categoryDescription} 
+                                categoryIconColor={category.categoryIconColor} 
+                                onPressFunction={getCategoryHandler(category)} 
+                            />
+                        ))
+                    }
+                </View>
+            </SafeAreaView>
+        )
+    }
 
     return (
         <SafeAreaView className="flex-1 bg-menorah-bg py-8 px-4 gap-8">

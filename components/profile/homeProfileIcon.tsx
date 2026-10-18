@@ -11,6 +11,7 @@ const HomeProfileIcon = ({borderColor}: {borderColor: string}) => {
     
     const profileImageUrl = useAuthStore(state => state.profile?.avatar_url)
     const name = useAuthStore(state => state.profile?.full_name ?? state.session?.user.user_metadata.full_name ?? "User")
+    const isGuest = useAuthStore(state => state.isGuest)
 
     return (
         <Pressable onPress={() => setModalOpen(true)} className="flex-row gap-2 items-center">
@@ -26,7 +27,11 @@ const HomeProfileIcon = ({borderColor}: {borderColor: string}) => {
                 }}
             >
                 {
-                    profileImageUrl ? (
+                    isGuest ? (
+                        <View style={{width: 26, height: 26, borderRadius: 13}} className="bg-menorah-bg items-center justify-center">
+                            <Text className="text-menorah-primary font-bold text-[14px]">G</Text>
+                        </View>
+                    ) : profileImageUrl ? (
                         <Image
                             source={{uri: profileImageUrl}}
                             style={{width: 26, height: 26, borderRadius: 13}}
@@ -42,8 +47,17 @@ const HomeProfileIcon = ({borderColor}: {borderColor: string}) => {
                 }
             </View>
             <View>
-                <Text className="text-white font-bold">Hi {name.split(" ")[0]}</Text>
-                <Text className="text-white">Welcome Home</Text>
+                {isGuest ? (
+                    <>
+                        <Text className="text-white font-bold">Guest</Text>
+                        <Text className="text-white">Welcome Home</Text>
+                    </>
+                ) : (
+                    <>
+                        <Text className="text-white font-bold">Hi {name.split(" ")[0]}</Text>
+                        <Text className="text-white">Welcome Home</Text>
+                    </>
+                )}
             </View>
             <ChevronDown color="white" size={28} />
         </Pressable>

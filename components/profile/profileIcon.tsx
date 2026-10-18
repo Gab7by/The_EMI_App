@@ -8,6 +8,7 @@ const ProfileIcon = ({borderColor}: {borderColor: string}) => {
     
     const profileImageUrl = useAuthStore(state => state.profile?.avatar_url)
     const name = useAuthStore(state => state.profile?.full_name ?? state.session?.user.user_metadata.full_name ?? "User")
+    const isGuest = useAuthStore(state => state.isGuest)
 
     const router = useRouter()
 
@@ -29,7 +30,11 @@ const ProfileIcon = ({borderColor}: {borderColor: string}) => {
             }}
         >
             {
-                profileImageUrl ? (
+                isGuest ? (
+                    <View style={{width: 26, height: 26, borderRadius: 13}} className="bg-menorah-bg items-center justify-center">
+                        <Text className="text-menorah-primary font-bold text-[14px]">G</Text>
+                    </View>
+                ) : profileImageUrl ? (
                     <Image
                         source={{uri: profileImageUrl}}
                         style={{width: 26, height: 26, borderRadius: 13}}

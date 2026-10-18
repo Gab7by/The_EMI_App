@@ -17,6 +17,7 @@ import { useCallback, useMemo } from "react"
 import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
+import { useJoinMenorah } from "@/lib/join-menorah"
 
 // Shared by anyone this evolves to reach later, not just this screen -
 // kept as a constant rather than buried inline in the handler below.
@@ -30,12 +31,12 @@ const SOCIAL_LINKS = [
 ]
 
 
-
-
 const Home = () => {
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const joinMenorah = useJoinMenorah()
   const profile = useAuthStore((state) => state.profile)
+  const isGuest = useAuthStore((state) => state.isGuest)
   const isAdmin = profile?.role === "admin"
   const { data: recentTestimonies } = useRecentTestimonies()
   const { data: featuredTeaching, isLoading: isFeaturedTeachingLoading } = useFeaturedTeaching()
@@ -183,12 +184,25 @@ const Home = () => {
               </Pressable>
             </View>
 
-            <Pressable
-              onPress={() => router.push("/(testimonies)/add")}
-              className="rounded-2xl border border-menorah-primary/40 bg-menorah-darkGreen px-4 py-4">
-              <Text className="text-sm font-bold text-white">✨ Has God been faithful to you?</Text>
-              <Text className="mt-1 text-xs leading-4 text-menorah-muted">Share your testimony — your story could spark someone&apos;s faith today. Tap to add yours.</Text>
-            </Pressable>
+            {isGuest ? (
+              // Guest testimonies card - Join to add yours
+              <Pressable
+                onPress={joinMenorah}
+                className="rounded-2xl border border-menorah-primary/40 bg-menorah-darkGreen px-4 py-4"
+              >
+                <Text className="text-sm font-bold text-white">✨ Has God been faithful to you?</Text>
+                <Text className="mt-1 text-xs leading-4 text-menorah-muted">Join the Menorah to add yours</Text>
+              </Pressable>
+            ) : (
+              // Signed-in user - Tap to add yours
+              <Pressable
+                onPress={() => router.push("/(testimonies)/add")}
+                className="rounded-2xl border border-menorah-primary/40 bg-menorah-darkGreen px-4 py-4"
+              >
+                <Text className="text-sm font-bold text-white">✨ Has God been faithful to you?</Text>
+                <Text className="mt-1 text-xs leading-4 text-menorah-muted">Share your testimony — your story could spark someone&apos;s faith today. Tap to add yours.</Text>
+              </Pressable>
+            )}
 
             {recentTestimonies && recentTestimonies.length > 0 && (
               recentTestimonies.map((testimony) => (

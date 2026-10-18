@@ -22,6 +22,7 @@ export type AuthType  = {
     setIsAuthLoading: (isAuthLoading: boolean) => void
     authStatus: AuthStatus
     setAuthStatus: (status: AuthStatus) => void
+    isGuest: boolean
     session: Session | null;
     profile: Profile | null;
     setSession: (session: Session | null) => void;

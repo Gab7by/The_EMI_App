@@ -1,5 +1,6 @@
 import { Recording } from "@/types/podcast-types"
 import { supabase } from "./supabase"
+import { useAuthStore } from "@/store/authStore"
 
 export const startRecording = async (
     roomName: string,
@@ -107,7 +108,30 @@ export const deleteRecording = async (recording: Recording): Promise<boolean> =>
     return true
 }
 
+/**
+ * Gets a signed URL for recording playback.
+ * For guests: uses the get-recording-url edge function (verify_jwt: false)
+ * For signed-in users: uses direct storage signed URL
+ */
 export const getRecordingSignedUrl = async (filePath: string): Promise<string | null> => {
+    // Check if user is a guest
+    const isGuest = useAuthStore.getState().isGuest
+    
+    if (isGuest) {
+        // Use the edge function for anonymous access
+        const { data, error } = await supabase.functions.invoke("get-recording-url", {
+            body: { filePath }
+        })
+        
+        if (error) {
+            console.error("Error getting recording URL for guest:", error)
+            return null
+        }
+        
+        return data?.signedUrl ?? null
+    }
+    
+    // Signed-in users: direct storage signed URL
     const { data, error } = await supabase.storage.from("recordings")
         .createSignedUrl(
             filePath,

@@ -11,6 +11,9 @@ export const useAuthStore = create<AuthType>(
         setIsAuthLoading: (isAuthLoading) => set({isAuthLoading}), 
         authStatus: 'loading',
         setAuthStatus: (authStatus) => set({ authStatus }),
+        get isGuest() {
+            return get().authStatus === 'guest'
+        },
         session: null,
         profile: null,
         setSession: (session) => {
