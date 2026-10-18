@@ -36,7 +36,7 @@ const Home = () => {
   const router = useRouter()
   const joinMenorah = useJoinMenorah()
   const profile = useAuthStore((state) => state.profile)
-  const isGuest = useAuthStore((state) => state.isGuest)
+  const isGuest = useAuthStore((state) => state.authStatus === 'guest')
   const isAdmin = profile?.role === "admin"
   const { data: recentTestimonies } = useRecentTestimonies()
   const { data: featuredTeaching, isLoading: isFeaturedTeachingLoading } = useFeaturedTeaching()

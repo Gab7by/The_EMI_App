@@ -16,7 +16,7 @@ const HomeProfileModal = () => {
     const isModalOpen = useHomeProfileModalStore(state => state.isOpen)
     const setModalOpen = useHomeProfileModalStore(state => state.setIsOpen)
 
-    const isGuest = useAuthStore(state => state.isGuest)
+    const isGuest = useAuthStore(state => state.authStatus === 'guest')
     const name = useAuthStore(state => state.profile?.full_name ?? state.session?.user.user_metadata.full_name ?? "User")
     const email = useAuthStore(state => state.session?.user.email)
 

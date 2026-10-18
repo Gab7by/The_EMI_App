@@ -17,7 +17,7 @@ const ProfileEntryScreen = () => {
     const router = useRouter()
     const joinMenorah = useJoinMenorah()
 
-    const isGuest = useAuthStore(state => state.isGuest)
+    const isGuest = useAuthStore(state => state.authStatus === 'guest')
     const name = useAuthStore(state => state.profile?.full_name ?? state.session?.user.user_metadata.full_name)
     const email = useAuthStore(state => state.session?.user.email)
     const profile = useAuthStore(state => state.profile)

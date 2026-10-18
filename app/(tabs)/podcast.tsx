@@ -45,7 +45,7 @@ const PodcastScreen = () => {
 
   const profile = useAuthStore((state) => state.profile);
   const isAdmin = profile?.role === "admin";
-  const isGuest = useAuthStore((state) => state.isGuest);
+  const isGuest = useAuthStore((state) => state.authStatus === 'guest');
 
   const openLiveStreamStartModal = useCallback(() => {
     setOpenLiveStreamStartModal(true);

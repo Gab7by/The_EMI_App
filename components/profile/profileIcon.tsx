@@ -8,7 +8,7 @@ const ProfileIcon = ({borderColor}: {borderColor: string}) => {
     
     const profileImageUrl = useAuthStore(state => state.profile?.avatar_url)
     const name = useAuthStore(state => state.profile?.full_name ?? state.session?.user.user_metadata.full_name ?? "User")
-    const isGuest = useAuthStore(state => state.isGuest)
+    const isGuest = useAuthStore(state => state.authStatus === 'guest')
 
     const router = useRouter()
 

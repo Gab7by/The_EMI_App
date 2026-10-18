@@ -24,8 +24,9 @@ const WelcomeScreen = () => {
   const handleSkip = async () => {
     hapticMedium()
     await enterGuestMode()
-    // Navigation to tabs is handled by the route guard in _layout.tsx
-    // based on authStatus changing to 'guest'
+    // Navigate to tabs after guest mode is set - the route guard in _layout.tsx
+    // allows access to (tabs) when authStatus is 'guest'
+    router.replace("/(tabs)")
   }
 
   return (
