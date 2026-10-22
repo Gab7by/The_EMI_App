@@ -5,7 +5,7 @@ import HomeProfileBar from "@/components/profile/homePofileBar"
 import HomeProfileModal from "@/components/profile/homeProfileModal"
 import TestimonyCard from "@/components/testimonies/testimonyCard"
 import { CONTACT_ITEMS } from "@/constants/contact"
-import { useFeaturedTeaching, useHomeSliderSlots, useRecentTestimonies } from "@/hooks/tanstack-query-hooks"
+import { useHomeData } from "@/hooks/tanstack-query-hooks"
 import { buildHomeSliderItems } from "@/lib/homeSlider"
 import { hapticLight } from "@/lib/haptics"
 import { useAuthStore } from "@/store/authStore"
@@ -38,10 +38,14 @@ const Home = () => {
   const profile = useAuthStore((state) => state.profile)
   const isGuest = useAuthStore((state) => state.authStatus === 'guest')
   const isAdmin = profile?.role === "admin"
-  const { data: recentTestimonies } = useRecentTestimonies()
-  const { data: featuredTeaching, isLoading: isFeaturedTeachingLoading } = useFeaturedTeaching()
-  const { data: sliderSlots } = useHomeSliderSlots()
-  const sliderItems = useMemo(() => buildHomeSliderItems(sliderSlots), [sliderSlots])
+  const { data: homeData, isLoading: isHomeDataLoading } = useHomeData()
+
+  // Extract data from combined RPC response
+  const ft = homeData?.featured_teaching
+  const slots = homeData?.slider_slots ?? []
+  const testimonies = homeData?.recent_testimonies ?? []
+  const sliderItems = useMemo(() => buildHomeSliderItems(slots), [slots])
+
   const handleOpenTestimony = useCallback(
     (testimonyId: string) => router.push(`/(testimonies)/${testimonyId}`),
     [router]
@@ -97,21 +101,21 @@ const Home = () => {
             </View>
             <Text className="mb-2 text-[11px] font-bold uppercase tracking-[1px] text-[#0B1F0E]/70">Featured Teaching</Text>
 
-            {isFeaturedTeachingLoading ? (
+            {isHomeDataLoading ? (
               <ActivityIndicator size="small" color="#0B1F0E" />
-            ) : featuredTeaching ? (
+            ) : ft ? (
               <>
                 <Text
                   numberOfLines={2}
                   className="text-left text-xl font-bold text-[#0B1F0E]"
                 >
-                  {featuredTeaching.title}
+                  {ft.title}
                 </Text>
                 <Text
                   numberOfLines={FEATURED_TEACHING_HOME_MESSAGE_LINES}
                   className="mt-2.5 text-left text-sm leading-5 text-[#0B1F0E]/75"
                 >
-                  {featuredTeaching.devotional_message}
+                  {ft.devotional_message}
                 </Text>
                 <Pressable
                   onPress={() => router.push("/(teaching)/featured-teaching")}
@@ -204,8 +208,10 @@ const Home = () => {
               </Pressable>
             )}
 
-            {recentTestimonies && recentTestimonies.length > 0 && (
-              recentTestimonies.map((testimony) => (
+            {isHomeDataLoading ? (
+              <ActivityIndicator size="small" color="#C6FF00" />
+            ) : testimonies && testimonies.length > 0 ? (
+              testimonies.map((testimony) => (
                 <TestimonyCard
                   key={testimony.id}
                   id={testimony.id}
@@ -216,7 +222,7 @@ const Home = () => {
                   onPress={handleOpenTestimony}
                 />
               ))
-            )}
+            ) : null}
           </View>
 
           <View className="mt-2 gap-3">

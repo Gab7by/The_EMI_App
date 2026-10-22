@@ -4,12 +4,21 @@ import { useRouter } from "expo-router"
 import { Pressable, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useAuthStore } from "@/store/authStore"
+import { useEffect } from "react"
 
 
 const WelcomeScreen = () => {
 
   const router = useRouter()
+  const authStatus = useAuthStore(state => state.authStatus)
   const enterGuestMode = useAuthStore(state => state.enterGuestMode)
+
+  // Redirect guests away from welcome screen - they should be in tabs
+  useEffect(() => {
+    if (authStatus === 'guest') {
+      router.replace("/(tabs)")
+    }
+  }, [authStatus, router])
 
   const routeToLogin = () => {
     hapticMedium()
