@@ -1,16 +1,24 @@
 import { useRouter } from "expo-router"
 import { hapticMedium } from "@/lib/haptics"
+import { useAuthStore } from "@/store/authStore"
 
 /**
  * Shared "Join Menorah" action for guests.
- * Routes to the sign up page.
- * Callers are responsible for styling; this only provides the navigation behavior.
+ * For guests: uses push() so they can go back after signup.
+ * For signed-in users (edge case): uses replace().
  */
 export const useJoinMenorah = () => {
   const router = useRouter()
+  const authStatus = useAuthStore(state => state.authStatus)
 
   return () => {
     hapticMedium()
-    router.replace("/(auth)/signup")
+    // Guests: push so they can go back after signup
+    // Signed-in: replace (edge case, shouldn't normally happen)
+    if (authStatus === 'guest') {
+      router.push("/(auth)/signup")
+    } else {
+      router.replace("/(auth)/signup")
+    }
   }
 }

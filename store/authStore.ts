@@ -40,7 +40,15 @@ export const useAuthStore = create<AuthType>(
             if (data) set({ profile: data });
         },
 
-        clearAuth: () => set({ session: null, profile: null, authStatus: 'signed-out' }),
+        clearAuth: (force = false) => {
+      const currentStatus = get().authStatus
+      if (force || currentStatus !== 'guest') {
+        set({ session: null, profile: null, authStatus: 'signed-out' })
+      } else {
+        // Preserve guest status, just clear session/profile
+        set({ session: null, profile: null })
+      }
+    },
 
         enterGuestMode: async () => {
             try {
