@@ -16,7 +16,7 @@ const goToSliderImages = () => {
 }
 
 const logoutUser = () => {
-    useAuthStore.getState().clearAuth()
+    useAuthStore.getState().clearAuth(true)
     router.replace("/(auth)")
     supabase.auth.signOut()
     }

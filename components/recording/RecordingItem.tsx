@@ -3,9 +3,11 @@ import { formatDuration, formatRecordingDate } from '@/lib/formatters'
 import { getPlaylistColor } from '@/lib/recording-ui'
 import { type Recording } from '@/types/podcast-types'
 import { Image } from 'expo-image'
-import { Check, Globe, GlobeOff, Pause, Play, Trash2 } from 'lucide-react-native'
+import { Check, Globe, GlobeOff, Pause, Play, Trash2, Lock } from 'lucide-react-native'
 import { memo, useEffect, useRef } from 'react'
 import { Animated, Easing, ActivityIndicator, Pressable, Text, View } from 'react-native'
+import { useAuthStore } from '@/store/authStore'
+import { useJoinMenorah } from '@/lib/join-menorah'
 
 interface RecordingItemProps {
     recording: Recording
@@ -37,7 +39,15 @@ function RecordingItem({
     onDelete,
 }: RecordingItemProps) {
     const playlistColor = getPlaylistColor(recording.playlist)
-    const handlePress = () => (isActive ? onToggle() : onPlay(recording, index))
+    const isGuest = useAuthStore(state => state.authStatus === 'guest')
+    const joinMenorah = useJoinMenorah()
+    const handlePress = () => {
+        if (isGuest) {
+            joinMenorah()
+            return
+        }
+        isActive ? onToggle() : onPlay(recording, index)
+    }
     // Visual-only here - a quiet reminder of what's already offline. The
     // actual download/share/remove controls live in the full player screen,
     // so this dense list doesn't get another tap target per row.
@@ -79,6 +89,18 @@ function RecordingItem({
                     {downloadStatus === 'downloaded' ? (
                         <View className="absolute bottom-0.5 right-0.5 h-4 w-4 items-center justify-center rounded-full bg-[#0B1F0E]">
                             <Check size={10} color="#D7FF00" />
+                        </View>
+                    ) : null}
+
+                    {/* Guest lock overlay - covers artwork for guests */}
+                    {isGuest ? (
+                        <View className="absolute inset-0 items-center justify-center bg-black/70 rounded-2xl">
+                            <View className="bg-[#D7FF00] p-3 rounded-full">
+                                <Lock size={24} color="#143703" />
+                            </View>
+                            <Text className="mt-2 text-white font-semibold text-center px-2">
+                                Join to Listen
+                            </Text>
                         </View>
                     ) : null}
                 </View>

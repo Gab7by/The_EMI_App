@@ -6,12 +6,10 @@ import { useRouter } from "expo-router"
 import { Pressable, Text, View } from "react-native"
 import Modal from "react-native-modal"
 import ProfileModalIcon from "./profileModalIcon"
-import { useJoinMenorah } from "@/lib/join-menorah"
 
 const HomeProfileModal = () => {
 
     const router = useRouter()
-    const joinMenorah = useJoinMenorah()
 
     const isModalOpen = useHomeProfileModalStore(state => state.isOpen)
     const setModalOpen = useHomeProfileModalStore(state => state.setIsOpen)
@@ -48,17 +46,13 @@ const HomeProfileModal = () => {
                     <View className="items-center">
                         <ProfileModalIcon borderColor={Colors.menorah.lightGray} />
                     </View>
-                    <View className="gap-4">
-                        <Pressable onPress={joinMenorah} className="bg-menorah-primary rounded-full px-8 py-4 items-center w-full">
-                            <Text className="text-menorah-bg font-bold text-base">Join Menorah</Text>
-                        </Pressable>
-                        <Pressable onPress={routeToProfileScreen} className="bg-white/10 rounded-full px-8 py-4 items-center w-full border border-white/20">
-                            <Text className="text-white font-bold text-base">Share App</Text>
-                        </Pressable>
-                        <Pressable onPress={routeToProfileScreen} className="bg-white/10 rounded-full px-8 py-4 items-center w-full border border-white/20">
-                            <Text className="text-white font-bold text-base">Legal</Text>
-                        </Pressable>
+                    <View className="gap-2 justify-center items-center">
+                        <Text className="text-white font-bold text-base">Guest</Text>
+                        <Text className="text-sm text-menorah-muted">Welcome Home</Text>
                     </View>
+                        <Pressable onPress={routeToProfileScreen} className="bg-menorah-primary rounded-full px-8 py-6 items-center">
+                            <Text className="text-menorah-bg font-bold text-base">Manage My Profile</Text>
+                        </Pressable>
                 </View>
             </Modal>
         )

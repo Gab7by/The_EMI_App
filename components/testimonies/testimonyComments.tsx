@@ -2,6 +2,7 @@ import { getInitial } from "@/components/testimonies/testimonyCard"
 import { useTestimonyComments } from "@/hooks/tanstack-query-hooks"
 import { formatRecordingDate } from "@/lib/formatters"
 import { hapticLight, hapticMedium } from "@/lib/haptics"
+import { useRouter } from "expo-router"
 import { queryClient } from "@/lib/query"
 import { addTestimonyComment, deleteTestimonyComment } from "@/lib/testimonies"
 import { useAuthStore } from "@/store/authStore"
@@ -82,12 +83,19 @@ type TestimonyCommentsProps = {
 const TestimonyComments = ({ testimonyId }: TestimonyCommentsProps) => {
   const { data: comments, isLoading } = useTestimonyComments(testimonyId)
   const profile = useAuthStore((state) => state.profile)
+  const isGuest = useAuthStore(state => state.authStatus === 'guest')
+  const router = useRouter()
   const [draft, setDraft] = useState("")
   const [isPosting, setIsPosting] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
+  const handleJoinMenorah = () => {
+    hapticLight()
+    router.push("/(auth)/signup")
+  }
+
   const trimmedDraft = draft.trim()
-  const canPost = trimmedDraft.length > 0 && !isPosting
+  const canPost = trimmedDraft.length > 0 && !isPosting && !isGuest
 
   const handlePost = useCallback(async () => {
     if (!canPost) return
@@ -131,6 +139,50 @@ const TestimonyComments = ({ testimonyId }: TestimonyCommentsProps) => {
       ]
     )
   }, [testimonyId])
+
+  // Guest users cannot post comments - show join message instead
+  if (isGuest) {
+    return (
+      <View className="mt-6 gap-3">
+        <Text className="text-[11px] font-bold uppercase tracking-[1.5px] text-menorah-goldDark">
+          Comments
+        </Text>
+
+        <Pressable
+          onPress={handleJoinMenorah}
+          className="mt-2 p-4 bg-menorah-darkGreen rounded-xl border border-menorah-primary/40 active:bg-menorah-primary/20"
+        >
+          <Text className="text-center text-menorah-goldDark text-sm font-medium">
+            Join The Menorah to add a comment
+          </Text>
+        </Pressable>
+
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#C6FF00" />
+        ) : !comments || comments.length === 0 ? (
+          <Text className="text-sm text-menorah-muted mt-2">
+            No comments yet — be the first to encourage them.
+          </Text>
+        ) : (
+          <View className="mt-2 gap-2">
+            {comments.map((comment) => (
+              <CommentRow
+                key={comment.id}
+                id={comment.id}
+                fullName={comment.profiles?.full_name ?? "User"}
+                avatarUrl={comment.profiles?.avatar_url ?? null}
+                content={comment.content}
+                createdAt={comment.created_at}
+                canDelete={!!profile && (profile.id === comment.user_id || profile.role === "admin")}
+                isDeleting={deletingId === comment.id}
+                onDelete={handleDelete}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+    )
+  }
 
   return (
     <View className="mt-6 gap-3">
