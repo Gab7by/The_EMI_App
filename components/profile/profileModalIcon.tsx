@@ -7,6 +7,7 @@ const ProfileModalIcon = ({borderColor}:{borderColor: string}) => {
     
     const profileImageUrl = useAuthStore(state => state.profile?.avatar_url)
     const name = useAuthStore(state => state.profile?.full_name ?? state.session?.user.user_metadata.full_name ?? "User")
+    const isGuest = useAuthStore(state => state.authStatus === 'guest')
 
     return (
         <Pressable
@@ -32,7 +33,11 @@ const ProfileModalIcon = ({borderColor}:{borderColor: string}) => {
                 }}
             >
                 {
-                    profileImageUrl ? (
+                    isGuest ? (
+                        <View style={{width: 54, height: 54, borderRadius: 27}} className="bg-menorah-bg items-center justify-center">
+                            <Text className="text-menorah-primary font-bold text-2xl">G</Text>
+                        </View>
+                    ) : profileImageUrl ? (
                         <Image
                             source={{uri: profileImageUrl}}
                             style={{width: 54, height: 54, borderRadius: 27}}

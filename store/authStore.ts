@@ -1,14 +1,35 @@
 import { supabase } from "@/lib/supabase"
 import { AuthType, ForgotPasswordModalStoreType } from "@/types/auth-types"
 import {create} from "zustand"
+import * as SecureStore from "expo-secure-store"
+
+const GUEST_CHOICE_KEY = "emi_guest_choice"
 
 export const useAuthStore = create<AuthType>(
     (set, get) => ({
-        isAuthLoading: false,
+        isAuthLoading: true,
         setIsAuthLoading: (isAuthLoading) => set({isAuthLoading}), 
+        authStatus: 'loading',
+        setAuthStatus: (authStatus) => set({ authStatus }),
+        get isGuest() {
+            return get().authStatus === 'guest'
+        },
         session: null,
         profile: null,
-        setSession: (session) => set({ session }),
+        setSession: (session) => {
+            if (session) {
+                set({ session, authStatus: 'signed-in' })
+            } else {
+                // Session cleared - check if guest choice was made
+                const currentStatus = get().authStatus
+                if (currentStatus === 'guest') {
+                    // Keep guest status if user explicitly chose it
+                    set({ session: null, profile: null })
+                } else {
+                    set({ session: null, profile: null, authStatus: 'signed-out' })
+                }
+            }
+        },
         fetchProfile: async (userId) => {
             const { data } = await supabase
                 .from('profiles')
@@ -19,7 +40,38 @@ export const useAuthStore = create<AuthType>(
             if (data) set({ profile: data });
         },
 
-        clearAuth: () => set({ session: null, profile: null })
+        clearAuth: (force = false) => {
+      const currentStatus = get().authStatus
+      if (force || currentStatus !== 'guest') {
+        set({ session: null, profile: null, authStatus: 'signed-out' })
+      } else {
+        // Preserve guest status, just clear session/profile
+        set({ session: null, profile: null })
+      }
+    },
+
+        enterGuestMode: async () => {
+            try {
+                await SecureStore.setItemAsync(GUEST_CHOICE_KEY, "true")
+            } catch (error) {
+                console.error("Failed to persist guest choice:", error)
+            }
+            set({ authStatus: 'guest' })
+        },
+
+        restoreGuestChoice: async () => {
+            try {
+                const choice = await SecureStore.getItemAsync(GUEST_CHOICE_KEY)
+                if (choice === "true") {
+                    set({ authStatus: 'guest' })
+                } else {
+                    set({ authStatus: 'signed-out' })
+                }
+            } catch (error) {
+                console.error("Failed to restore guest choice:", error)
+                set({ authStatus: 'signed-out' })
+            }
+        },
     }) 
 )
 

@@ -63,6 +63,9 @@ const SignUpScreen = () => {
                 setTimeout(() => {
                     setErrorSigningUp(null)
                 }, 3000)
+            } else {
+                // Success - navigate to tabs
+                router.replace("/(tabs)")
             }
         } catch (e) {
             setErrorSigningUp("Something went wrong, Try again")

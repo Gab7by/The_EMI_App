@@ -15,14 +15,21 @@ export type Profile = {
     role: Role
 }
 
+export type AuthStatus = 'loading' | 'signed-in' | 'guest' | 'signed-out'
+
 export type AuthType  = {
     isAuthLoading: boolean
     setIsAuthLoading: (isAuthLoading: boolean) => void
+    authStatus: AuthStatus
+    setAuthStatus: (status: AuthStatus) => void
+    isGuest: boolean
     session: Session | null;
     profile: Profile | null;
     setSession: (session: Session | null) => void;
     fetchProfile: (userId: string) => Promise<void>;
     clearAuth: () => void;
+    enterGuestMode: () => Promise<void>;
+    restoreGuestChoice: () => Promise<void>;
 }
 
 export type ForgotPasswordModalStoreType = {

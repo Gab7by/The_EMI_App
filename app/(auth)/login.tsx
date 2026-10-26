@@ -59,6 +59,10 @@ const LoginScreen = () => {
                 setTimeout(() => {
                     setErrorLogginIn(null)
                 }, 3000)
+            } else {
+                // Success - navigation to tabs handled by route guard in _layout.tsx
+                // but ensure we navigate if guard doesn't auto-redirect
+                router.replace("/(tabs)")
             }
         } catch(e) {
             setErrorLogginIn("Something went wrong, Try Again")

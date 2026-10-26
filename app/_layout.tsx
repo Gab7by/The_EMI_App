@@ -178,10 +178,11 @@ const selectAndroidBluetoothOutputIfAvailable = async (): Promise<boolean> => {
 
 export default function RootLayout() {
 
-  const session = useAuthStore(state => state.session)
+  const authStatus = useAuthStore(state => state.authStatus)
   const isAuthLoading = useAuthStore(state => state.isAuthLoading)
   const setIsAuthLoading = useAuthStore(state => state.setIsAuthLoading)
   const setSession = useAuthStore(state => state.setSession)
+  const restoreGuestChoice = useAuthStore(state => state.restoreGuestChoice)
 
   useEffect(() => {
     const startAudio = async () => {
@@ -211,41 +212,57 @@ export default function RootLayout() {
   }, [])
 
   useEffect(() => {
+    let isBootstrapping = true
+
+    const handleAuthStateChange = (_event: string, session: any) => {
+      useAuthStore.getState().setSession(session);
+
+      if (session) {
+        useAuthStore.getState().fetchProfile(session.user.id);
+      } else {
+        // Don't clear auth during initial bootstrap or if user is in guest mode
+        if (isBootstrapping && _event === 'INITIAL_SESSION') {
+          return
+        }
+        const currentStatus = useAuthStore.getState().authStatus
+        if (currentStatus !== 'guest') {
+          useAuthStore.getState().clearAuth();
+        }
+      }
+    }
+
+    // Register listener FIRST so it catches INITIAL_SESSION
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange)
+
     const bootstrapAuth = async () => {
       setIsAuthLoading(true)
 
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        setSession(session)
 
         if (session) {
+          setSession(session)
           await useAuthStore.getState().fetchProfile(session.user.id)
+        } else {
+          // No session - restore guest choice FIRST before setSession
+          await restoreGuestChoice()
+          setSession(null)
         }
       } finally {
         setIsAuthLoading(false)
         SplashScreen.hideAsync()
+        // Bootstrap complete - now allow normal auth state handling
+        isBootstrapping = false
       }
     }
 
     bootstrapAuth()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        useAuthStore.getState().setSession(session);
-
-        if (session) {
-          useAuthStore.getState().fetchProfile(session.user.id);
-        } else {
-          useAuthStore.getState().clearAuth();
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => subscription.unsubscribe()
+  }, [restoreGuestChoice]);
 
 
-  const isLoggedIn = session !== null
+  const canAccessTabs = authStatus === 'signed-in' || authStatus === 'guest'
 
   if (isAuthLoading) return (
     <SafeAreaView className="bg-menorah-bg">
@@ -261,21 +278,21 @@ export default function RootLayout() {
             headerShown: false
           }}
         >
-          <Stack.Protected guard={!!isLoggedIn}>
+          <Stack.Protected guard={canAccessTabs}>
             <Stack.Screen
               name="(tabs)"
             />
           </Stack.Protected>
-          <Stack.Protected guard={!isLoggedIn}>
+          <Stack.Protected guard={authStatus !== 'signed-in'}>
             <Stack.Screen
               name="(auth)"
             />
           </Stack.Protected>
-       </Stack>
-       <LiveKitAudioManager />
-       <LiveKitForegroundService />
-       <PortalHost />
-       <ForgotPasswordModal />
+        </Stack>
+        <LiveKitAudioManager />
+        <LiveKitForegroundService />
+        <PortalHost />
+        <ForgotPasswordModal />
       </SafeAreaProvider>
     </QueryClientProvider>
   );

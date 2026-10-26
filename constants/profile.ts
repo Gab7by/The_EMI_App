@@ -5,6 +5,7 @@ import { Alert } from "react-native";
 import { Colors } from "./theme";
 import { router } from "expo-router";
 import { useAuthStore } from "@/store/authStore";
+import { useJoinMenorah } from "@/lib/join-menorah";
 
 const goToAccountDetails = () => {
     router.push("/(profile)/account")
@@ -15,7 +16,7 @@ const goToSliderImages = () => {
 }
 
 const logoutUser = () => {
-    useAuthStore.getState().clearAuth()
+    useAuthStore.getState().clearAuth(true)
     router.replace("/(auth)")
     supabase.auth.signOut()
     }
@@ -50,13 +51,21 @@ export const ProfileManagementCategories: profileManagementCategory[] = [
         key: "share",
         categoryName: "Share App",
         icon: Share,
-        categoryDescription: "Get others to download the app"
+        categoryDescription: "Get others to download the app",
+        onPressFunction: () => {
+            // Share functionality - can be implemented with expo-sharing
+            Alert.alert("Share App", "Share functionality coming soon!")
+        }
     },
     {
         key: "legal",
         categoryName: "Legal",
         icon: Text,
-        categoryDescription: "View terms, privacy policy and other legal info."
+        categoryDescription: "View terms, privacy policy and other legal info.",
+        onPressFunction: () => {
+            // Legal page navigation
+            Alert.alert("Legal", "Legal page coming soon!")
+        }
     },
     {
         key: "logout",
@@ -64,5 +73,37 @@ export const ProfileManagementCategories: profileManagementCategory[] = [
         icon: LogOut,
         categoryIconColor: Colors.menorah.error,
         onPressFunction: alertUserOfLogout
+    }
+]
+
+export const GuestProfileCategories: profileManagementCategory[] = [
+    {
+        key: "join",
+        categoryName: "Join Menorah",
+        icon: User,
+        categoryDescription: "Create an account to unlock all features",
+        onPressFunction: () => {
+            // We need to use the hook here, but this is a constant file
+            // The actual join action will be handled by the component using useJoinMenorah
+            // This is a placeholder - the component will override
+        }
+    },
+    {
+        key: "share",
+        categoryName: "Share App",
+        icon: Share,
+        categoryDescription: "Get others to download the app",
+        onPressFunction: () => {
+            Alert.alert("Share App", "Share functionality coming soon!")
+        }
+    },
+    {
+        key: "legal",
+        categoryName: "Legal",
+        icon: Text,
+        categoryDescription: "View terms, privacy policy and other legal info.",
+        onPressFunction: () => {
+            Alert.alert("Legal", "Legal page coming soon!")
+        }
     }
 ]

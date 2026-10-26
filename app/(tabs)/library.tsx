@@ -5,6 +5,7 @@ import { getTabBarBottomOffset, TAB_BAR_HEIGHT } from '@/constants/tabs'
 import { useRecordingPlayer } from '@/hooks/useRecordingPlayer'
 import { deleteRecording, getRecordings, toggleRecordingPublish } from '@/lib/recording'
 import { useAuthStore } from '@/store/authStore'
+import { useJoinMenorah } from '@/lib/join-menorah'
 import type { Recording } from '@/types/podcast-types'
 // playlist filters removed per request; search-only
 import { MaterialCommunityIcons } from '@expo/vector-icons'
@@ -20,6 +21,8 @@ const ADMIN_PAGE_SIZE = 20
 export default function LibraryScreen() {
     const profile = useAuthStore((state) => state.profile)
     const isAdmin = profile?.role === 'admin'
+    const isGuest = useAuthStore((state) => state.authStatus === 'guest')
+    const joinMenorah = useJoinMenorah()
     const insets = useSafeAreaInsets()
     const queryClient = useQueryClient()
     const [showDisclaimer, setShowDisclaimer] = useState(!isAdmin)
@@ -31,7 +34,12 @@ export default function LibraryScreen() {
 
     const { data: recordings = [], isLoading, refetch, isRefetching } = useQuery({
         queryKey: ['recordings', isAdmin ? 'admin' : 'member'],
-        queryFn: () => getRecordings(isAdmin, visibleCount, 0),
+        queryFn: async () => {
+          console.log('[Library] Fetching recordings for:', isAdmin ? 'admin' : (isGuest ? 'guest' : 'member'), { isAdmin, isGuest, profile: !!profile })
+          const result = await getRecordings(isAdmin, visibleCount, 0)
+          console.log('[Library] Got recordings:', result.length, result)
+          return result
+        },
         staleTime: 5 * 60 * 1000,
     })
 
@@ -237,7 +245,7 @@ export default function LibraryScreen() {
                         </View>
                     ) : visibleRecordings.length === 0 ? (
                         <View className="flex-1 items-center justify-center px-8">
-                            <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-white/[0.06]">
+                            <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-white/[0.06] mx-auto">
                                 <MaterialCommunityIcons name="waveform" size={28} color="#8FA396" />
                             </View>
                             <Text className="text-center text-[14px] font-semibold text-[#F2F5EE]">

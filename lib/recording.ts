@@ -1,5 +1,6 @@
 import { Recording } from "@/types/podcast-types"
 import { supabase } from "./supabase"
+import { useAuthStore } from "@/store/authStore"
 
 export const startRecording = async (
     roomName: string,
@@ -44,9 +45,10 @@ export const getRecordings = async (
         .from("podcast_recordings")
         .select(`
             *,
-            live_podcasts!inner(title, playlist, cover_image_url)
+            live_podcasts!inner(title, playlist, cover_image_url, status)
         `)
         .eq("status", "completed")
+        .eq("live_podcasts.status", "ended")
 
     // Members only see published recordings; admins see all
     if (!isAdmin) {
@@ -58,12 +60,12 @@ export const getRecordings = async (
         .range(offset, offset + limit - 1)
 
     if (error) {
-        console.error("Error fetching recordings:", error)
+        console.error('[getRecordings] Error:', error)
         return []
     }
 
     // Map the joined data into our Recording type
-    return (data as any[]).map((item) => ({
+    const mapped = (data as any[]).map((item) => ({
         id: item.id,
         podcast_id: item.podcast_id,
         file_path: item.file_path,
@@ -75,6 +77,8 @@ export const getRecordings = async (
         playlist: item.live_podcasts?.playlist ?? null,
         coverImageUrl: item.live_podcasts?.cover_image_url ?? null,
     })) as Recording[]
+    
+    return mapped
 }
 
 export const toggleRecordingPublish = async (
@@ -107,7 +111,13 @@ export const deleteRecording = async (recording: Recording): Promise<boolean> =>
     return true
 }
 
+/**
+ * Gets a signed URL for recording playback.
+ * Only signed-in users can access recordings (guests see "Join to Listen" CTA).
+ * Uses direct storage signed URL.
+ */
 export const getRecordingSignedUrl = async (filePath: string): Promise<string | null> => {
+    // Signed-in users only: direct storage signed URL
     const { data, error } = await supabase.storage.from("recordings")
         .createSignedUrl(
             filePath,
@@ -115,7 +125,7 @@ export const getRecordingSignedUrl = async (filePath: string): Promise<string | 
         )
 
     if (error) {
-        console.error("Error generating signed URL:", error)
+        console.error('[getRecordingSignedUrl] Storage error:', error)
         return null
     }
 

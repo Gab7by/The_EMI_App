@@ -1,5 +1,6 @@
 import ImageSlider from "@/components/commons/image-slider";
 import LiveStreamCard from "@/components/podcast/livestreamCard";
+import GuestLiveStreamCard from "@/components/podcast/guestLiveStreamCard";
 import LiveStreamInfoModal from "@/components/podcast/livestreamInfoModal";
 import LiveStreamStartDialogModal from "@/components/podcast/liveStreamStartDialogModal";
 import LiveStreamStartModal from "@/components/podcast/liveStreamStartModal";
@@ -8,8 +9,8 @@ import NoLiveStreamCard from "@/components/podcast/no-live-podcast";
 import PodcastLoadingSkeleton from "@/components/podcast/podcast-loading-skeleton";
 import PodcastProfileBar from "@/components/profile/podcastProfileBar";
 import { Button } from "@/components/ui/button";
-import { imageItems } from "@/constants/podcast";
-import { useLivePodcastSessions } from "@/hooks/tanstack-query-hooks";
+import { useHomeSliderSlots, useLivePodcastSessions } from "@/hooks/tanstack-query-hooks";
+import { buildHomeSliderItems } from "@/lib/homeSlider";
 import { createLivePodcast } from "@/lib/podcast";
 import { queryClient } from "@/lib/query";
 import { startRecording } from "@/lib/recording";
@@ -44,12 +45,18 @@ const PodcastScreen = () => {
 
   const profile = useAuthStore((state) => state.profile);
   const isAdmin = profile?.role === "admin";
+  const isGuest = useAuthStore((state) => state.authStatus === 'guest');
 
   const openLiveStreamStartModal = useCallback(() => {
     setOpenLiveStreamStartModal(true);
   }, [setOpenLiveStreamStartModal]);
 
-  const { data, isLoading, isRefetching, refetch } = useLivePodcastSessions(profile?.id);
+  const { data: sliderSlots } = useHomeSliderSlots();
+  const sliderItems = useMemo(() => buildHomeSliderItems(sliderSlots), [sliderSlots]);
+
+  // Guests fetch without hostId to get only public+listed live podcasts
+  // Signed-in users fetch with their hostId to see their own + public
+  const { data, isLoading, isRefetching, refetch } = useLivePodcastSessions(isGuest ? undefined : profile?.id);
 
   const startLiveStream = useCallback((closeModal: () => void) => {
     if(title.length < 1) {
@@ -101,29 +108,46 @@ const PodcastScreen = () => {
     <View className="mb-5">
       <Text className="text-[11px] font-bold uppercase tracking-[1.5px] text-menorah-primary">Listen together</Text>
       <Text className="mt-1 text-2xl font-bold text-white">Live podcasts</Text>
-      <Text className="mt-1 text-sm text-menorah-muted">Join a live room and take part in the conversation.</Text>
+      <Text className="mt-1 text-sm text-menorah-muted">
+        {isGuest 
+          ? "Tap a session to join the Menorah and listen live." 
+          : "Join a live room and take part in the conversation."}
+      </Text>
     </View>
-  ), [])
+  ), [isGuest])
 
-  const renderLivePodcast = useCallback(({ item }: { item: NonNullable<typeof data>[number] }) => (
-    <LiveStreamCard
-      livekitRoomName={item.livekit_room_name}
-      playlist={item.playlist}
-      hostId={item.host.id}
-      id={item.id}
-      hostName={item.host.full_name!}
-      title={item.title}
-      hostPictureUrl={item.host.avatar_url}
-      coverImageUrl={item.cover_image_url}
-    />
-  ), [])
+  const renderLivePodcast = useCallback(({ item }: { item: NonNullable<typeof data>[number] }) => {
+    if (isGuest) {
+      return (
+        <GuestLiveStreamCard
+          title={item.title}
+          playlist={item.playlist}
+          hostPictureUrl={item.host.avatar_url}
+          hostName={item.host.full_name!}
+          coverImageUrl={item.cover_image_url}
+        />
+      )
+    }
+    return (
+      <LiveStreamCard
+        livekitRoomName={item.livekit_room_name}
+        playlist={item.playlist}
+        hostId={item.host.id}
+        id={item.id}
+        hostName={item.host.full_name!}
+        title={item.title}
+        hostPictureUrl={item.host.avatar_url}
+        coverImageUrl={item.cover_image_url}
+      />
+    )
+  }, [isGuest])
 
   const itemSeparator = useCallback(() => <View style={{ height: 20 }} />, [])
 
   return (
     <SafeAreaView className="flex-1 bg-menorah-bg py-5 px-4 gap-5 relative">
       <PodcastProfileBar />
-      <ImageSlider items={imageItems} height={196} />
+      <ImageSlider items={sliderItems} height={196} />
       {isLoading ? (
         <PodcastLoadingSkeleton />
       ) : (
@@ -141,7 +165,7 @@ const PodcastScreen = () => {
             }
         />
       )}
-      {isAdmin && (
+      {isAdmin && !isGuest && (
         <View className="items-center absolute bottom-32 left-4 right-4">
           <Button
             onPress={openLiveStreamStartModal}
@@ -152,7 +176,7 @@ const PodcastScreen = () => {
           </Button>
         </View>
       )}
-      {isAdmin && (
+      {isAdmin && !isGuest && (
         <>
           <LiveStreamStartModal />
           <LiveStreamStartDialogModal

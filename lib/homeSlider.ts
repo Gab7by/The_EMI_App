@@ -2,6 +2,8 @@ import type { ImagePickerAsset } from "expo-image-picker"
 import { BUNDLED_SLIDER_IMAGE_SOURCES } from "@/constants/podcast"
 import type { SliderItem } from "@/types/ui-commons-props"
 import type { HomeSliderSlot } from "@/types/home-slider-types"
+import type { FeaturedTeaching } from "@/types/featured-teaching-types"
+import type { Testimony } from "@/types/testimony-types"
 import { uploadImage } from "./storage"
 import { supabase } from "./supabase"
 
@@ -32,6 +34,27 @@ export const getHomeSliderSlots = async (): Promise<HomeSliderSlot[]> => {
   }
 
   return data as unknown as HomeSliderSlot[]
+}
+
+export interface HomeData {
+  featured_teaching: FeaturedTeaching | null
+  slider_slots: HomeSliderSlot[]
+  recent_testimonies: Testimony[]
+}
+
+/**
+ * Fetches all home screen data in a single RPC call.
+ * Reduces 3 parallel queries to 1 round-trip, eliminating connection overhead.
+ */
+export const getHomeData = async (): Promise<HomeData | null> => {
+  const { data, error } = await supabase.rpc('get_home_data')
+
+  if (error) {
+    console.error('getHomeData:', error.message)
+    return null
+  }
+
+  return data as unknown as HomeData
 }
 
 /**
